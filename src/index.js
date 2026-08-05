@@ -109,9 +109,14 @@ async function loadMergedSnapshot(env) {
   // Routine pushes. Snapshot remains the source of truth: each push resets
   // the baseline and obsoletes older events.
   const since = snap.generated_at || '1970-01-01T00:00:00Z';
-  const events = await env.DB.prepare('SELECT product FROM policy_events WHERE ts > ?').bind(since).all();
+  const events = await env.DB.prepare('SELECT product, agent FROM policy_events WHERE ts > ?').bind(since).all();
+  // Webhooks fire for every policy in the org; the board tracks one worker
+  // profile. Only count events from agents on the snapshot's roster — and if
+  // the snapshot carries no roster, count nothing (stale-accurate beats live-wrong).
+  const roster = Array.isArray(snap.roster) ? new Set(snap.roster.map(String)) : null;
   let liveAdds = 0;
   for (const e of events.results || []) {
+    if (!roster || !roster.has(String(e.agent ?? ''))) continue;
     if (snap.today && e.product in snap.today) {
       snap.today[e.product] += 1;
       snap.today.total += 1;
@@ -172,10 +177,17 @@ async function handleWebhook(request, env) {
   const policyId = event.policy_id ?? policy.policy_id ?? policy.id;
   if (policyId == null) return new Response('no policy_id', { status: 400 });
 
+  // The roster filter matches on user id; keep the email as a fallback key so
+  // a payload without ids still records who wrote it.
+  const agent =
+    event.agent?.user_id ?? policy.agent?.user_id ??
+    event.agent_user_id ?? policy.agent_user_id ??
+    event.agent?.email ?? policy.agent?.email ?? null;
+
   await env.DB.prepare(
     'INSERT INTO policy_events (policy_id, ts, product, agent, payload) VALUES (?, ?, ?, ?, ?) ' +
     'ON CONFLICT(policy_id) DO UPDATE SET ts = excluded.ts, product = excluded.product, agent = excluded.agent, payload = excluded.payload'
-  ).bind(policyId, new Date().toISOString(), product, policy.agent?.email ?? null, raw).run();
+  ).bind(policyId, new Date().toISOString(), product, agent != null ? String(agent) : null, raw).run();
 
   return json({ ok: true, product });
 }

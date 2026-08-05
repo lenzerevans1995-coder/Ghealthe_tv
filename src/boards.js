@@ -110,7 +110,7 @@ const LEADER_CSS = `
 const POLLER = `
 <script>
 (function(){
-  var EVERY = 45000;
+  var EVERY = 15000;
   function tick(){
     fetch(location.href, {cache:'no-store'}).then(function(r){
       if(!r.ok) return;
