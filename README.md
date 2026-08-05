@@ -20,15 +20,15 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 
 All GET routes require `?key=<BOARD_KEY>` once the secret is set. Boards self-refresh
 every 45 s (body swap, no reload — no flash on the TVs) and show an "as of" stamp with a
-stale warning if the snapshot is older than 40 minutes. Until the first real ingest, the
+stale warning if the snapshot is older than 25 minutes. Until the first real ingest, the
 boards render seeded demo data (marked "demo data" on screen).
 
 ## Snapshot Routines
 
-Two staggered Claude Routines ("Floor TV scoreboard snapshot (:15)" and "(:45)",
-crons `15 12-22 * * 1-6` / `45 12-22 * * 1-6` UTC) refresh the snapshot every 30
-minutes, 8:15am–6:45pm ET Mon–Sat. The Routine platform's minimum schedule is
-hourly, hence two staggered triggers instead of one 30-minute cron. They fire
+Six staggered Claude Routines ("Floor TV scoreboard snapshot (:05)" … "(:55)",
+crons `5 12-22 * * 1-6` through `55 12-22 * * 1-6` UTC) refresh the snapshot
+every 10 minutes, 8:05am–6:55pm ET Mon–Sat. The Routine platform's minimum
+schedule is hourly, hence six staggered triggers instead of one 10-minute cron. They fire
 into the session that built this app (self-bind) because fresh-session firings
 can't carry the Onyx connector when created from a session; recreate them from
 the claude.ai Routines UI as fresh-session Routines if that session is ever
