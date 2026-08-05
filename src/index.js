@@ -4,6 +4,8 @@
 //   GET  /board/live              today's running board
 //   GET  /board/daily             yesterday's recap board
 //   GET  /board/leaders/sthhc     MTD/last-month STHHC leaderboard
+//   GET  /board/month-open        static month-open flyer (self-dating)
+//   GET  /board/early-out         static early-out points counter (?sthhc=&core=&hi=&goal=&asof=)
 //   GET  /board/rotation          cycles the above (one URL per TV)
 //   GET  /api/stats               current merged snapshot (JSON)
 //   POST /ingest                  snapshot push from the Claude Routine (bearer secret)
@@ -11,6 +13,7 @@
 //   GET  /healthz                 liveness probe (no auth)
 
 import { renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
+import { STATIC_BOARDS } from './static_boards.js';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
 
@@ -61,8 +64,9 @@ export default {
       }
 
       if (path.startsWith('/board/')) {
-        const { snap, meta } = await loadMergedSnapshot(env);
         const which = path.slice('/board/'.length);
+        if (STATIC_BOARDS[which]) return html(STATIC_BOARDS[which]);
+        const { snap, meta } = await loadMergedSnapshot(env);
         if (which === 'live') return html(renderLive(snap, meta));
         if (which === 'daily') return html(renderDaily(snap, meta));
         if (which === 'mtd') return html(renderMtd(snap, meta));
