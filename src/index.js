@@ -27,6 +27,10 @@ export default {
     try {
       if (path === '/healthz') return new Response('ok');
 
+      // Browsers request this on their own without the key; answer it quietly
+      // instead of logging a 403 in every TV/browser console.
+      if (path === '/favicon.ico') return new Response(null, { status: 204 });
+
       if (path === '/ingest' && request.method === 'POST') return handleIngest(request, env);
       if (path === '/webhooks/onyx' && request.method === 'POST') return handleWebhook(request, env);
 
