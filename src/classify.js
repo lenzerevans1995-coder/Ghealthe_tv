@@ -3,7 +3,8 @@
 // reporting queries:
 //
 //   1. HRA rows are stripped entirely (they are not policies for board
-//      purposes). Matched on policy_type + carrier_name + policy_name.
+//      purposes). policy_type 'hra' alone is decisive; policy_name is a
+//      fallback for HRAs keyed under other types.
 //   2. STHHC classifies BEFORE HI — GTL short-term home health routinely
 //      arrives keyed as hospital_indemnity; carrier + policy name win over
 //      the raw type.
@@ -18,16 +19,16 @@
 const lc = (s) => String(s ?? '').toLowerCase();
 
 export function isHra(p) {
+  // policy_type 'hra' is decisive on its own: most HRA rows carry the parent
+  // plan's name (e.g. "Humana Gold Plus SNP-DE", bare H-contract numbers)
+  // with carrier "Unknown", so a name-based match would miss them.
+  if (lc(p.policy_type) === 'hra') return true;
   const name = lc(p.policy_name);
-  const type = lc(p.policy_type);
-  const carrier = lc(p.carrier_name);
-  return (
-    (name.includes('hra') || name.includes('health risk assessment')) &&
-    (type.includes('hra') || carrier.includes('hra') || name.includes('hra'))
-  );
+  return name.includes('hra') || name.includes('health risk assessment');
 }
 
 export function isSthhc(p) {
+  if (lc(p.policy_type) === 'short_term_home_health_care') return true;
   const name = lc(p.policy_name);
   const carrier = lc(p.carrier_name);
   return (
@@ -39,7 +40,9 @@ export function isSthhc(p) {
   );
 }
 
-const CORE_TYPES = new Set(['mapd', 'ma', 'ma_only', 'pdp', 'medicare_advantage']);
+// Verified against Aug 2026 keying: MAPD, DSNP, CSNP (incl. lowercase 'csnp')
+// all appear as Core; ma_only/pdp kept from the house rules.
+const CORE_TYPES = new Set(['mapd', 'ma', 'ma_only', 'dsnp', 'csnp', 'pdp', 'medicare_advantage']);
 
 export function classify(p) {
   if (isHra(p)) return null; // stripped
