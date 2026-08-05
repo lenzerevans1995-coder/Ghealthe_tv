@@ -1,0 +1,17 @@
+name = "ghealthe-tv-boards"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# D1 database. Create it once with:
+#   npx wrangler d1 create ghealthe_tv
+# then paste the database_id it prints below and run:
+#   npm run db:init
+[[d1_databases]]
+binding = "DB"
+database_name = "ghealthe_tv"
+database_id = "REPLACE_AFTER_wrangler_d1_create"
+
+# Secrets (set with `npx wrangler secret put <NAME>`, never committed):
+#   BOARD_KEY            unguessable token required as ?key= on board/API URLs
+#   INGEST_SECRET        bearer token the Claude Routine uses on POST /ingest
+#   ONYX_SIGNING_SECRET  Onyx webhook signing secret (milestone 3)
