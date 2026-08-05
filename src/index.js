@@ -14,7 +14,10 @@ import { renderDaily, renderLive, renderLeadersSthhc, renderRotation } from './b
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
 
-const STALE_AFTER_MS = 30 * 60 * 1000;
+// Snapshots arrive every 30 min (two staggered hourly Routines); the badge
+// threshold sits past one full cycle plus generation time so it only shows
+// when a refresh actually failed.
+const STALE_AFTER_MS = 40 * 60 * 1000;
 
 export default {
   async fetch(request, env) {
