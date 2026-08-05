@@ -10,7 +10,7 @@
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
 //   GET  /healthz                 liveness probe (no auth)
 
-import { renderDaily, renderLive, renderLeadersSthhc, renderRotation } from './boards.js';
+import { renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
 
@@ -54,7 +54,7 @@ export default {
       }
 
       if (path === '/board/rotation') {
-        const boards = (url.searchParams.get('boards') || 'live,daily,leaders/sthhc')
+        const boards = (url.searchParams.get('boards') || 'live,daily,mtd,leaders/sthhc')
           .split(',').map((s) => s.trim()).filter(Boolean);
         const dwell = parseInt(url.searchParams.get('dwell') || '20', 10) || 20;
         return html(renderRotation(boards, dwell, url.searchParams.get('key') || ''));
@@ -65,6 +65,7 @@ export default {
         const which = path.slice('/board/'.length);
         if (which === 'live') return html(renderLive(snap, meta));
         if (which === 'daily') return html(renderDaily(snap, meta));
+        if (which === 'mtd') return html(renderMtd(snap, meta));
         if (which === 'leaders/sthhc') return html(renderLeadersSthhc(snap, meta));
         return new Response('Unknown board', { status: 404 });
       }
@@ -121,6 +122,10 @@ async function loadMergedSnapshot(env) {
       snap.today[e.product] += 1;
       snap.today.total += 1;
       liveAdds++;
+    }
+    if (snap.mtd && e.product in snap.mtd) {
+      snap.mtd[e.product] += 1;
+      snap.mtd.total += 1;
     }
   }
   snap.live_adds = liveAdds;

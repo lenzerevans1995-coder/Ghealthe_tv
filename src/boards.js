@@ -307,6 +307,73 @@ export function renderLeadersSthhc(snap, meta) {
   return shell('STHHC Leaders', LEADER_CSS, body, meta);
 }
 
+const MTD_CSS = DAILY_CSS + `
+.stat .p{font-size:clamp(10px,1.5vh,20px);color:var(--mute);margin-top:.5vh}
+.stat .p b{color:var(--gold);font-weight:700}
+.push{background:var(--gold);color:#4A3400}
+.push .kicker{color:#7A5600}
+.push h1{color:#2E2000;font-size:clamp(26px,7vh,98px)}
+.push .rules{color:#4A3400}
+.push .rules b{color:#2E2000}
+.pacebox{display:flex;gap:1vw;flex:none}
+.pill{border:.45vh solid #7A5600;border-radius:.8vh;padding:1.4vh 1.5vw;text-align:center;background:rgba(255,255,255,.22)}
+.pill .v{font-family:var(--display);font-weight:800;font-size:clamp(28px,7vh,96px);line-height:.82;color:#2E2000}
+.pill .k{font-family:var(--display);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:clamp(9px,1.4vh,18px);color:#5C4100;margin-top:.6vh}
+`;
+
+export function renderMtd(snap, meta) {
+  const m = snap.mtd;
+  if (!m) {
+    return shell('MTD Board', DAILY_CSS, `
+<div class="board"><div class="bar">
+  <div class="brand"><b>Get Health-e</b> &nbsp;·&nbsp; Month to Date</div></div>
+  <div class="mid"><div class="panel"><div class="eyebrow">Waiting for the first MTD snapshot…</div></div></div>
+</div>`, meta);
+  }
+  const pace = m.pace || {};
+  const paceLine = (v) => (v == null ? '' : `<div class="p">pace <b>${v}</b></div>`);
+  const split = (m.split || []).map((s) => `<div>${s}</div>`).join('\n');
+  const push = m.push || {};
+  const pills = (push.pills || [])
+    .map((p) => `<div class="pill"><div class="v">${esc(p.v)}</div><div class="k">${esc(p.k)}</div></div>`)
+    .join('\n');
+  const rules = (push.rules || []).map((r) => `<p>${r}</p>`).join('\n');
+  const body = `
+<div class="board">
+  <div class="bar">
+    <div class="brand"><b>Get Health-e</b> &nbsp;·&nbsp; Month to Date</div>
+    <div class="today">${esc(m.through_label)}</div>
+  </div>
+  <div class="mid">
+    <div class="panel">
+      <div class="eyebrow">${esc(m.eyebrow)}</div>
+      <div class="stats">
+        <div class="stat core"><div class="n">${m.core}</div><div class="l">Core</div>${paceLine(pace.core)}</div>
+        <div class="stat sthhc"><div class="n">${m.sthhc}</div><div class="l">STHHC</div>${paceLine(pace.sthhc)}</div>
+        <div class="stat hi"><div class="n">${m.hi}</div><div class="l">HI</div>${paceLine(pace.hi)}</div>
+        <div class="stat anc"><div class="n">${m.ancillary}</div><div class="l">Ancillary</div></div>
+        <div class="stat tot"><div class="n">${m.total}</div><div class="l">Total Policies</div></div>
+      </div>
+      <div class="subline">${split}</div>
+      <div class="leaders">
+        <div class="eyebrow">MTD leaders</div>
+        ${leaderRows(m.leaders || [])}
+      </div>
+    </div>
+    ${daysRail(snap.month)}
+  </div>
+  <div class="push">
+    <div>
+      <div class="kicker">${esc(push.kicker || '')}</div>
+      <h1>${esc(push.headline || '')}</h1>
+      ${rules ? `<div class="rules">${rules}</div>` : ''}
+    </div>
+    ${pills ? `<div class="pacebox">${pills}</div>` : ''}
+  </div>
+</div>`;
+  return shell('Month to Date — Floor Board', MTD_CSS, body, meta);
+}
+
 // Cycles through board pages with a crossfade so PosterBooking needs one URL.
 export function renderRotation(boards, dwellSeconds, key) {
   const urls = boards.map((b) => `/board/${b}${key ? `?key=${encodeURIComponent(key)}` : ''}`);
