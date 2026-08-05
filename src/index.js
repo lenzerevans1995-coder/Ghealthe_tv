@@ -34,8 +34,19 @@ export default {
       if (path === '/ingest' && request.method === 'POST') return handleIngest(request, env);
       if (path === '/webhooks/onyx' && request.method === 'POST') return handleWebhook(request, env);
 
-      // Everything below is a read; gate on the board key.
-      if (!checkBoardKey(url, env)) return new Response('Missing or bad key', { status: 403 });
+      // Everything below is a read; gate on the board key. Say what arrived
+      // (length only, never the expected key) so a truncated copy-paste is
+      // obvious from the error page itself.
+      if (!checkBoardKey(url, env)) {
+        const got = url.searchParams.get('key') || '';
+        const detail = got
+          ? `a key of ${got.length} characters arrived, which doesn't match`
+          : 'no ?key= parameter arrived at all';
+        return new Response(
+          `Missing or bad key: ${detail}. The URL must end with ?key=<the full ${env.BOARD_KEY.length}-character board key> — check that nothing was cut off or altered when copying.`,
+          { status: 403 }
+        );
+      }
 
       if (path === '/api/stats') {
         const { snap } = await loadMergedSnapshot(env);
