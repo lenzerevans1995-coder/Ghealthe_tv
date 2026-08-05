@@ -9,7 +9,7 @@ compatibility_date = "2026-07-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "ghealthe_tv"
-database_id = "REPLACE_AFTER_wrangler_d1_create"
+database_id = "5fa2a007-b31d-4ffe-930f-9d6d99182dc7"
 
 # Secrets (set with `npx wrangler secret put <NAME>`, never committed):
 #   BOARD_KEY            unguessable token required as ?key= on board/API URLs
