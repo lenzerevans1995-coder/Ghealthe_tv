@@ -8,6 +8,7 @@
 //   GET  /board/early-out         static early-out points counter (?sthhc=&core=&hi=&goal=&asof=)
 //   GET  /board/rotation          cycles the above (one URL per TV)
 //   GET  /console                 desk view: left menu rail + the boards in a frame
+//   GET  /unlock                  saves the key on this device (?key=…&to=…), then redirects
 //   GET  /api/stats               current merged snapshot (JSON)
 //   POST /ingest                  snapshot push from the Claude Routine (bearer secret)
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
@@ -27,75 +28,10 @@ const STALE_AFTER_MS = 25 * 60 * 1000;
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const path = url.pathname.replace(/\/+$/, '') || '/';
-
     try {
-      if (path === '/healthz') return new Response('ok');
-
-      // Browsers request this on their own without the key; answer it quietly
-      // instead of logging a 403 in every TV/browser console.
-      if (path === '/favicon.ico') return new Response(null, { status: 204 });
-
-      if (path === '/ingest' && request.method === 'POST') return handleIngest(request, env);
-      if (path === '/webhooks/onyx' && request.method === 'POST') return handleWebhook(request, env);
-
-      // Everything below is a read; gate on the board key. Say what arrived
-      // (length only, never the expected key) so a truncated copy-paste is
-      // obvious from the error page itself.
-      if (!checkBoardKey(url, env)) {
-        const got = url.searchParams.get('key') || '';
-        const detail = got
-          ? `a key of ${got.length} characters arrived, which doesn't match`
-          : 'no ?key= parameter arrived at all';
-        return new Response(
-          `Missing or bad key: ${detail}. The URL must end with ?key=<the full ${env.BOARD_KEY.length}-character board key> — check that nothing was cut off or altered when copying.`,
-          { status: 403 }
-        );
-      }
-
-      if (path === '/api/stats') {
-        const { snap } = await loadMergedSnapshot(env);
-        return json(snap);
-      }
-
-      // Board imagery. Boards pass their own ?key= through on the <img src>,
-      // so this stays behind the same gate as everything else. Immutable —
-      // a new picture gets a new filename.
-      if (path === '/assets/contest-flyer.jpg') {
-        return new Response(CONTEST_FLYER, {
-          headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' },
-        });
-      }
-
-      // Desk view: menu rail + the boards in a frame. Only here — /board/*
-      // stays chrome-free so the TVs never show navigation.
-      if (path === '/console') {
-        return html(renderConsole(url.searchParams.get('key') || '', url.searchParams.get('board') || ''));
-      }
-
-      if (path === '/board/rotation') {
-        const boards = (url.searchParams.get('boards') || 'live,daily,mtd,leaders/sthhc')
-          .split(',').map((s) => s.trim()).filter(Boolean);
-        const dwell = parseInt(url.searchParams.get('dwell') || '20', 10) || 20;
-        return html(renderRotation(boards, dwell, url.searchParams.get('key') || ''));
-      }
-
-      if (path.startsWith('/board/')) {
-        const which = path.slice('/board/'.length);
-        if (STATIC_BOARDS[which]) return html(STATIC_BOARDS[which]);
-        const { snap, meta } = await loadMergedSnapshot(env);
-        if (which === 'live') return html(renderLive(snap, meta));
-        if (which === 'daily') return html(renderDaily(snap, meta));
-        if (which === 'mtd') return html(renderMtd(snap, meta));
-        if (which === 'leaders/sthhc') return html(renderLeadersSthhc(snap, meta));
-        return new Response('Unknown board', { status: 404 });
-      }
-
-      if (path === '/') {
-        return new Response('ghealthe-tv-boards. Boards live under /board/*.', { status: 200 });
-      }
-
-      return new Response('Not found', { status: 404 });
+      // A key in the URL is remembered on the way out, whatever the route
+      // answered, so any keyed link arms the device it was opened on.
+      return rememberKey(await route(request, env, url), url, env);
     } catch (err) {
       // A broken board on a wall of TVs is worse than a stale one; keep the
       // response minimal and let the page poller retry.
@@ -104,11 +40,119 @@ export default {
   },
 };
 
+async function route(request, env, url) {
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+
+  if (path === '/healthz') return new Response('ok');
+
+  // Browsers request this on their own without the key; answer it quietly
+  // instead of logging a 403 in every TV/browser console.
+  if (path === '/favicon.ico') return new Response(null, { status: 204 });
+
+  if (path === '/ingest' && request.method === 'POST') return handleIngest(request, env);
+  if (path === '/webhooks/onyx' && request.method === 'POST') return handleWebhook(request, env);
+
+  // Everything below is a read; gate on the board key, from ?key= or from
+  // the cookie a previous keyed visit left behind. Say what arrived
+  // (length only, never the expected key) so a truncated copy-paste is
+  // obvious from the error page itself.
+  if (!checkBoardKey(request, url, env)) {
+    const got = url.searchParams.get('key') || '';
+    const detail = got
+      ? `a key of ${got.length} characters arrived, which doesn't match`
+      : 'no ?key= parameter and no saved key on this device';
+    return new Response(
+      `Missing or bad key: ${detail}. Add ?key=<the full ${env.BOARD_KEY.length}-character board key> to the URL — check that nothing was cut off or altered when copying. Visiting /unlock?key=… once saves it on this device so later URLs can drop it.`,
+      { status: 403 }
+    );
+  }
+
+  // One keyed visit to /unlock remembers the key on this device, then
+  // sends you on with a clean URL. Boards keep working with ?key= either
+  // way, so a screen that loses its cookies never locks itself out.
+  if (path === '/unlock') {
+    const to = url.searchParams.get('to') || '/console';
+    const dest = /^\/(?!\/)/.test(to) ? to : '/console'; // same-origin paths only
+    return new Response(null, { status: 302, headers: { location: dest } });
+  }
+
+  if (path === '/api/stats') {
+    const { snap } = await loadMergedSnapshot(env);
+    return json(snap);
+  }
+
+  // Board imagery. Boards pass their own ?key= through on the <img src>,
+  // so this stays behind the same gate as everything else. Immutable —
+  // a new picture gets a new filename.
+  if (path === '/assets/contest-flyer.jpg') {
+    return new Response(CONTEST_FLYER, {
+      headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' },
+    });
+  }
+
+  // Desk view: menu rail + the boards in a frame. Only here — /board/*
+  // stays chrome-free so the TVs never show navigation.
+  if (path === '/console') {
+    return html(renderConsole(url.searchParams.get('key') || '', url.searchParams.get('board') || ''));
+  }
+
+  if (path === '/board/rotation') {
+    const boards = (url.searchParams.get('boards') || 'live,daily,mtd,leaders/sthhc')
+      .split(',').map((s) => s.trim()).filter(Boolean);
+    const dwell = parseInt(url.searchParams.get('dwell') || '20', 10) || 20;
+    return html(renderRotation(boards, dwell, url.searchParams.get('key') || ''));
+  }
+
+  if (path.startsWith('/board/')) {
+    const which = path.slice('/board/'.length);
+    if (STATIC_BOARDS[which]) return html(STATIC_BOARDS[which]);
+    const { snap, meta } = await loadMergedSnapshot(env);
+    if (which === 'live') return html(renderLive(snap, meta));
+    if (which === 'daily') return html(renderDaily(snap, meta));
+    if (which === 'mtd') return html(renderMtd(snap, meta));
+    if (which === 'leaders/sthhc') return html(renderLeadersSthhc(snap, meta));
+    return new Response('Unknown board', { status: 404 });
+  }
+
+  if (path === '/') {
+    return new Response('ghealthe-tv-boards. Boards live under /board/*.', { status: 200 });
+  }
+
+  return new Response('Not found', { status: 404 });
+}
+
 // ---------- auth ----------
 
-function checkBoardKey(url, env) {
+const KEY_COOKIE = 'gtv_key';
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function checkBoardKey(request, url, env) {
   if (!env.BOARD_KEY) return true; // not yet configured (dev)
-  return timingSafeEqual(url.searchParams.get('key') || '', env.BOARD_KEY);
+  const fromUrl = url.searchParams.get('key');
+  if (fromUrl != null) return timingSafeEqual(fromUrl, env.BOARD_KEY);
+  return timingSafeEqual(cookie(request, KEY_COOKIE), env.BOARD_KEY);
+}
+
+function cookie(request, name) {
+  for (const part of (request.headers.get('cookie') || '').split(';')) {
+    const eq = part.indexOf('=');
+    if (eq > 0 && part.slice(0, eq).trim() === name) {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    }
+  }
+  return '';
+}
+
+// Remember a key that arrived in the URL, so the same device can drop it
+// afterwards. HttpOnly keeps it out of reach of anything running on the page.
+function rememberKey(response, url, env) {
+  if (!env.BOARD_KEY || url.searchParams.get('key') !== env.BOARD_KEY) return response;
+  const out = new Response(response.body, response);
+  out.headers.append(
+    'set-cookie',
+    `${KEY_COOKIE}=${encodeURIComponent(env.BOARD_KEY)}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`
+  );
+  return out;
 }
 
 function timingSafeEqual(a, b) {

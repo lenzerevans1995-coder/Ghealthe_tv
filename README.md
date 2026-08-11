@@ -20,7 +20,11 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 | `/webhooks/onyx` | POST, HMAC-verified — Onyx POLICY_CREATED / POLICY_UPDATED |
 | `/healthz` | Liveness, no auth |
 
-All GET routes require `?key=<BOARD_KEY>` once the secret is set. Boards self-refresh
+All GET routes require the board key. Pass it as `?key=<BOARD_KEY>` — or visit
+`/unlock?key=<BOARD_KEY>` once on a device and it is saved in an HttpOnly cookie,
+after which plain URLs like `/console` and `/board/mtd` work on their own. `?key=`
+keeps working either way, so a TV that loses its cookies never locks itself out.
+`/unlock` takes an optional `&to=/board/mtd` to land somewhere other than the console. Boards self-refresh
 every 45 s (body swap, no reload — no flash on the TVs) and show an "as of" stamp with a
 stale warning if the snapshot is older than 25 minutes. Until the first real ingest, the
 boards render seeded demo data (marked "demo data" on screen).
