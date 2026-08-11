@@ -9,6 +9,7 @@
 //   GET  /board/rotation          cycles the above (one URL per TV)
 //   GET  /console                 desk view: left menu rail + the boards in a frame
 //   GET  /unlock                  saves the key on this device (?key=…&to=…), then redirects
+//   GET  /k/<key>                 same, key in the path — survives link shorteners
 //   GET  /api/stats               current merged snapshot (JSON)
 //   POST /ingest                  snapshot push from the Claude Routine (bearer secret)
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
@@ -51,6 +52,19 @@ async function route(request, env, url) {
 
   if (path === '/ingest' && request.method === 'POST') return handleIngest(request, env);
   if (path === '/webhooks/onyx' && request.method === 'POST') return handleWebhook(request, env);
+
+  // Key in the path, not the query: /k/<key> survives link shorteners and chat
+  // apps that drop query strings, so one link can be handed to the whole floor.
+  // It arms the visitor's own device, then sends them on to a clean URL.
+  if (path.startsWith('/k/')) {
+    const supplied = decodeURIComponent(path.slice('/k/'.length));
+    if (env.BOARD_KEY && !timingSafeEqual(supplied, env.BOARD_KEY)) {
+      return new Response('That link is missing part of the key — copy it again in full.', { status: 403 });
+    }
+    const to = url.searchParams.get('to') || '/console';
+    const dest = /^\/(?!\/)/.test(to) ? to : '/console'; // same-origin paths only
+    return new Response(null, { status: 302, headers: { location: dest, 'set-cookie': keyCookie(env) } });
+  }
 
   // Everything below is a read; gate on the board key, from ?key= or from
   // the cookie a previous keyed visit left behind. Say what arrived
@@ -143,15 +157,16 @@ function cookie(request, name) {
   return '';
 }
 
+function keyCookie(env) {
+  return `${KEY_COOKIE}=${encodeURIComponent(env.BOARD_KEY || '')}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`;
+}
+
 // Remember a key that arrived in the URL, so the same device can drop it
 // afterwards. HttpOnly keeps it out of reach of anything running on the page.
 function rememberKey(response, url, env) {
   if (!env.BOARD_KEY || url.searchParams.get('key') !== env.BOARD_KEY) return response;
   const out = new Response(response.body, response);
-  out.headers.append(
-    'set-cookie',
-    `${KEY_COOKIE}=${encodeURIComponent(env.BOARD_KEY)}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`
-  );
+  out.headers.append('set-cookie', keyCookie(env));
   return out;
 }
 
