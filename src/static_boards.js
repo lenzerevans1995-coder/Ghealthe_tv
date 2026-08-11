@@ -694,6 +694,44 @@ export const STATIC_BOARDS = {
   .rtext em{font-style:normal;color:var(--mute);font-weight:400}
 
   /* live standings */
+  /* live tracker (scene B) */
+  .tracker{gap:1.6vh;justify-content:flex-start;padding-top:2.4vh;overflow:hidden}
+  .trstrip{display:flex;gap:1.1vw}
+  .trstat{flex:1 1 0;background:rgba(8,48,79,.9);border:.14vh solid var(--line);border-radius:.5vh;
+    padding:1.3vh 1vw}
+  .trn{font-family:var(--cond);font-weight:800;line-height:1;font-size:clamp(20px,4.4vh,58px)}
+  .trl{font-family:var(--cond);font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    font-size:clamp(9px,1.4vh,19px);color:var(--mute);margin-top:.5vh}
+  .trsec{font-family:var(--cond);font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    font-size:clamp(10px,1.6vh,21px);color:var(--mute);display:flex;align-items:center;gap:.8vw}
+  .trsec::after{content:"";flex:1;height:1px;background:var(--line)}
+  table.tr{width:100%;border-collapse:collapse}
+  table.tr th{font-family:var(--cond);font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    font-size:clamp(9px,1.35vh,18px);color:var(--mute);text-align:right;padding:0 .6vw .6vh}
+  table.tr th.l,table.tr td.l{text-align:left}
+  table.tr td{padding:.75vh .6vw;border-top:1px solid var(--line);
+    font-size:clamp(11px,1.9vh,25px);font-variant-numeric:tabular-nums}
+  .trname{font-family:var(--cond);font-weight:700;font-size:clamp(13px,2.5vh,33px)}
+  .trrank{font-family:var(--cond);font-weight:800;font-size:clamp(14px,2.6vh,35px);color:var(--mute);width:5ch}
+  tr.trgold td{background:var(--gold);color:#04223A;border-top-color:var(--gold)}
+  tr.trgold .trrank{color:#04223A}
+  .trpips{display:inline-flex;gap:.25vw;vertical-align:middle}
+  .trpip{width:.55vw;height:1.9vh;border-radius:.2vh;background:var(--green)}
+  .trpip.ghost{background:transparent;border:1px dashed var(--line)}
+  tr.trgold .trpip{background:#0E5C3A}
+  tr.trgold .trpip.ghost{border-color:rgba(4,34,58,.45)}
+  .trplace{background:rgba(8,48,79,.9);border-left:.35vh solid var(--gold);border-radius:.4vh;
+    padding:1vh 1.1vw;font-size:clamp(10px,1.7vh,23px);line-height:1.35}
+  .trplace b{color:var(--gold);font-weight:700}
+  table.trgrid th{text-align:center}
+  table.trgrid td{text-align:center}
+  table.trgrid td.l,table.trgrid th.l{text-align:left}
+  .trzero{color:#3d5a80}
+  table.trgrid tfoot td{border-top:.25vh solid var(--line);font-weight:700;color:var(--gold)}
+  .trempty{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+    font-size:clamp(12px,2.1vh,28px);color:var(--mute);padding:2.5vh 0}
+  .trfoot{margin-top:auto;display:flex;justify-content:space-between;gap:1.5vw;
+    font-size:clamp(9px,1.4vh,18px);color:var(--mute);line-height:1.4}
   .standhead{display:flex;align-items:baseline;justify-content:space-between;gap:2vw}
   .standhead .tally{font-family:var(--cond);font-weight:700;text-transform:uppercase;
     letter-spacing:.12em;font-size:clamp(11px,1.9vh,26px);color:var(--mute)}
@@ -808,15 +846,25 @@ export const STATIC_BOARDS = {
         </div>
       </div>
 
-      <div class="face mainface">
-        <div>
-          <div class="standhead">
-            <div class="sectlabel" style="margin-bottom:0">Live standings &mdash; premium $50+</div>
-            <div class="tally" id="tally"></div>
-          </div>
-          <div class="stand" id="stand">
-            <div class="standempty">Standings load on the next refresh…</div>
-          </div>
+      <div class="face mainface tracker">
+        <div class="trstrip">
+          <div class="trstat"><div class="trn" id="t-qual">&mdash;</div><div class="trl">Qualified on the board</div></div>
+          <div class="trstat"><div class="trn" id="t-agents">&mdash;</div><div class="trl">Agents on the board</div></div>
+          <div class="trstat"><div class="trn" id="t-avg">&mdash;</div><div class="trl">Avg qualified premium</div></div>
+          <div class="trstat"><div class="trn" id="t-lead">&mdash;</div><div class="trl">Leader&rsquo;s count</div></div>
+        </div>
+
+        <div class="trsec">Standings &mdash; qualified sales only</div>
+        <div id="t-standwrap"><div class="trempty">Nothing on the board yet. The first qualified STHHC &mdash; $50/mo or better &mdash; takes the lead.</div></div>
+
+        <div class="trplace" id="t-place"></div>
+
+        <div class="trsec">Qualified by day</div>
+        <div id="t-gridwrap"></div>
+
+        <div class="trfoot">
+          <span>Provisional &mdash; premium rule only. The five compliance gates are graded by call audit Fri Aug 21.</span>
+          <span id="t-asof"></span>
         </div>
       </div>
 
@@ -893,31 +941,136 @@ export const STATIC_BOARDS = {
     document.getElementById('haze').style.backgroundImage = 'url("' + src + '")';
   }
 
-  // Live standings, pulled from the same snapshot the other boards render.
-  // This page owns its own poll because its scenes animate — a body swap
-  // from the shared poller would strand the rotation mid-fade.
-  var stand = document.getElementById('stand'), tally = document.getElementById('tally');
+  // Live tracker. Rows arrive as [agent, sale_date, qualified, premium_sum] —
+  // the shape the contest query returns — and the standings are built here.
+  // No refresh button: the snapshot pushes every ~10 min and this re-reads it.
+  var PREMIUM_FLOOR = 50, MIN_TO_PLACE = 3, MAX_ROWS = 8;
+  var SELLING_DAYS = [
+    {iso:'2026-08-11', label:'Tue', day:'8/11'},
+    {iso:'2026-08-12', label:'Wed', day:'8/12'},
+    {iso:'2026-08-13', label:'Thu', day:'8/13'},
+    {iso:'2026-08-14', label:'Fri', day:'8/14'},
+    {iso:'2026-08-17', label:'Mon', day:'8/17'},
+    {iso:'2026-08-18', label:'Tue', day:'8/18'},
+    {iso:'2026-08-19', label:'Wed', day:'8/19'},
+    {iso:'2026-08-20', label:'Thu', day:'8/20'}
+  ];
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function money(n){ return n.toLocaleString('en-US',{style:'currency',currency:'USD'}); }
+
+  // Rank on qualified, then average premium, then who got there first.
+  function buildStandings(rows){
+    var byAgent = {};
+    rows.forEach(function(r){
+      var agent = r[0], date = r[1], n = Number(r[2]) || 0, sum = Number(r[3]) || 0;
+      if (!byAgent[agent]) byAgent[agent] = {agent:agent, qualified:0, premium:0, days:{}};
+      var a = byAgent[agent];
+      a.qualified += n; a.premium += sum;
+      a.days[date] = (a.days[date] || 0) + n;
+    });
+    var list = Object.keys(byAgent).map(function(k){
+      var a = byAgent[k];
+      a.avg = a.qualified ? a.premium / a.qualified : 0;
+      a.firstDay = Object.keys(a.days).sort()[0] || '';
+      return a;
+    });
+    list.sort(function(x, y){
+      return y.qualified - x.qualified || y.avg - x.avg ||
+             x.firstDay.localeCompare(y.firstDay) || x.agent.localeCompare(y.agent);
+    });
+    var lastKey = null, lastRank = 0;
+    list.forEach(function(a, i){
+      var key = a.qualified + '|' + a.avg.toFixed(2);
+      if (key === lastKey) { a.rank = lastRank; }
+      else { a.rank = i + 1; lastRank = a.rank; lastKey = key; }
+    });
+    list.forEach(function(a){
+      a.tied = list.filter(function(b){ return b.rank === a.rank; }).length > 1;
+    });
+    return list;
+  }
+
+  function render(c, generatedAt){
+    var all = buildStandings((c && c.rows) || []);
+    var shown = all.slice(0, MAX_ROWS);
+    var floorQualified = all.reduce(function(s,a){ return s + a.qualified; }, 0);
+    var floorPremium = all.reduce(function(s,a){ return s + a.premium; }, 0);
+    var floorAvg = floorQualified ? floorPremium / floorQualified : 0;
+    var placing = all.filter(function(a){ return a.qualified >= MIN_TO_PLACE; });
+    var leader = all.length ? all[0].qualified : 0;
+
+    document.getElementById('t-qual').textContent = floorQualified;
+    document.getElementById('t-agents').textContent = all.length;
+    document.getElementById('t-avg').textContent = floorAvg ? money(floorAvg) : '\u2014';
+    document.getElementById('t-lead').textContent = leader;
+
+    var wrap = document.getElementById('t-standwrap');
+    if (!shown.length) {
+      wrap.innerHTML = '<div class="trempty">Nothing on the board yet. The first qualified STHHC ' +
+        '&mdash; ' + money(PREMIUM_FLOOR) + '/mo or better &mdash; takes the lead.</div>';
+    } else {
+      wrap.innerHTML = '<table class="tr"><thead><tr>' +
+        '<th class="l">Rank</th><th class="l">Agent</th>' +
+        '<th class="l">Progress to ' + MIN_TO_PLACE + '</th>' +
+        '<th>Qualified</th><th>Avg premium</th><th>Total premium</th>' +
+        '</tr></thead><tbody>' +
+        shown.map(function(a){
+          var pipTotal = Math.max(MIN_TO_PLACE, a.qualified), pips = '';
+          for (var i = 0; i < pipTotal; i++) {
+            pips += '<span class="trpip' + (i < a.qualified ? '' : ' ghost') + '"></span>';
+          }
+          return '<tr' + (a.rank === 1 && !a.tied ? ' class="trgold"' : '') + '>' +
+            '<td class="l trrank">' + (a.tied ? 'T' + a.rank : a.rank) + '</td>' +
+            '<td class="l trname">' + esc(a.agent) + '</td>' +
+            '<td class="l"><span class="trpips">' + pips + '</span></td>' +
+            '<td>' + a.qualified + '</td>' +
+            '<td>' + money(a.avg) + '</td>' +
+            '<td>' + money(a.premium) + '</td></tr>';
+        }).join('') +
+        '</tbody></table>';
+    }
+
+    document.getElementById('t-place').innerHTML = placing.length
+      ? '<b>' + placing.length + (placing.length === 1 ? ' agent has' : ' agents have') +
+        ' cleared the place line</b> (' + MIN_TO_PLACE + '+ qualified). Ties break on highest ' +
+        'average premium, then who got there first.'
+      : '<b>Nobody has cleared the place line yet.</b> It takes <b>' + MIN_TO_PLACE +
+        ' qualified</b> to win anything &mdash; the leader is at ' + leader +
+        '. Ties break on highest average premium, then who got there first.';
+
+    var dayTotals = SELLING_DAYS.map(function(d){
+      return all.reduce(function(s,a){ return s + (a.days[d.iso] || 0); }, 0);
+    });
+    document.getElementById('t-gridwrap').innerHTML =
+      '<table class="tr trgrid"><thead><tr><th class="l">Agent</th>' +
+      SELLING_DAYS.map(function(d){ return '<th>' + d.label + '<br>' + d.day + '</th>'; }).join('') +
+      '<th>Total</th></tr></thead><tbody>' +
+      shown.map(function(a){
+        return '<tr><td class="l trname">' + esc(a.agent) + '</td>' +
+          SELLING_DAYS.map(function(d){
+            var n = a.days[d.iso];
+            return '<td' + (n ? '' : ' class="trzero"') + '>' + (n || '\u00b7') + '</td>';
+          }).join('') +
+          '<td>' + a.qualified + '</td></tr>';
+      }).join('') +
+      '</tbody><tfoot><tr><td class="l">FLOOR</td>' +
+      dayTotals.map(function(n){ return '<td>' + (n || '\u00b7') + '</td>'; }).join('') +
+      '<td>' + floorQualified + '</td></tr></tfoot></table>';
+
+    if (generatedAt) {
+      var t = new Date(generatedAt);
+      document.getElementById('t-asof').textContent = 'As of ' + t.toLocaleString('en-US', {
+        weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit',
+        timeZone:'America/New_York'
+      }) + ' ET';
+    }
+  }
+
   function standings(){
     fetch('/api/stats' + location.search, {cache:'no-store'})
       .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(d){
-        var c = d && d.contest;
-        if (!c || !c.rows || !c.rows.length) return;
-        var max = c.rows[0].n || 1;
-        stand.innerHTML = c.rows.map(function(r){
-          var cls = r.pos === '1' ? ' p1' : (r.pos === '2' ? ' p2' : '');
-          return '<div class="srow' + cls + '">' +
-            '<div class="fill" style="width:' + Math.round((r.n / max) * 100) + '%"></div>' +
-            '<div class="spos">' + esc(r.pos) + '</div>' +
-            '<div class="swho">' + esc(r.who) + '</div>' +
-            '<div class="sn">' + r.n + '<span>qualified</span></div>' +
-          '</div>';
-        }).join('');
-        tally.innerHTML = '<b>' + c.qualified + '</b> qualified of ' + c.written +
-          ' written &nbsp;·&nbsp; ' + esc(c.label);
-      })
+      .then(function(d){ if (d) render(d.contest, d.generated_at); })
       .catch(function(){});
   }
   standings(); setInterval(standings, 60000);
