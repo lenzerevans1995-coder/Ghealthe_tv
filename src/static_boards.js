@@ -707,10 +707,11 @@ export const STATIC_BOARDS = {
   .trsec::after{content:"";flex:1;height:1px;background:var(--line)}
   table.tr{width:100%;border-collapse:collapse}
   table.tr th{font-family:var(--cond);font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-    font-size:clamp(9px,1.35vh,18px);color:var(--mute);text-align:right;padding:0 .6vw .6vh}
+    font-size:clamp(9px,1.35vh,18px);color:var(--mute);text-align:center;padding:0 .6vw .6vh}
   table.tr th.l,table.tr td.l{text-align:left}
-  table.tr td{padding:.75vh .6vw;border-top:1px solid var(--line);text-align:right;
-    font-size:clamp(11px,1.9vh,25px);font-variant-numeric:tabular-nums}
+  table.tr td{padding:.75vh .6vw;border-top:1px solid var(--line);text-align:center;
+    font-family:var(--cond);font-weight:700;
+    font-size:clamp(12px,2.1vh,28px);font-variant-numeric:tabular-nums}
   .trname{font-family:var(--cond);font-weight:700;font-size:clamp(13px,2.5vh,33px)}
   .trrank{font-family:var(--cond);font-weight:800;font-size:clamp(14px,2.6vh,35px);color:var(--mute);width:5ch}
   tr.trgold td{background:var(--gold);color:#04223A;border-top-color:var(--gold)}
@@ -718,10 +719,9 @@ export const STATIC_BOARDS = {
   .trpips{display:inline-flex;gap:.25vw;vertical-align:middle}
   .trpip{width:.55vw;height:1.9vh;border-radius:.2vh;background:var(--green)}
   .trpip.ghost{background:transparent;border:1px dashed var(--line)}
-  tr.trgold .trpip:not(.ghost){background:#0E5C3A}
   tr.trgold .trpip.ghost{background:transparent;border-color:rgba(4,34,58,.45)}
   .trplace{background:rgba(8,48,79,.9);border-left:.35vh solid var(--gold);border-radius:.4vh;
-    padding:1vh 1.1vw;font-size:clamp(10px,1.7vh,23px);line-height:1.35}
+    padding:1vh 1.1vw;font-family:var(--prose);font-size:clamp(10px,1.7vh,23px);line-height:1.35}
   .trplace b{color:var(--gold);font-weight:700}
   table.tr.trgrid th{text-align:center}
   table.tr.trgrid td{text-align:center}
@@ -731,7 +731,7 @@ export const STATIC_BOARDS = {
   .trempty{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.12em;
     font-size:clamp(12px,2.1vh,28px);color:var(--mute);padding:2.5vh 0}
   .trfoot{margin-top:auto;display:flex;justify-content:space-between;gap:1.5vw;
-    font-size:clamp(9px,1.4vh,18px);color:var(--mute);line-height:1.4}
+    font-family:var(--prose);font-size:clamp(9px,1.4vh,18px);color:var(--mute);line-height:1.4}
   .standhead{display:flex;align-items:baseline;justify-content:space-between;gap:2vw}
   .standhead .tally{font-family:var(--cond);font-weight:700;text-transform:uppercase;
     letter-spacing:.12em;font-size:clamp(11px,1.9vh,26px);color:var(--mute)}
