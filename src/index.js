@@ -17,7 +17,7 @@
 
 import { renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { STATIC_BOARDS } from './static_boards.js';
-import CONTEST_FLYER from '../assets/contest-Flyer_august.jpg';
+import CONTEST_FLYER from '../assets/contest-Flyer_august.png';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
 
@@ -98,9 +98,9 @@ async function route(request, env, url) {
   // Board imagery. Boards pass their own ?key= through on the <img src>,
   // so this stays behind the same gate as everything else. Immutable —
   // a new picture gets a new filename.
-  if (path === '/assets/contest-flyer.jpg') {
+  if (path === '/assets/contest-flyer-aug11.png') {
     return new Response(CONTEST_FLYER, {
-      headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' },
+      headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' },
     });
   }
 

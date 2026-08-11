@@ -12,7 +12,7 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 | `/board/live` | Today's running production (Core / STHHC / HI / Ancillary / Total), calls, conversion, today's leaders |
 | `/board/daily` | Yesterday's recap + selling days left + today's focus push |
 | `/board/leaders/sthhc` | STHHC leaderboard (top 5 + floor totals) |
-| `/board/contest/sthhc` | STHHC ticket-run contest — prizes, the six qualifying rules, and selling days left until the contest closes (edit `CLOSE`/`CLOSE_LABEL` in `src/static_boards.js` to re-run it for another game) |
+| `/board/contest/sthhc` | STHHC ticket-run contest — prizes, the six qualifying rules, and selling days left until the contest closes (edit `CLOSE`/`CLOSE_LABEL` in `src/static_boards.js` to re-run it for another game; the flyer is `assets/`, served under a versioned filename so a replacement can't be masked by the TVs' day-long image cache) |
 | `/board/rotation` | Cycles the boards with a crossfade — **this is the URL for PosterBooking** (`?boards=live,daily,leaders/sthhc&dwell=20`) |
 | `/console` | Desk view — left menu rail for clicking between Live, MTD, STHHC Leaders and the Ticket Run (`?board=mtd` opens on a tab). The rail exists only here; `/board/*` stays chrome-free for the TVs |
 | `/api/stats` | Merged snapshot JSON (what the boards render from) |

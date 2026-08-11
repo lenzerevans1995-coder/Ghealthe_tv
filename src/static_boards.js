@@ -1,7 +1,7 @@
 // The contest flyer, served by the Worker from /assets/*. The page appends
 // its own query string so the board key rides along on the image request.
 // Empty = the contest rail shows only the countdown.
-const CONTEST_FLYER = '/assets/contest-flyer.jpg';
+const CONTEST_FLYER = '/assets/contest-flyer-aug11.png';
 
 // Static boards: hand-built full-page HTML served verbatim. These pages carry
 // their own fonts, fit-to-screen logic, and (for early-out) query-param inputs

@@ -20,5 +20,5 @@ database_id = "5fa2a007-b31d-4ffe-930f-9d6d99182dc7"
 # pages stay self-contained and the board key still gates every read.
 [[rules]]
 type = "Data"
-globs = ["**/*.jpg"]
+globs = ["**/*.png"]
 fallthrough = true
