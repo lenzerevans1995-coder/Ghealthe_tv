@@ -585,6 +585,7 @@ export const STATIC_BOARDS = {
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>STHHC Ticket Run — Bucs vs Chiefs</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -636,19 +637,21 @@ export const STATIC_BOARDS = {
 
   /* ── body ───────────────────────────────────────────── */
   .row{flex:1 1 auto;display:flex;min-height:0}
-  .main{flex:1 1 auto;padding:3.0vh 2.4vw 3.0vh 3.0vw;display:flex;flex-direction:column;
-    justify-content:center;gap:4.4vh;min-width:0}
+  .main{flex:1 1 auto;position:relative;min-width:0}
   .rail{flex:0 0 25.5vw;position:relative;overflow:hidden;
     background:linear-gradient(165deg,#0A6BB4 0%, var(--blue) 48%, #013F6E 100%);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:2vh 1.4vw;text-align:center;border-left:0.35vh solid var(--line)}
-  .rail .stadium{position:absolute;left:0;right:0;bottom:0;filter:drop-shadow(0 0 1.2vh rgba(246,179,1,.18));width:100%;height:23vh;opacity:.55}
-  .railface{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;padding:2vh 1.4vw;
-    opacity:0;transition:opacity .7s ease}
-  .railface.show{opacity:1}
-  .railface.promo{padding:0;background:#04223A}
-  .railface.promo img{width:100%;height:100%;object-fit:contain;display:block}
+    border-left:0.35vh solid var(--line)}
+  .rail .stadium{position:absolute;left:0;right:0;bottom:0;filter:drop-shadow(0 0 1.2vh rgba(246,179,1,.18));width:100%;height:23vh;opacity:.55;z-index:0}
+
+  /* two scenes, crossfaded together: prizes+countdown, then standings+flyer */
+  .face{position:absolute;inset:0;z-index:1;opacity:0;transition:opacity .7s ease}
+  .face.show{opacity:1}
+  .mainface{padding:3.0vh 2.4vw 3.0vh 3.0vw;display:flex;flex-direction:column;
+    justify-content:center;gap:4.4vh}
+  .railface{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:2vh 1.4vw;text-align:center}
+  .railface.promo{padding:0}
+  .railface.promo img{width:100%;height:100%;object-fit:cover;display:block}
 
   .sectlabel{font-family:var(--cond);font-weight:700;letter-spacing:.26em;text-transform:uppercase;
     font-size:clamp(11px,1.75vh,24px);color:var(--mute);margin-bottom:1.3vh}
@@ -687,6 +690,36 @@ export const STATIC_BOARDS = {
   .rtext{font-family:var(--prose);font-weight:600;line-height:1.28;
     font-size:clamp(12px,2.25vh,30px);color:var(--paper)}
   .rtext em{font-style:normal;color:var(--mute);font-weight:400}
+
+  /* live standings */
+  .standhead{display:flex;align-items:baseline;justify-content:space-between;gap:2vw}
+  .standhead .tally{font-family:var(--cond);font-weight:700;text-transform:uppercase;
+    letter-spacing:.12em;font-size:clamp(11px,1.9vh,26px);color:var(--mute)}
+  .standhead .tally b{color:var(--gold)}
+  .stand{display:flex;flex-direction:column;gap:1.05vh;margin-top:.4vh}
+  .srow{position:relative;display:grid;grid-template-columns:4.2ch 1fr auto;align-items:center;
+    gap:1.2vw;padding:1.35vh 1.3vw;background:rgba(8,48,79,.88);
+    border-left:.5vh solid var(--line);overflow:hidden}
+  .srow .fill{position:absolute;inset:0 auto 0 0;background:rgba(1,90,156,.5);z-index:0}
+  .srow > *{position:relative;z-index:1}
+  .srow.p1{border-left-color:var(--gold)}
+  .srow.p1 .fill{background:rgba(246,179,1,.15)}
+  .srow.p2{border-left-color:#BFDCF2}
+  .spos{font-family:var(--cond);font-weight:800;color:var(--mute);line-height:.85;
+    font-size:clamp(20px,4.2vh,58px)}
+  .srow.p1 .spos{color:var(--gold)}
+  .srow.p2 .spos{color:#BFDCF2}
+  .swho{font-family:var(--prose);font-weight:600;font-size:clamp(14px,2.7vh,36px);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .sn{font-family:var(--cond);font-weight:800;font-size:clamp(20px,4.2vh,58px);line-height:.85;
+    color:#fff}
+  .sn span{font-family:var(--cond);font-weight:700;font-size:clamp(10px,1.6vh,21px);
+    letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-left:.6vw}
+  .standnote{font-family:var(--prose);font-size:clamp(10px,1.65vh,22px);color:var(--mute);
+    line-height:1.35;margin-top:.4vh}
+  .standnote b{color:var(--paper);font-weight:700}
+  .standempty{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.14em;
+    font-size:clamp(13px,2.3vh,30px);color:var(--mute);padding:3vh 0}
 
   /* rail */
   .raillabel{font-family:var(--cond);font-weight:700;letter-spacing:.24em;text-transform:uppercase;
@@ -744,33 +777,51 @@ export const STATIC_BOARDS = {
   <div class="row">
     <div class="main">
 
-      <div>
-        <div class="sectlabel">What you're playing for</div>
-        <div class="prizes">
-          <div class="ticket first">
-            <div class="notch t"></div><div class="notch b"></div>
-            <div class="place">1st Place</div>
-            <div class="ptitle">2 Club Seats<br>+ Parking</div>
-            <div class="psub">Most qualified STHHC sales</div>
+      <div class="face mainface show">
+        <div>
+          <div class="sectlabel">What you're playing for</div>
+          <div class="prizes">
+            <div class="ticket first">
+              <div class="notch t"></div><div class="notch b"></div>
+              <div class="place">1st Place</div>
+              <div class="ptitle">2 Club Seats<br>+ Parking</div>
+              <div class="psub">Most qualified STHHC sales</div>
+            </div>
+            <div class="ticket">
+              <div class="notch t"></div><div class="notch b"></div>
+              <div class="place">2nd Place</div>
+              <div class="ptitle">2 Club Seats</div>
+              <div class="psub">Runner-up &mdash; parking not included</div>
+            </div>
           </div>
-          <div class="ticket">
-            <div class="notch t"></div><div class="notch b"></div>
-            <div class="place">2nd Place</div>
-            <div class="ptitle">2 Club Seats</div>
-            <div class="psub">Runner-up &mdash; parking not included</div>
+        </div>
+
+        <div>
+          <div class="sectlabel">What makes it count</div>
+          <div class="rules">
+            <div class="rule"><div class="num">1</div><div class="rtext">Premium $50 or more <em>— no exceptions</em></div></div>
+            <div class="rule"><div class="num">2</div><div class="rtext">All three eligibility gates on the recording</div></div>
+            <div class="rule"><div class="num">3</div><div class="rtext">Never same-call with an MA enrollment</div></div>
+            <div class="rule"><div class="num">4</div><div class="rtext">Clean app — banking, draft date, no pends</div></div>
+            <div class="rule"><div class="num">5</div><div class="rtext">Premium stated in full before any offset</div></div>
+            <div class="rule"><div class="num">6</div><div class="rtext">Still active at close <em>— cancels don't count</em></div></div>
           </div>
         </div>
       </div>
 
-      <div>
-        <div class="sectlabel">What makes it count</div>
-        <div class="rules">
-          <div class="rule"><div class="num">1</div><div class="rtext">Premium $50 or more <em>— no exceptions</em></div></div>
-          <div class="rule"><div class="num">2</div><div class="rtext">All three eligibility gates on the recording</div></div>
-          <div class="rule"><div class="num">3</div><div class="rtext">Never same-call with an MA enrollment</div></div>
-          <div class="rule"><div class="num">4</div><div class="rtext">Clean app — banking, draft date, no pends</div></div>
-          <div class="rule"><div class="num">5</div><div class="rtext">Premium stated in full before any offset</div></div>
-          <div class="rule"><div class="num">6</div><div class="rtext">Still active at close <em>— cancels don't count</em></div></div>
+      <div class="face mainface">
+        <div>
+          <div class="standhead">
+            <div class="sectlabel" style="margin-bottom:0">Live standings &mdash; premium $50+</div>
+            <div class="tally" id="tally"></div>
+          </div>
+          <div class="stand" id="stand">
+            <div class="standempty">Standings load on the next refresh…</div>
+          </div>
+        </div>
+        <div class="standnote">
+          Counts every STHHC in the window at <b>$50+</b> monthly premium &mdash; the one rule the system can check.
+          The other five are verified on the recording at close, and anything that fails comes off the total.
         </div>
       </div>
 
@@ -790,13 +841,13 @@ export const STATIC_BOARDS = {
           <rect x="325" y="21" width="28" height="12" rx="2"/>
         </g>
       </svg>
-      <div class="railface count show">
+      <div class="face railface show">
         <div class="raillabel">Selling Days Left</div>
         <div class="bignum" id="left">8</div>
         <div class="railrule"></div>
         <div class="railfoot"><span id="window">Tue Aug 11 &rarr; Thu Aug 20</span><br>Closes End of Shift</div>
       </div>
-      <div class="railface promo"><img id="flyer" alt="STHHC contest — Bucs vs Chiefs"></div>
+      <div class="face railface promo"><img id="flyer" alt="STHHC contest — Bucs vs Chiefs"></div>
     </div>
   </div>
 
@@ -813,7 +864,6 @@ export const STATIC_BOARDS = {
   </div>
 
 </div>
-
 <script>
 (function(){
   // Selling days left in the contest window: weekdays from today through the
@@ -839,19 +889,50 @@ export const STATIC_BOARDS = {
   }
   tick(); setInterval(tick, 60000);
 
-  // Rail rotation: countdown <-> contest flyer. With no flyer configured the
-  // countdown simply stays up, so the TVs never show a broken image.
+  // Contest flyer, served by the Worker. The board key rides along on the
+  // image request via this page's own query string.
   var FLYER = ${JSON.stringify(CONTEST_FLYER)};
-  var DWELL = 7000;
-  if (FLYER) {
-    document.getElementById('flyer').src = FLYER + location.search;
-    var faces = document.querySelectorAll('.railface'), i = 0;
-    setInterval(function(){
-      faces[i].classList.remove('show');
-      i = (i + 1) % faces.length;
-      faces[i].classList.add('show');
-    }, DWELL);
+  if (FLYER) document.getElementById('flyer').src = FLYER + location.search;
+
+  // Live standings, pulled from the same snapshot the other boards render.
+  // This page owns its own poll because its scenes animate — a body swap
+  // from the shared poller would strand the rotation mid-fade.
+  var stand = document.getElementById('stand'), tally = document.getElementById('tally');
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function standings(){
+    fetch('/api/stats' + location.search, {cache:'no-store'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        var c = d && d.contest;
+        if (!c || !c.rows || !c.rows.length) return;
+        var max = c.rows[0].n || 1;
+        stand.innerHTML = c.rows.map(function(r){
+          var cls = r.pos === '1' ? ' p1' : (r.pos === '2' ? ' p2' : '');
+          return '<div class="srow' + cls + '">' +
+            '<div class="fill" style="width:' + Math.round((r.n / max) * 100) + '%"></div>' +
+            '<div class="spos">' + esc(r.pos) + '</div>' +
+            '<div class="swho">' + esc(r.who) + '</div>' +
+            '<div class="sn">' + r.n + '<span>qualified</span></div>' +
+          '</div>';
+        }).join('');
+        tally.innerHTML = '<b>' + c.qualified + '</b> qualified of ' + c.written +
+          ' written &nbsp;·&nbsp; ' + esc(c.label);
+      })
+      .catch(function(){});
   }
+  standings(); setInterval(standings, 60000);
+
+  // Rotate both halves together: prizes + countdown, then standings + flyer.
+  var DWELL = 8000, i = 0;
+  setInterval(function(){
+    var next = 1 - i;
+    document.querySelectorAll('.main .face')[i].classList.remove('show');
+    document.querySelectorAll('.rail .face')[i].classList.remove('show');
+    document.querySelectorAll('.main .face')[next].classList.add('show');
+    document.querySelectorAll('.rail .face')[next].classList.add('show');
+    i = next;
+  }, DWELL);
 })();
 </script>
 </body>
