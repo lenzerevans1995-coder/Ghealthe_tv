@@ -1,7 +1,7 @@
-// The contest flyer, inlined as a data URI so the page stays self-contained
-// (the board key can't be threaded into an <img src> on a verbatim page).
+// The contest flyer, served by the Worker from /assets/*. The page appends
+// its own query string so the board key rides along on the image request.
 // Empty = the contest rail shows only the countdown.
-const CONTEST_FLYER = '';
+const CONTEST_FLYER = '/assets/contest-flyer.jpg';
 
 // Static boards: hand-built full-page HTML served verbatim. These pages carry
 // their own fonts, fit-to-screen logic, and (for early-out) query-param inputs
@@ -844,7 +844,7 @@ export const STATIC_BOARDS = {
   var FLYER = ${JSON.stringify(CONTEST_FLYER)};
   var DWELL = 7000;
   if (FLYER) {
-    document.getElementById('flyer').src = FLYER;
+    document.getElementById('flyer').src = FLYER + location.search;
     var faces = document.querySelectorAll('.railface'), i = 0;
     setInterval(function(){
       faces[i].classList.remove('show');

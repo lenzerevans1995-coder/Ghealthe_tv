@@ -15,6 +15,7 @@
 
 import { renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { STATIC_BOARDS } from './static_boards.js';
+import CONTEST_FLYER from '../assets/contest-Flyer_august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
 
@@ -55,6 +56,15 @@ export default {
       if (path === '/api/stats') {
         const { snap } = await loadMergedSnapshot(env);
         return json(snap);
+      }
+
+      // Board imagery. Boards pass their own ?key= through on the <img src>,
+      // so this stays behind the same gate as everything else. Immutable —
+      // a new picture gets a new filename.
+      if (path === '/assets/contest-flyer.jpg') {
+        return new Response(CONTEST_FLYER, {
+          headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' },
+        });
       }
 
       // Desk view: menu rail + the boards in a frame. Only here — /board/*

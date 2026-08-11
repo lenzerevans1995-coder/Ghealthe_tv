@@ -15,3 +15,10 @@ database_id = "5fa2a007-b31d-4ffe-930f-9d6d99182dc7"
 #   BOARD_KEY            unguessable token required as ?key= on board/API URLs
 #   INGEST_SECRET        bearer token the Claude Routine uses on POST /ingest
 #   ONYX_SIGNING_SECRET  Onyx webhook signing secret (milestone 3)
+
+# Board imagery is bundled with the Worker and served from /assets/*, so the
+# pages stay self-contained and the board key still gates every read.
+[[rules]]
+type = "Data"
+globs = ["**/*.jpg"]
+fallthrough = true
