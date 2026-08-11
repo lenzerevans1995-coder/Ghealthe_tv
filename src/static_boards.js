@@ -695,7 +695,7 @@ export const STATIC_BOARDS = {
 
   /* live standings */
   /* live tracker (scene B) */
-  .tracker{gap:1.6vh;justify-content:flex-start;padding-top:2.4vh;overflow:hidden}
+  .tracker{gap:1.6vh;justify-content:flex-start;padding-top:2.4vh;overflow:hidden;background:var(--ink)}
   .trstrip{display:flex;gap:1.1vw}
   .trstat{flex:1 1 0;background:rgba(8,48,79,.9);border:.14vh solid var(--line);border-radius:.5vh;
     padding:1.3vh 1vw}
@@ -709,7 +709,7 @@ export const STATIC_BOARDS = {
   table.tr th{font-family:var(--cond);font-weight:700;letter-spacing:.12em;text-transform:uppercase;
     font-size:clamp(9px,1.35vh,18px);color:var(--mute);text-align:right;padding:0 .6vw .6vh}
   table.tr th.l,table.tr td.l{text-align:left}
-  table.tr td{padding:.75vh .6vw;border-top:1px solid var(--line);
+  table.tr td{padding:.75vh .6vw;border-top:1px solid var(--line);text-align:right;
     font-size:clamp(11px,1.9vh,25px);font-variant-numeric:tabular-nums}
   .trname{font-family:var(--cond);font-weight:700;font-size:clamp(13px,2.5vh,33px)}
   .trrank{font-family:var(--cond);font-weight:800;font-size:clamp(14px,2.6vh,35px);color:var(--mute);width:5ch}
@@ -718,14 +718,14 @@ export const STATIC_BOARDS = {
   .trpips{display:inline-flex;gap:.25vw;vertical-align:middle}
   .trpip{width:.55vw;height:1.9vh;border-radius:.2vh;background:var(--green)}
   .trpip.ghost{background:transparent;border:1px dashed var(--line)}
-  tr.trgold .trpip{background:#0E5C3A}
-  tr.trgold .trpip.ghost{border-color:rgba(4,34,58,.45)}
+  tr.trgold .trpip:not(.ghost){background:#0E5C3A}
+  tr.trgold .trpip.ghost{background:transparent;border-color:rgba(4,34,58,.45)}
   .trplace{background:rgba(8,48,79,.9);border-left:.35vh solid var(--gold);border-radius:.4vh;
     padding:1vh 1.1vw;font-size:clamp(10px,1.7vh,23px);line-height:1.35}
   .trplace b{color:var(--gold);font-weight:700}
-  table.trgrid th{text-align:center}
-  table.trgrid td{text-align:center}
-  table.trgrid td.l,table.trgrid th.l{text-align:left}
+  table.tr.trgrid th{text-align:center}
+  table.tr.trgrid td{text-align:center}
+  table.tr.trgrid td.l,table.tr.trgrid th.l{text-align:left}
   .trzero{color:#3d5a80}
   table.trgrid tfoot td{border-top:.25vh solid var(--line);font-weight:700;color:var(--gold)}
   .trempty{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.12em;
