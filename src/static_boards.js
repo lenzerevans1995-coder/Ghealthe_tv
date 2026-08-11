@@ -650,8 +650,10 @@ export const STATIC_BOARDS = {
     justify-content:center;gap:4.4vh}
   .railface{display:flex;flex-direction:column;align-items:center;justify-content:center;
     padding:2vh 1.4vw;text-align:center}
-  .railface.promo{padding:0}
-  .railface.promo img{width:100%;height:100%;object-fit:cover;display:block}
+  .railface.promo{padding:0;overflow:hidden}
+  .railface.promo .haze{position:absolute;inset:-6%;background-size:cover;background-position:center;
+    filter:blur(2.2vh) saturate(1.15) brightness(.62);z-index:0}
+  .railface.promo img{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;display:block}
 
   .sectlabel{font-family:var(--cond);font-weight:700;letter-spacing:.26em;text-transform:uppercase;
     font-size:clamp(11px,1.75vh,24px);color:var(--mute);margin-bottom:1.3vh}
@@ -847,7 +849,7 @@ export const STATIC_BOARDS = {
         <div class="railrule"></div>
         <div class="railfoot"><span id="window">Tue Aug 11 &rarr; Thu Aug 20</span><br>Closes End of Shift</div>
       </div>
-      <div class="face railface promo"><img id="flyer" alt="STHHC contest — Bucs vs Chiefs"></div>
+      <div class="face railface promo"><div class="haze" id="haze"></div><img id="flyer" alt="STHHC contest — Bucs vs Chiefs"></div>
     </div>
   </div>
 
@@ -892,7 +894,11 @@ export const STATIC_BOARDS = {
   // Contest flyer, served by the Worker. The board key rides along on the
   // image request via this page's own query string.
   var FLYER = ${JSON.stringify(CONTEST_FLYER)};
-  if (FLYER) document.getElementById('flyer').src = FLYER + location.search;
+  if (FLYER) {
+    var src = FLYER + location.search;
+    document.getElementById('flyer').src = src;
+    document.getElementById('haze').style.backgroundImage = 'url("' + src + '")';
+  }
 
   // Live standings, pulled from the same snapshot the other boards render.
   // This page owns its own poll because its scenes animate — a body swap
@@ -924,7 +930,7 @@ export const STATIC_BOARDS = {
   standings(); setInterval(standings, 60000);
 
   // Rotate both halves together: prizes + countdown, then standings + flyer.
-  var DWELL = 8000, i = 0;
+  var DWELL = 12000, i = 0;
   setInterval(function(){
     var next = 1 - i;
     document.querySelectorAll('.main .face')[i].classList.remove('show');
