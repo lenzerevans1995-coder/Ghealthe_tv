@@ -450,7 +450,6 @@ iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
   </div>
   <div class="navfoot">
     <a id="full" href="#" target="_blank" rel="noopener">Open full screen ↗</a>
-    <p>Full screen is the TV view — same board, no menu.</p>
   </div>
 </nav>
 <main><iframe id="view" title="Board"></iframe></main>
