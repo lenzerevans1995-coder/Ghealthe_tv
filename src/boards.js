@@ -374,6 +374,117 @@ export function renderMtd(snap, meta) {
   return shell('Month to Date — Floor Board', MTD_CSS, body, meta);
 }
 
+// Desk view: the same boards with a menu rail for clicking between them. Only
+// this route carries the rail — /board/* stays chrome-free for the TVs.
+const CONSOLE_TABS = [
+  { slug: 'live', label: 'Live Board', sub: "Today's running total" },
+  { slug: 'mtd', label: 'Month to Date', sub: 'MTD totals + pace' },
+  { slug: 'leaders/sthhc', label: 'STHHC Leaders', sub: 'Top 5 + floor totals' },
+  { slug: 'contest/sthhc', label: 'Ticket Run', sub: 'Bucs vs Chiefs contest' },
+];
+
+export function renderConsole(key, active) {
+  const tabs = CONSOLE_TABS.some((t) => t.slug === active) ? active : CONSOLE_TABS[0].slug;
+  const items = CONSOLE_TABS.map(
+    (t) => `
+    <button class="tab${t.slug === tabs ? ' on' : ''}" data-slug="${esc(t.slug)}">
+      <span class="tl">${esc(t.label)}</span>
+      <span class="ts">${esc(t.sub)}</span>
+    </button>`
+  ).join('\n');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floor Boards — Console</title>
+${FONTS}
+<style>
+:root{--ink:#04223A;--ink2:#08304F;--line:#12496F;--blue:#015A9C;--gold:#F6B301;
+  --paper:#F2F7FB;--mute:#7FA6C4;
+  --display:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;
+  --body:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--ink);color:var(--paper);font-family:var(--body);display:flex;overflow:hidden}
+nav{flex:0 0 17rem;background:var(--ink2);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0}
+.brand{padding:1.25rem 1.1rem 1rem;border-bottom:1px solid var(--line)}
+.brand b{display:block;font-family:var(--display);font-weight:800;text-transform:uppercase;
+  letter-spacing:.06em;font-size:1.45rem;line-height:1}
+.brand span{display:block;font-family:var(--display);font-weight:600;text-transform:uppercase;
+  letter-spacing:.2em;font-size:.72rem;color:var(--mute);margin-top:.35rem}
+.tabs{flex:1 1 auto;overflow-y:auto;padding:.6rem}
+.tab{display:block;width:100%;text-align:left;background:none;border:0;cursor:pointer;
+  padding:.8rem .85rem;border-radius:.35rem;border-left:3px solid transparent;color:var(--paper);
+  font-family:inherit;transition:background .15s ease,border-color .15s ease}
+.tab:hover{background:rgba(1,90,156,.35)}
+.tab.on{background:rgba(1,90,156,.55);border-left-color:var(--gold)}
+.tab .tl{display:block;font-family:var(--display);font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;font-size:1.1rem;line-height:1.1}
+.tab .ts{display:block;font-size:.75rem;color:var(--mute);margin-top:.2rem}
+.tab.on .ts{color:#BFDCF2}
+.navfoot{padding:.85rem 1.1rem 1rem;border-top:1px solid var(--line)}
+.navfoot a{display:inline-block;font-family:var(--display);font-weight:700;text-transform:uppercase;
+  letter-spacing:.12em;font-size:.75rem;color:var(--gold);text-decoration:none}
+.navfoot a:hover{text-decoration:underline}
+.navfoot p{font-size:.7rem;color:var(--mute);margin-top:.5rem;line-height:1.4}
+main{flex:1 1 auto;position:relative;min-width:0;background:var(--ink)}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+@media (max-width:760px){
+  body{flex-direction:column}
+  nav{flex:0 0 auto;border-right:0;border-bottom:1px solid var(--line)}
+  .tabs{display:flex;gap:.4rem;overflow-x:auto}
+  .tab{white-space:nowrap;border-left:0;border-bottom:3px solid transparent}
+  .tab.on{border-left:0;border-bottom-color:var(--gold)}
+  .tab .ts{display:none}
+  .navfoot{display:none}
+  main{flex:1 1 auto}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand"><b>Get Health-e</b><span>Floor Boards</span></div>
+  <div class="tabs">${items}
+  </div>
+  <div class="navfoot">
+    <a id="full" href="#" target="_blank" rel="noopener">Open full screen ↗</a>
+    <p>Full screen is the TV view — same board, no menu.</p>
+  </div>
+</nav>
+<main><iframe id="view" title="Board"></iframe></main>
+<script>
+(function(){
+  var KEY = ${JSON.stringify(key || '')};
+  var view = document.getElementById('view');
+  var full = document.getElementById('full');
+  function urlFor(slug){
+    return '/board/' + slug + (KEY ? '?key=' + encodeURIComponent(KEY) : '');
+  }
+  function show(slug, push){
+    view.src = urlFor(slug);
+    full.href = urlFor(slug);
+    var tabs = document.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.toggle('on', tabs[i].dataset.slug === slug);
+    }
+    if (push) {
+      var q = '?board=' + encodeURIComponent(slug) + (KEY ? '&key=' + encodeURIComponent(KEY) : '');
+      history.replaceState(null, '', q);
+    }
+  }
+  document.querySelector('.tabs').addEventListener('click', function(e){
+    var t = e.target.closest('.tab');
+    if (t) show(t.dataset.slug, true);
+  });
+  show(${JSON.stringify(tabs)}, false);
+})();
+</script>
+</body>
+</html>`;
+}
+
 // Cycles through board pages with a crossfade so PosterBooking needs one URL.
 export function renderRotation(boards, dwellSeconds, key) {
   const urls = boards.map((b) => `/board/${b}${key ? `?key=${encodeURIComponent(key)}` : ''}`);

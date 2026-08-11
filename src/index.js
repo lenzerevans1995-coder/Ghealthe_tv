@@ -7,12 +7,13 @@
 //   GET  /board/month-open        static month-open flyer (self-dating)
 //   GET  /board/early-out         static early-out points counter (?sthhc=&core=&hi=&goal=&asof=)
 //   GET  /board/rotation          cycles the above (one URL per TV)
+//   GET  /console                 desk view: left menu rail + the boards in a frame
 //   GET  /api/stats               current merged snapshot (JSON)
 //   POST /ingest                  snapshot push from the Claude Routine (bearer secret)
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
 //   GET  /healthz                 liveness probe (no auth)
 
-import { renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
+import { renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { STATIC_BOARDS } from './static_boards.js';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
@@ -54,6 +55,12 @@ export default {
       if (path === '/api/stats') {
         const { snap } = await loadMergedSnapshot(env);
         return json(snap);
+      }
+
+      // Desk view: menu rail + the boards in a frame. Only here — /board/*
+      // stays chrome-free so the TVs never show navigation.
+      if (path === '/console') {
+        return html(renderConsole(url.searchParams.get('key') || '', url.searchParams.get('board') || ''));
       }
 
       if (path === '/board/rotation') {
