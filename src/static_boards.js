@@ -1,3 +1,8 @@
+// The contest flyer, inlined as a data URI so the page stays self-contained
+// (the board key can't be threaded into an <img src> on a verbatim page).
+// Empty = the contest rail shows only the countdown.
+const CONTEST_FLYER = '';
+
 // Static boards: hand-built full-page HTML served verbatim. These pages carry
 // their own fonts, fit-to-screen logic, and (for early-out) query-param inputs
 // (?sthhc=&core=&hi=&goal=&asof=), so they bypass the snapshot entirely.
@@ -638,7 +643,12 @@ export const STATIC_BOARDS = {
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     padding:2vh 1.4vw;text-align:center;border-left:0.35vh solid var(--line)}
   .rail .stadium{position:absolute;left:0;right:0;bottom:0;filter:drop-shadow(0 0 1.2vh rgba(246,179,1,.18));width:100%;height:23vh;opacity:.55}
-  .rail > *:not(.stadium){position:relative;z-index:1}
+  .railface{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:2vh 1.4vw;
+    opacity:0;transition:opacity .7s ease}
+  .railface.show{opacity:1}
+  .railface.promo{padding:0;background:#04223A}
+  .railface.promo img{width:100%;height:100%;object-fit:contain;display:block}
 
   .sectlabel{font-family:var(--cond);font-weight:700;letter-spacing:.26em;text-transform:uppercase;
     font-size:clamp(11px,1.75vh,24px);color:var(--mute);margin-bottom:1.3vh}
@@ -780,10 +790,13 @@ export const STATIC_BOARDS = {
           <rect x="325" y="21" width="28" height="12" rx="2"/>
         </g>
       </svg>
-      <div class="raillabel">Selling Days Left</div>
-      <div class="bignum" id="left">8</div>
-      <div class="railrule"></div>
-      <div class="railfoot"><span id="window">Tue Aug 11 &rarr; Thu Aug 20</span><br>Closes End of Shift</div>
+      <div class="railface count show">
+        <div class="raillabel">Selling Days Left</div>
+        <div class="bignum" id="left">8</div>
+        <div class="railrule"></div>
+        <div class="railfoot"><span id="window">Tue Aug 11 &rarr; Thu Aug 20</span><br>Closes End of Shift</div>
+      </div>
+      <div class="railface promo"><img id="flyer" alt="STHHC contest — Bucs vs Chiefs"></div>
     </div>
   </div>
 
@@ -825,6 +838,20 @@ export const STATIC_BOARDS = {
       ' &rarr; ' + CLOSE_LABEL;
   }
   tick(); setInterval(tick, 60000);
+
+  // Rail rotation: countdown <-> contest flyer. With no flyer configured the
+  // countdown simply stays up, so the TVs never show a broken image.
+  var FLYER = ${JSON.stringify(CONTEST_FLYER)};
+  var DWELL = 7000;
+  if (FLYER) {
+    document.getElementById('flyer').src = FLYER;
+    var faces = document.querySelectorAll('.railface'), i = 0;
+    setInterval(function(){
+      faces[i].classList.remove('show');
+      i = (i + 1) % faces.length;
+      faces[i].classList.add('show');
+    }, DWELL);
+  }
 })();
 </script>
 </body>
