@@ -576,4 +576,258 @@ export const STATIC_BOARDS = {
 </body>
 </html>
 `,
+  'contest/sthhc': `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>STHHC Ticket Run — Bucs vs Chiefs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#04223A; --ink2:#08304F; --line:#12496F;
+    --blue:#015A9C; --green:#0B9444; --gold:#F6B301;
+    --paper:#F2F7FB; --mute:#7FA6C4;
+    --cond:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;
+    --prose:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100vh;width:100vw;overflow:hidden;background:var(--ink);color:var(--paper)}
+  .board{position:relative;height:100vh;width:100vw;display:flex;flex-direction:column;isolation:isolate}
+
+  /* ── imagery layers ─────────────────────────────────── */
+  .field{position:absolute;inset:0;z-index:0;pointer-events:none;
+    background-image:repeating-linear-gradient(90deg,
+      rgba(127,166,196,.075) 0 .18vw, transparent .18vw 8.33vw)}
+  .field::after{content:"";position:absolute;inset:0;
+    background-image:repeating-linear-gradient(90deg,
+      rgba(127,166,196,.15) 0 .3vw, transparent .3vw 25vw)}
+  .lights{position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(60vw 42vh at 14% -12%, rgba(1,90,156,.55), transparent 70%),
+      radial-gradient(52vw 38vh at 86% -10%, rgba(246,179,1,.13), transparent 70%),
+      radial-gradient(80vw 50vh at 50% 118%, rgba(1,90,156,.26), transparent 72%)}
+  .vignette{position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(120vw 120vh at 50% 45%, transparent 42%, rgba(2,17,30,.62) 100%)}
+  header, .row, .ask{position:relative;z-index:2}
+
+  /* ── header ─────────────────────────────────────────── */
+  header{flex:0 0 auto;
+    background:linear-gradient(180deg,rgba(8,48,79,.96),rgba(8,48,79,.80));
+    border-bottom:0.35vh solid var(--line);
+    padding:1.9vh 3.0vw 1.6vh;display:flex;align-items:center;justify-content:space-between;gap:2vw}
+  .hleft{display:flex;align-items:center;gap:1.5vw;min-width:0}
+  .ball{flex:0 0 auto;width:7.0vh;height:7.0vh;filter:drop-shadow(0 .5vh 1vh rgba(0,0,0,.45))}
+  .eyebrow{font-family:var(--cond);font-weight:700;letter-spacing:.30em;
+    font-size:clamp(12px,1.7vh,26px);color:var(--mute);text-transform:uppercase;margin-bottom:.4vh}
+  h1{font-family:var(--cond);font-weight:800;line-height:.92;text-transform:uppercase;
+    font-size:clamp(34px,6.2vh,90px);letter-spacing:.005em}
+  .game{text-align:right;flex:0 0 auto}
+  .game .vs{font-family:var(--cond);font-weight:800;text-transform:uppercase;
+    font-size:clamp(20px,3.4vh,48px);line-height:1}
+  .game .when{font-family:var(--cond);font-weight:700;letter-spacing:.16em;
+    font-size:clamp(12px,1.9vh,28px);color:var(--gold);text-transform:uppercase;margin-top:.5vh}
+
+  /* ── body ───────────────────────────────────────────── */
+  .row{flex:1 1 auto;display:flex;min-height:0}
+  .main{flex:1 1 auto;padding:3.0vh 2.4vw 3.0vh 3.0vw;display:flex;flex-direction:column;
+    justify-content:center;gap:4.4vh;min-width:0}
+  .rail{flex:0 0 25.5vw;position:relative;overflow:hidden;
+    background:linear-gradient(165deg,#0A6BB4 0%, var(--blue) 48%, #013F6E 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:2vh 1.4vw;text-align:center;border-left:0.35vh solid var(--line)}
+  .rail .stadium{position:absolute;left:0;right:0;bottom:0;filter:drop-shadow(0 0 1.2vh rgba(246,179,1,.18));width:100%;height:23vh;opacity:.55}
+  .rail > *:not(.stadium){position:relative;z-index:1}
+
+  .sectlabel{font-family:var(--cond);font-weight:700;letter-spacing:.26em;text-transform:uppercase;
+    font-size:clamp(11px,1.75vh,24px);color:var(--mute);margin-bottom:1.3vh}
+
+  /* prize tickets */
+  .prizes{display:flex;gap:1.9vw}
+  .ticket{position:relative;flex:1 1 0;border-radius:.9vh;padding:3.8vh 1.6vw 4.0vh 3.6vw;
+    background:linear-gradient(135deg,rgba(8,48,79,.94),rgba(4,34,58,.94));
+    border:0.3vh solid var(--line);
+    display:flex;flex-direction:column;justify-content:center}
+  .ticket.first{border-color:var(--gold);
+    background:linear-gradient(135deg,rgba(246,179,1,.20),rgba(8,48,79,.92) 58%);
+    box-shadow:0 0 0 .15vh rgba(246,179,1,.22), 0 1.2vh 3vh rgba(0,0,0,.35)}
+  .ticket::before{content:"";position:absolute;left:2.2vw;top:1.8vh;bottom:1.8vh;
+    border-left:.28vh dashed rgba(127,166,196,.55)}
+  .ticket.first::before{border-left-color:rgba(246,179,1,.60)}
+  .notch{position:absolute;left:2.2vw;width:2.2vh;height:2.2vh;border-radius:50%;
+    background:#04223A;transform:translateX(-50%);border:.28vh solid var(--line)}
+  .notch.t{top:-1.1vh}
+  .notch.b{bottom:-1.1vh}
+  .ticket.first .notch{border-color:rgba(246,179,1,.55)}
+
+  .place{font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:.12em;
+    font-size:clamp(15px,2.5vh,36px);color:var(--mute);margin-bottom:.9vh}
+  .ticket.first .place{color:var(--gold)}
+  .ptitle{font-family:var(--cond);font-weight:800;text-transform:uppercase;line-height:1.0;
+    font-size:clamp(26px,5.0vh,72px)}
+  .psub{font-family:var(--prose);font-weight:600;font-size:clamp(11px,1.85vh,25px);
+    color:var(--mute);margin-top:1.0vh;line-height:1.25}
+
+  /* qualify rules */
+  .rules{display:grid;grid-template-columns:repeat(2,1fr);gap:2.9vh 1.6vw}
+  .rule{display:flex;align-items:flex-start;gap:.85vw}
+  .num{flex:0 0 auto;font-family:var(--cond);font-weight:800;
+    font-size:clamp(17px,2.8vh,40px);color:var(--gold);line-height:1.05;min-width:1.5vw}
+  .rtext{font-family:var(--prose);font-weight:600;line-height:1.28;
+    font-size:clamp(12px,2.25vh,30px);color:var(--paper)}
+  .rtext em{font-style:normal;color:var(--mute);font-weight:400}
+
+  /* rail */
+  .raillabel{font-family:var(--cond);font-weight:700;letter-spacing:.24em;text-transform:uppercase;
+    font-size:clamp(12px,2.0vh,28px);color:rgba(242,247,251,.85)}
+  .bignum{font-family:var(--cond);font-weight:800;line-height:.80;
+    font-size:clamp(110px,33vh,400px);margin:1.4vh 0 .6vh;
+    text-shadow:0 1.2vh 3vh rgba(0,0,0,.40);animation:breathe 2.6s ease-in-out infinite}
+  .railfoot{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+    font-size:clamp(13px,2.3vh,32px);color:rgba(242,247,251,.95);line-height:1.18}
+  .railrule{width:60%;height:.3vh;background:rgba(242,247,251,.34);margin:1.6vh 0}
+  @keyframes breathe{0%,100%{opacity:1}50%{opacity:.86}}
+  @media (prefers-reduced-motion: reduce){.bignum{animation:none}}
+
+  /* ── ask band ───────────────────────────────────────── */
+  .ask{flex:0 0 auto;background:linear-gradient(90deg,#0B9444 0%,#0E7F3F 100%);
+    padding:2.3vh 3.0vw;display:flex;align-items:center;justify-content:space-between;gap:2vw;
+    box-shadow:0 -1vh 3vh rgba(0,0,0,.30)}
+  .askleft{display:flex;align-items:center;gap:1.3vw;min-width:0}
+  .whistle{flex:0 0 auto;width:5.2vh;height:5.2vh}
+  .askmain{font-family:var(--cond);font-weight:800;text-transform:uppercase;line-height:1.0;
+    font-size:clamp(24px,4.6vh,66px);letter-spacing:.01em}
+  .asksub{font-family:var(--prose);font-weight:700;text-align:right;line-height:1.25;
+    font-size:clamp(11px,1.95vh,26px);color:rgba(255,255,255,.95);flex:0 0 auto}
+</style>
+</head>
+<body>
+<div class="board">
+
+  <div class="field"></div>
+  <div class="lights"></div>
+  <div class="vignette"></div>
+
+  <header>
+    <div class="hleft">
+      <svg class="ball" viewBox="0 0 100 100" aria-hidden="true">
+        <g transform="rotate(-25 50 50)">
+          <ellipse cx="50" cy="50" rx="41" ry="24" fill="#8B4A20"/>
+          <ellipse cx="50" cy="50" rx="41" ry="24" fill="none" stroke="#F2F7FB" stroke-width="3"/>
+          <path d="M15 50h11M74 50h11" stroke="#F2F7FB" stroke-width="3.4" stroke-linecap="round"/>
+          <path d="M37 50h26" stroke="#F2F7FB" stroke-width="3.4" stroke-linecap="round"/>
+          <path d="M43 44v12M50 44v12M57 44v12" stroke="#F2F7FB" stroke-width="3.2" stroke-linecap="round"/>
+        </g>
+      </svg>
+      <div>
+        <div class="eyebrow">Get Health-e · Medicare Inbound</div>
+        <h1>STHHC Ticket Run</h1>
+      </div>
+    </div>
+    <div class="game">
+      <div class="vs">Bucs vs Chiefs</div>
+      <div class="when">Saturday · August 22</div>
+    </div>
+  </header>
+
+  <div class="row">
+    <div class="main">
+
+      <div>
+        <div class="sectlabel">What you're playing for</div>
+        <div class="prizes">
+          <div class="ticket first">
+            <div class="notch t"></div><div class="notch b"></div>
+            <div class="place">1st Place</div>
+            <div class="ptitle">2 Club Seats<br>+ Parking</div>
+            <div class="psub">Most qualified STHHC sales</div>
+          </div>
+          <div class="ticket">
+            <div class="notch t"></div><div class="notch b"></div>
+            <div class="place">2nd Place</div>
+            <div class="ptitle">2 Club Seats</div>
+            <div class="psub">Runner-up &mdash; parking not included</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sectlabel">What makes it count</div>
+        <div class="rules">
+          <div class="rule"><div class="num">1</div><div class="rtext">Premium $50 or more <em>— no exceptions</em></div></div>
+          <div class="rule"><div class="num">2</div><div class="rtext">All three eligibility gates on the recording</div></div>
+          <div class="rule"><div class="num">3</div><div class="rtext">Never same-call with an MA enrollment</div></div>
+          <div class="rule"><div class="num">4</div><div class="rtext">Clean app — banking, draft date, no pends</div></div>
+          <div class="rule"><div class="num">5</div><div class="rtext">Premium stated in full before any offset</div></div>
+          <div class="rule"><div class="num">6</div><div class="rtext">Still active at close <em>— cancels don't count</em></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="rail">
+      <svg class="stadium" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+        <g fill="#011E36">
+          <rect x="58" y="34" width="6" height="70"/>
+          <rect x="336" y="34" width="6" height="70"/>
+          <rect x="44" y="18" width="34" height="18" rx="3"/>
+          <rect x="322" y="18" width="34" height="18" rx="3"/>
+          <path d="M0 150 V96 Q46 70 110 64 L110 46 H126 V63 Q162 60 200 60 Q238 60 274 63 V46 H290 V64 Q354 70 400 96 V150 Z"/>
+        </g>
+        <g fill="#F6B301" opacity=".75">
+          <rect x="47" y="21" width="28" height="12" rx="2"/>
+          <rect x="325" y="21" width="28" height="12" rx="2"/>
+        </g>
+      </svg>
+      <div class="raillabel">Selling Days Left</div>
+      <div class="bignum" id="left">8</div>
+      <div class="railrule"></div>
+      <div class="railfoot"><span id="window">Tue Aug 11 &rarr; Thu Aug 20</span><br>Closes End of Shift</div>
+    </div>
+  </div>
+
+  <div class="ask">
+    <div class="askleft">
+      <svg class="whistle" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="34" fill="none" stroke="#FFFFFF" stroke-width="7" opacity=".93"/>
+        <path d="M33 51l12 13 23-27" fill="none" stroke="#FFFFFF" stroke-width="8.5"
+              stroke-linecap="round" stroke-linejoin="round" opacity=".93"/>
+      </svg>
+      <div class="askmain">Qualify it or it doesn't count.</div>
+    </div>
+    <div class="asksub">Minimum 3 qualified sales to place.<br>Every winner's calls get pulled and graded.</div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // Selling days left in the contest window: weekdays from today through the
+  // close date, inclusive — today counts as remaining, same as the month rail.
+  // Dates are Hawaii time (UTC-10, no DST), the floor's day boundary.
+  var CLOSE = '2026-08-20', CLOSE_LABEL = 'Thu Aug 20';
+  var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function hstToday(){
+    var n = new Date(Date.now() - 10 * 3600 * 1000);
+    return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
+  }
+  function tick(){
+    var d = hstToday(), end = new Date(CLOSE + 'T00:00:00Z'), n = 0;
+    for (var c = new Date(d); c <= end; c.setUTCDate(c.getUTCDate() + 1)) {
+      var wd = c.getUTCDay();
+      if (wd >= 1 && wd <= 5) n++;
+    }
+    document.getElementById('left').textContent = n;
+    document.getElementById('window').innerHTML =
+      DAYS[d.getUTCDay()] + ' ' + MONS[d.getUTCMonth()] + ' ' + d.getUTCDate() +
+      ' &rarr; ' + CLOSE_LABEL;
+  }
+  tick(); setInterval(tick, 60000);
+})();
+</script>
+</body>
+</html>
+`,
 };

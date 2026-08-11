@@ -12,6 +12,7 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 | `/board/live` | Today's running production (Core / STHHC / HI / Ancillary / Total), calls, conversion, today's leaders |
 | `/board/daily` | Yesterday's recap + selling days left + today's focus push |
 | `/board/leaders/sthhc` | STHHC leaderboard (top 5 + floor totals) |
+| `/board/contest/sthhc` | STHHC ticket-run contest — prizes, the six qualifying rules, and selling days left until the contest closes (edit `CLOSE`/`CLOSE_LABEL` in `src/static_boards.js` to re-run it for another game) |
 | `/board/rotation` | Cycles the boards with a crossfade — **this is the URL for PosterBooking** (`?boards=live,daily,leaders/sthhc&dwell=20`) |
 | `/api/stats` | Merged snapshot JSON (what the boards render from) |
 | `/ingest` | POST, bearer-secret — snapshot push from the Claude Routine |
