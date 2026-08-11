@@ -717,9 +717,6 @@ export const STATIC_BOARDS = {
     color:#fff}
   .sn span{font-family:var(--cond);font-weight:700;font-size:clamp(10px,1.6vh,21px);
     letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-left:.6vw}
-  .standnote{font-family:var(--prose);font-size:clamp(10px,1.65vh,22px);color:var(--mute);
-    line-height:1.35;margin-top:.4vh}
-  .standnote b{color:var(--paper);font-weight:700}
   .standempty{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.14em;
     font-size:clamp(13px,2.3vh,30px);color:var(--mute);padding:3vh 0}
 
@@ -820,10 +817,6 @@ export const STATIC_BOARDS = {
           <div class="stand" id="stand">
             <div class="standempty">Standings load on the next refresh…</div>
           </div>
-        </div>
-        <div class="standnote">
-          Counts every STHHC in the window at <b>$50+</b> monthly premium &mdash; the one rule the system can check.
-          The other five are verified on the recording at close, and anything that fails comes off the total.
         </div>
       </div>
 
