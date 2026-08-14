@@ -1090,4 +1090,402 @@ export const STATIC_BOARDS = {
 </body>
 </html>
 `,
+
+  // Leave-early gate. Two gates run at once: every agent needs 2 qualified
+  // STHHC, the floor needs 10. Both count only $50+/month premium, so the
+  // numbers come from contest.rows (already premium-filtered) rather than
+  // today.sthhc, which includes sub-$50 writes.
+  'gate/sthhc': `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leave-Early Gate — Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#04223A; --ink2:#08304F; --line:#12496F;
+    --blue:#015A9C; --green:#0B9444; --gold:#F6B301;
+    --paper:#F2F7FB; --mute:#7FA6C4;
+    --cond:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;
+    --sans:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;background:var(--ink);}
+  body{font-family:var(--sans); color:var(--paper); height:100vh;
+       display:flex; flex-direction:column; -webkit-font-smoothing:antialiased;}
+
+  .header{flex:0 0 9vh; display:flex; align-items:center; justify-content:space-between;
+          padding:0 3.2vw; background:var(--ink2); border-bottom:0.35vh solid var(--line);}
+  .brand{display:flex;align-items:baseline;gap:1.1vw;}
+  .brand .mark{font-family:var(--cond); font-weight:800; font-size:clamp(20px,3.05vh,44px);
+               letter-spacing:.055em; color:var(--paper);}
+  .brand .sub{font-family:var(--cond); font-weight:600; font-size:clamp(14px,2.15vh,30px);
+              letter-spacing:.16em; color:var(--mute);}
+  .stamp{text-align:right;}
+  .datestamp{font-family:var(--cond); font-weight:700; font-size:clamp(16px,2.6vh,36px);
+             letter-spacing:.13em; color:var(--mute);}
+  .asof{font-family:var(--cond); font-weight:600; font-size:clamp(10px,1.6vh,22px);
+        letter-spacing:.1em; color:#4E7A9C;}
+
+  .main{flex:1 1 auto; display:flex; min-height:0;}
+  .content{flex:1 1 auto; min-width:0; padding:2.4vh 2.4vw 2.2vh 3.2vw;
+           display:flex; flex-direction:column;}
+
+  .eyebrow{font-family:var(--cond); font-weight:700; font-size:clamp(14px,2.35vh,32px);
+           letter-spacing:.24em; color:var(--gold); margin-bottom:.7vh;}
+  .headline{font-family:var(--cond); font-weight:800; line-height:.94;
+            font-size:clamp(28px,5.4vh,78px); letter-spacing:-.005em; color:var(--paper);
+            text-transform:uppercase;}
+  .headline .go{color:var(--gold);}
+
+  .gates{display:flex; gap:1.5vw; margin-top:1.3vh;}
+  .gate{flex:1 1 0; min-width:0; background:var(--ink2);
+        border:0.5vh solid var(--gold); border-radius:.9vh;
+        padding:1.4vh 1.6vw 1.3vh; display:flex; flex-direction:column; align-items:flex-start;
+        animation:breathe 2.6s ease-in-out infinite; position:relative; overflow:hidden;}
+  .gate:nth-child(2){animation-delay:1.3s;}
+  .gate.open{border-color:var(--green); animation:none; background:#0A3D2A;}
+  @keyframes breathe{
+    0%,100%{box-shadow:0 0 0 0 rgba(246,179,1,0);}
+    50%{box-shadow:0 0 0 .55vh rgba(246,179,1,.22);}
+  }
+  @media (prefers-reduced-motion: reduce){ .gate{animation:none;} }
+  .gate .glabel{font-family:var(--cond); font-weight:700; font-size:clamp(14px,2.3vh,31px);
+                letter-spacing:.2em; color:var(--mute);}
+  .gate.open .glabel{color:#8FE0B4;}
+  .gate .grow{display:flex; align-items:baseline; gap:.8vw; margin-top:-.4vh;}
+  .gate .gnum{font-family:var(--cond); font-weight:800; line-height:.86;
+              font-size:clamp(40px,9.8vh,142px); color:var(--gold);
+              font-variant-numeric:tabular-nums;}
+  .gate.open .gnum{color:#3EE08A;}
+  .gate .gunit{font-family:var(--cond); font-weight:800; font-size:clamp(17px,3.6vh,52px);
+               letter-spacing:.05em; color:var(--paper);}
+  .gate .gnote{font-family:var(--sans); font-weight:600; font-size:clamp(11px,1.8vh,24px);
+               color:var(--mute); margin-top:.4vh;}
+  .gate.open .gnote{color:#8FE0B4;}
+  .bar{width:100%; height:.9vh; background:rgba(255,255,255,.14); border-radius:.5vh;
+       margin-top:.9vh; overflow:hidden;}
+  .bar i{display:block; height:100%; background:var(--gold); width:0;
+         transition:width .6s ease;}
+  .gate.open .bar i{background:#3EE08A;}
+
+  .rule{margin-top:1.15vh; display:flex; align-items:center; gap:1.1vw;
+        border-top:0.3vh solid var(--line); border-bottom:0.3vh solid var(--line);
+        padding:.8vh 0;}
+  .rule .chip{font-family:var(--cond); font-weight:800; font-size:clamp(15px,2.5vh,34px);
+              letter-spacing:.1em; background:var(--gold); color:var(--ink);
+              padding:.35vh .9vw; border-radius:.4vh; white-space:nowrap;}
+  .rule .txt{font-family:var(--cond); font-weight:700; font-size:clamp(16px,3.1vh,44px);
+             letter-spacing:.02em; color:var(--paper); text-transform:uppercase;}
+
+  .cleared{margin-top:1.1vh;}
+  .cleared .chead{font-family:var(--cond); font-weight:700; font-size:clamp(12px,2vh,27px);
+                  letter-spacing:.17em; color:var(--mute);}
+  .names{display:flex; flex-wrap:wrap; gap:.55vh .7vw; margin-top:.55vh;}
+  .name{font-family:var(--cond); font-weight:800; font-size:clamp(14px,2.6vh,36px);
+        text-transform:uppercase; letter-spacing:.02em; color:var(--ink);
+        background:#3EE08A; border-radius:.4vh; padding:.2vh .7vw;}
+  .name.near{background:transparent; color:var(--paper);
+             border:0.25vh solid var(--line); padding:.15vh .65vw;}
+  .nempty{font-family:var(--sans); font-weight:600; font-size:clamp(11px,1.8vh,24px);
+          color:var(--mute); margin-top:.5vh;}
+
+  .also{margin-top:auto; padding-top:.9vh;}
+  .also .ahead{font-family:var(--cond); font-weight:800; font-size:clamp(16px,3vh,42px);
+               letter-spacing:.03em; color:var(--paper); text-transform:uppercase;}
+  .also .asub{font-family:var(--sans); font-weight:400; font-size:clamp(11px,1.75vh,23px);
+              color:var(--mute); margin-top:.3vh;}
+  .stats{display:flex; gap:2.6vw; margin-top:.7vh;}
+  .stat .sv{font-family:var(--cond); font-weight:800; line-height:1;
+            font-size:clamp(20px,4.2vh,60px); color:var(--paper);
+            font-variant-numeric:tabular-nums;}
+  .stat .sl{font-family:var(--cond); font-weight:700; font-size:clamp(11px,1.85vh,25px);
+            letter-spacing:.15em; color:var(--mute);}
+  .stat.gold .sv{color:var(--gold);}
+
+  .rail{flex:0 0 30vw; background:var(--blue); padding:2.6vh 2.1vw 3.4vh;
+        display:flex; flex-direction:column; border-left:0.35vh solid var(--line);}
+  .rail .rtop{font-family:var(--cond); font-weight:700; font-size:clamp(14px,2.35vh,32px);
+              letter-spacing:.2em; color:#BFDCF2;}
+  .rail .rtitle{font-family:var(--cond); font-weight:800; line-height:.95;
+                font-size:clamp(24px,4.7vh,66px); letter-spacing:.01em; color:#fff;
+                text-transform:uppercase; margin-top:.2vh;}
+  .rail .big{font-family:var(--cond); font-weight:800; line-height:.82;
+             font-size:clamp(60px,17vh,250px); color:#fff;
+             font-variant-numeric:tabular-nums; margin-top:1vh;}
+  .rail .biglabel{font-family:var(--cond); font-weight:700; font-size:clamp(14px,2.6vh,36px);
+                  letter-spacing:.13em; color:#CFE6F7; text-transform:uppercase;
+                  line-height:1.1; margin-top:-.3vh;}
+  .rail .rdiv{border-top:0.3vh solid rgba(255,255,255,.28); margin:1.8vh 0 1.4vh;}
+  .rail .rrow{margin-bottom:1.3vh;}
+  .rail .rk{font-family:var(--cond); font-weight:700; font-size:clamp(12px,1.95vh,26px);
+            letter-spacing:.17em; color:#BFDCF2;}
+  .rail .rv{font-family:var(--cond); font-weight:800; line-height:1.02;
+            font-size:clamp(17px,3.15vh,45px); color:#fff; text-transform:uppercase;}
+  .rail .prize{margin-top:auto; background:rgba(4,34,58,.42);
+               border:0.3vh solid rgba(255,255,255,.3); border-radius:.8vh;
+               padding:1.2vh 1.1vw;}
+  .rail .prize .pk{font-family:var(--cond); font-weight:700; font-size:clamp(12px,1.95vh,26px);
+                   letter-spacing:.17em; color:#BFDCF2;}
+  .rail .prize .pv{font-family:var(--cond); font-weight:800; line-height:1;
+                   font-size:clamp(20px,3.9vh,56px); color:#fff; text-transform:uppercase;
+                   margin-top:.2vh;}
+
+  .band{flex:0 0 12.6vh; background:var(--green); display:flex; align-items:center;
+        justify-content:space-between; padding:1.2vh 3.2vw 2.4vh; gap:2.5vw;}
+  .band.open{background:#0B7A3A;}
+  .band .askk{font-family:var(--cond); font-weight:700; font-size:clamp(13px,2.2vh,29px);
+              letter-spacing:.24em; color:#CFF0DA;}
+  .band .askv{font-family:var(--cond); font-weight:800; line-height:1;
+              font-size:clamp(20px,5vh,72px); color:#fff; text-transform:uppercase;
+              margin-top:.2vh;}
+  .band .warn{text-align:right; flex:0 0 auto; max-width:42%;}
+  .band .warn .wk{font-family:var(--cond); font-weight:700; font-size:clamp(13px,2.2vh,29px);
+                  letter-spacing:.24em; color:#CFF0DA;}
+  .band .warn .wv{font-family:var(--cond); font-weight:800; line-height:1.02;
+                  font-size:clamp(15px,2.8vh,40px); color:#fff; text-transform:uppercase;
+                  margin-top:.2vh;}
+
+  .stale{position:fixed; top:1.1vh; left:50%; transform:translateX(-50%);
+         font-family:var(--cond); font-weight:700; letter-spacing:.18em;
+         font-size:clamp(10px,1.7vh,23px); background:#8A1C1C; color:#fff;
+         padding:.25vh .9vw; border-radius:.4vh; display:none;}
+</style>
+</head>
+<body>
+
+  <div class="stale" id="stale">SNAPSHOT STALE</div>
+
+  <div class="header">
+    <div class="brand">
+      <span class="mark">GET HEALTH-E</span>
+      <span class="sub">MEDICARE INBOUND</span>
+    </div>
+    <div class="stamp">
+      <div class="datestamp" id="datestamp">—</div>
+      <div class="asof" id="asof"></div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <div class="content">
+      <div class="eyebrow">TODAY ONLY · LEAVE-EARLY GATE</div>
+      <div class="headline">Hit 2. Floor hits 10.<br><span class="go">Go home early.</span></div>
+
+      <div class="gates">
+        <div class="gate" id="gate-you">
+          <div class="glabel">YOU WRITE · 2 STHHC</div>
+          <div class="grow">
+            <span class="gnum" id="you-num">0</span>
+            <span class="gunit">CLEAR</span>
+          </div>
+          <div class="gnote" id="you-note">Nobody through the personal gate yet.</div>
+        </div>
+        <div class="gate" id="gate-floor">
+          <div class="glabel">FLOOR WRITES</div>
+          <div class="grow">
+            <span class="gnum" id="floor-num">0</span>
+            <span class="gunit">/ 10 STHHC</span>
+          </div>
+          <div class="gnote" id="floor-note">10 to go.</div>
+          <div class="bar"><i id="floor-bar"></i></div>
+        </div>
+      </div>
+
+      <div class="rule">
+        <span class="chip">$50+ / MONTH</span>
+        <span class="txt">Premium under fifty doesn't count toward either gate</span>
+      </div>
+
+      <div class="cleared">
+        <div class="chead" id="chead">THROUGH THE GATE</div>
+        <div class="names" id="names"></div>
+        <div class="nempty" id="nempty">First two qualified STHHC of the day clears you.</div>
+      </div>
+
+      <div class="also">
+        <div class="ahead">Core and HI don't take the day off</div>
+        <div class="asub">STHHC is the gate, not the job. A day of home health with no Core is a bad day.</div>
+        <div class="stats">
+          <div class="stat"><div class="sv" id="s-core">0</div><div class="sl">CORE TODAY</div></div>
+          <div class="stat"><div class="sv" id="s-hi">0</div><div class="sl">HI TODAY</div></div>
+          <div class="stat gold"><div class="sv" id="s-sthhc">0</div><div class="sl">STHHC TODAY</div></div>
+          <div class="stat"><div class="sv" id="s-calls">0</div><div class="sl">INBOUND CALLS</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rail">
+      <div class="rtop">LIVE CONTEST</div>
+      <div class="rtitle" id="r-title">Ticket Run<br>Aug 11–20</div>
+
+      <div class="big" id="r-days">—</div>
+      <div class="biglabel">Selling days left<br>including today</div>
+
+      <div class="rdiv"></div>
+
+      <div class="rrow">
+        <div class="rk">ON THE RUN SO FAR</div>
+        <div class="rv" id="r-total">— STHHC</div>
+      </div>
+      <div class="rrow">
+        <div class="rk">LEADING</div>
+        <div class="rv" id="r-lead">—</div>
+        <div class="rk" id="r-leadsub" style="margin-top:.35vh;"></div>
+      </div>
+
+      <div class="prize">
+        <div class="pk">PLAYING FOR</div>
+        <div class="pv">Bucs vs Chiefs</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="band" id="band">
+    <div>
+      <div class="askk">TODAY'S ASK</div>
+      <div class="askv" id="askv">Offer home health on every single call</div>
+    </div>
+    <div class="warn">
+      <div class="wk">DON'T LOSE IT</div>
+      <div class="wv">Same call, separate close.<br>Never attached to the MA enrollment.</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var GATE_PERSONAL = 2, GATE_FLOOR = 10;
+  var SELLING_DAYS = ['2026-08-11','2026-08-12','2026-08-13','2026-08-14',
+                      '2026-08-17','2026-08-18','2026-08-19','2026-08-20'];
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; });
+  }
+  function fmtDate(iso){
+    if (!iso) return '—';
+    var p = iso.split('-');
+    var dt = new Date(Date.UTC(+p[0], +p[1]-1, +p[2]));
+    return dt.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric',
+                                           timeZone:'UTC'}).toUpperCase();
+  }
+
+  function render(d){
+    var boardDate = d.board_date;
+    var rows = (d.contest && d.contest.rows) || [];
+
+    document.getElementById('datestamp').textContent = fmtDate(boardDate);
+
+    // Gates count qualified ($50+) STHHC only — that is what contest.rows holds.
+    var byAgent = {}, floorQ = 0;
+    rows.forEach(function(r){
+      if (r[1] !== boardDate) return;
+      var n = Number(r[2]) || 0;
+      byAgent[r[0]] = (byAgent[r[0]] || 0) + n;
+      floorQ += n;
+    });
+    var agents = Object.keys(byAgent).sort(function(a,b){
+      return byAgent[b] - byAgent[a] || a.localeCompare(b); });
+    var clear = agents.filter(function(a){ return byAgent[a] >= GATE_PERSONAL; });
+    var near  = agents.filter(function(a){ return byAgent[a] === GATE_PERSONAL - 1; });
+
+    // Personal gate
+    document.getElementById('you-num').textContent = clear.length;
+    var youGate = document.getElementById('gate-you');
+    youGate.classList.toggle('open', clear.length > 0);
+    document.getElementById('you-note').textContent = clear.length
+      ? (clear.length === 1 ? 'One desk is clear. Two qualified STHHC does it.'
+                            : clear.length + ' desks are clear. Two qualified STHHC does it.')
+      : 'Nobody through the personal gate yet.';
+
+    // Floor gate
+    var floorOpen = floorQ >= GATE_FLOOR;
+    document.getElementById('floor-num').textContent = floorQ;
+    var fGate = document.getElementById('gate-floor');
+    fGate.classList.toggle('open', floorOpen);
+    document.getElementById('floor-note').textContent = floorOpen
+      ? 'FLOOR GATE OPEN — ' + floorQ + ' on the board.'
+      : (GATE_FLOOR - floorQ) + ' to go for the whole floor.';
+    document.getElementById('floor-bar').style.width =
+      Math.min(100, Math.round(floorQ / GATE_FLOOR * 100)) + '%';
+
+    // Names through the gate, then the one-away desks
+    var chips = clear.map(function(a){
+      return '<span class="name">' + esc(a) + ' · ' + byAgent[a] + '</span>'; });
+    var nearChips = near.map(function(a){
+      return '<span class="name near">' + esc(a) + ' · 1</span>'; });
+    document.getElementById('names').innerHTML = chips.concat(nearChips).join('');
+    document.getElementById('chead').textContent = clear.length
+      ? 'THROUGH THE GATE' + (near.length ? '  ·  ONE AWAY' : '')
+      : (near.length ? 'ONE AWAY' : 'THROUGH THE GATE');
+    document.getElementById('nempty').style.display =
+      (clear.length || near.length) ? 'none' : 'block';
+
+    // Today's other production
+    var t = d.today || {};
+    document.getElementById('s-core').textContent = t.core || 0;
+    document.getElementById('s-hi').textContent = t.hi || 0;
+    document.getElementById('s-sthhc').textContent = t.sthhc || 0;
+    document.getElementById('s-calls').textContent = (t.calls || 0).toLocaleString('en-US');
+
+    // Ask band flips once both gates are open
+    var bothOpen = floorOpen && clear.length > 0;
+    document.getElementById('band').classList.toggle('open', bothOpen);
+    document.getElementById('askv').textContent = floorOpen
+      ? 'Floor gate is open — clear your two'
+      : 'Offer home health on every single call';
+
+    // Rail: the Aug 11-20 ticket run
+    if (d.contest && d.contest.label) {
+      document.getElementById('r-title').innerHTML =
+        'Ticket Run<br>' + esc(d.contest.label);
+    }
+    var runTotal = 0, runByAgent = {};
+    rows.forEach(function(r){
+      var n = Number(r[2]) || 0;
+      runTotal += n;
+      runByAgent[r[0]] = (runByAgent[r[0]] || 0) + n;
+    });
+    document.getElementById('r-total').textContent = runTotal + ' STHHC';
+
+    var runAgents = Object.keys(runByAgent);
+    var top = runAgents.reduce(function(m,a){ return Math.max(m, runByAgent[a]); }, 0);
+    var leaders = runAgents.filter(function(a){ return runByAgent[a] === top; }).sort();
+    document.getElementById('r-lead').innerHTML =
+      top ? leaders.slice(0,3).map(esc).join('<br>') : '—';
+    document.getElementById('r-leadsub').textContent = top
+      ? (leaders.length > 1 ? 'TIED AT ' + top + ' EACH' : top + ' TICKETS')
+      : '';
+
+    var left = SELLING_DAYS.filter(function(iso){ return iso >= boardDate; }).length;
+    document.getElementById('r-days').textContent = left;
+
+    // As-of stamp + stale badge
+    if (d.generated_at) {
+      var g = new Date(d.generated_at);
+      document.getElementById('asof').textContent = 'AS OF ' +
+        g.toLocaleString('en-US', {hour:'numeric', minute:'2-digit',
+                                   timeZone:'America/New_York'}) + ' ET';
+      var ageMin = (Date.now() - g.getTime()) / 60000;
+      document.getElementById('stale').style.display = ageMin > 25 ? 'block' : 'none';
+    }
+  }
+
+  function pull(){
+    fetch('/api/stats' + location.search, {cache:'no-store'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d) render(d); })
+      .catch(function(){});
+  }
+  pull(); setInterval(pull, 60000);
+})();
+</script>
+</body>
+</html>
+`,
 };

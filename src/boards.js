@@ -381,6 +381,7 @@ const CONSOLE_TABS = [
   { slug: 'mtd', label: 'Month to Date', sub: 'MTD totals + pace' },
   { slug: 'leaders/sthhc', label: 'STHHC Leaders', sub: 'Top 5 + floor totals' },
   { slug: 'contest/sthhc', label: 'Ticket Run', sub: 'Bucs vs Chiefs contest' },
+  { slug: 'gate/sthhc', label: 'Leave-Early Gate', sub: 'Live: 2 per desk, 10 floor' },
 ];
 
 export function renderConsole(key, active) {
