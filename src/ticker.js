@@ -97,20 +97,21 @@ body > .board{
 @keyframes ghe-scroll{ from{transform:translate3d(0,0,0)} to{transform:translate3d(-50%,0,0)} }
 #ghe-ticker .tk-track{ display:flex; align-items:center; }
 
+/* Centred, not baseline-aligned: the agent name is twice the size of the
+   labels beside it, and sharing a baseline left them sitting low. */
 #ghe-ticker .tk-entry{
-  display:flex; align-items:baseline; gap:.75vw;
+  display:flex; align-items:center; gap:.75vw;
   padding:0 1.5vw; height:100%;
   border-right:1px solid var(--tk-line); white-space:nowrap;
 }
 #ghe-ticker .tk-chip{
-  align-self:center;
   font-family:var(--tk-cond); font-weight:700; letter-spacing:.14em;
   font-size:clamp(9px,1.35vh,18px); padding:.35vh .5vw; border-radius:.3vh;
   color:var(--tk-ink); background:var(--tk-glow);
   border:1px solid var(--tk-edge);
 }
 #ghe-ticker .tk-agent{
-  font-family:var(--tk-cond); font-weight:700;
+  font-family:var(--tk-cond); font-weight:700; line-height:1;
   font-size:clamp(19px,3.5vh,44px); color:var(--tk-paper);
 }
 #ghe-ticker .tk-plan{
@@ -128,7 +129,7 @@ body > .board{
   font-size:clamp(8px,1.1vh,14px); color:#B0808A; text-decoration:none;
 }
 #ghe-ticker .tk-time{
-  align-self:center; font-size:clamp(9px,1.3vh,16px); color:var(--tk-mute);
+  font-size:clamp(9px,1.3vh,16px); color:var(--tk-mute);
   font-variant-numeric:tabular-nums;
 }
 #ghe-ticker .tk-entry.under .tk-agent{ color:#A8C0D4; }

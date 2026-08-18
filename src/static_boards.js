@@ -956,7 +956,9 @@ export const STATIC_BOARDS = {
   // Live tracker. Rows arrive as [agent, sale_date, qualified, premium_sum] —
   // the shape the contest query returns — and the standings are built here.
   // No refresh button: the snapshot pushes every ~10 min and this re-reads it.
-  var PREMIUM_FLOOR = 50, MIN_TO_PLACE = 3, MAX_ROWS = 8;
+  // Top 5 on both the standings table and the by-day grid: at 8 the second
+  // panel ran under the footer on a 1080p screen.
+  var PREMIUM_FLOOR = 50, MIN_TO_PLACE = 3, MAX_ROWS = 5;
   var SELLING_DAYS = [
     {iso:'2026-08-11', label:'Tue', day:'8/11'},
     {iso:'2026-08-12', label:'Wed', day:'8/12'},
