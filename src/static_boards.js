@@ -742,7 +742,7 @@ export const STATIC_BOARDS = {
   table.trgrid tfoot td{border-top:.25vh solid var(--line);font-weight:700;color:var(--gold)}
   .trempty{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.12em;
     font-size:clamp(12px,2.1vh,28px);color:var(--mute);padding:2.5vh 0}
-  .trfoot{margin-top:auto;display:flex;justify-content:space-between;gap:1.5vw;
+  .trfoot{margin-top:auto;display:flex;justify-content:flex-end;gap:1.5vw;
     font-family:var(--prose);font-size:clamp(9px,1.4vh,18px);color:var(--mute);line-height:1.4}
   .standhead{display:flex;align-items:baseline;justify-content:space-between;gap:2vw}
   .standhead .tally{font-family:var(--cond);font-weight:700;text-transform:uppercase;
@@ -878,7 +878,6 @@ export const STATIC_BOARDS = {
         <div id="t-gridwrap"></div>
 
         <div class="trfoot">
-          <span>Provisional &mdash; premium rule only. The five compliance gates are graded by call audit Fri Aug 21.</span>
           <span id="t-asof"></span>
         </div>
       </div>
