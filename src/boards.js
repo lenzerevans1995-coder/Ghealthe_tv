@@ -106,21 +106,41 @@ const LEADER_CSS = `
 .slot .tag{font-family:var(--display);font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#EAFBF0;font-size:clamp(8px,1.2vh,16px);margin-top:.5vh}
 `;
 
-// Re-fetches the page and swaps the body only when the markup changed.
+// Re-fetches the page and swaps the board only when the markup changed. The
+// ticker header and every <script> are left alone: the ticker keeps its own
+// scroll position and alert queue across a swap, and scripts stay the ones
+// that loaded with the page rather than piling up a copy per poll.
 const POLLER = `
 <script>
 (function(){
   var EVERY = 15000;
+  var KEEP = 'ghe-ticker';
+  function content(body){
+    var c = body.cloneNode(true);
+    var keep = c.querySelector('#' + KEEP);
+    if (keep) keep.remove();
+    var s = c.querySelectorAll('script');
+    for (var i = 0; i < s.length; i++) s[i].remove();
+    return c;
+  }
   function tick(){
     fetch(location.href, {cache:'no-store'}).then(function(r){
       if(!r.ok) return;
       return r.text();
     }).then(function(html){
       if(!html) return;
-      var m = html.match(/<body[^>]*>([\\s\\S]*)<\\/body>/i);
-      if(m && m[1].trim() !== document.body.innerHTML.trim()){
-        document.body.innerHTML = m[1];
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var next = content(doc.body), now = content(document.body);
+      if (next.innerHTML.trim() === now.innerHTML.trim()) return;
+      var kids = document.body.childNodes, i;
+      for (i = kids.length - 1; i >= 0; i--) {
+        var n = kids[i];
+        if (n.id === KEEP) continue;
+        if (n.tagName === 'SCRIPT') continue;
+        document.body.removeChild(n);
       }
+      var incoming = next.childNodes;
+      while (incoming.length) document.body.appendChild(incoming[0]);
     }).catch(function(){}).finally(function(){ setTimeout(tick, EVERY); });
   }
   setTimeout(tick, EVERY);
@@ -381,7 +401,6 @@ const CONSOLE_TABS = [
   { slug: 'mtd', label: 'Month to Date', sub: 'MTD totals + pace' },
   { slug: 'leaders/sthhc', label: 'STHHC Leaders', sub: 'Top 5 + floor totals' },
   { slug: 'contest/sthhc', label: 'Ticket Run', sub: 'Bucs vs Chiefs contest' },
-  { slug: 'gate/sthhc', label: 'Leave-Early Gate', sub: 'Live: 2 per desk, 10 floor' },
 ];
 
 export function renderConsole(key, active) {

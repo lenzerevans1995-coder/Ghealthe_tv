@@ -17,6 +17,7 @@
 
 import { renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { STATIC_BOARDS } from './static_boards.js';
+import { withTicker } from './ticker.js';
 import CONTEST_FLYER from '../assets/contest-Flyer_august.png';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
@@ -117,14 +118,16 @@ async function route(request, env, url) {
     return html(renderRotation(boards, dwell, url.searchParams.get('key') || ''));
   }
 
+  // Every board wears the live sales ticker as its header bar. Injected here
+  // rather than in each template so static and rendered boards stay in step.
   if (path.startsWith('/board/')) {
     const which = path.slice('/board/'.length);
-    if (STATIC_BOARDS[which]) return html(STATIC_BOARDS[which]);
+    if (STATIC_BOARDS[which]) return html(withTicker(STATIC_BOARDS[which]));
     const { snap, meta } = await loadMergedSnapshot(env);
-    if (which === 'live') return html(renderLive(snap, meta));
-    if (which === 'daily') return html(renderDaily(snap, meta));
-    if (which === 'mtd') return html(renderMtd(snap, meta));
-    if (which === 'leaders/sthhc') return html(renderLeadersSthhc(snap, meta));
+    if (which === 'live') return html(withTicker(renderLive(snap, meta)));
+    if (which === 'daily') return html(withTicker(renderDaily(snap, meta)));
+    if (which === 'mtd') return html(withTicker(renderMtd(snap, meta)));
+    if (which === 'leaders/sthhc') return html(withTicker(renderLeadersSthhc(snap, meta)));
     return new Response('Unknown board', { status: 404 });
   }
 
