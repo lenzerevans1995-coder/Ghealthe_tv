@@ -783,6 +783,9 @@ export const STATIC_BOARDS = {
   @media (prefers-reduced-motion: reduce){.bignum{animation:none}}
 
   /* ── ask band ───────────────────────────────────────── */
+  /* The ask band belongs to the prizes scene; the scoreboard takes the
+     height instead, so its second panel never runs into it. */
+  .board.noask .ask{display:none}
   .ask{flex:0 0 auto;background:linear-gradient(90deg,#0B9444 0%,#0E7F3F 100%);
     padding:2.3vh 3.0vw;display:flex;align-items:center;justify-content:space-between;gap:2vw;
     box-shadow:0 -1vh 3vh rgba(0,0,0,.30)}
@@ -826,7 +829,7 @@ export const STATIC_BOARDS = {
   <div class="row">
     <div class="main">
 
-      <div class="face mainface show">
+      <div class="face mainface">
         <div>
           <div class="sectlabel">What you're playing for</div>
           <div class="prizes">
@@ -858,7 +861,7 @@ export const STATIC_BOARDS = {
         </div>
       </div>
 
-      <div class="face mainface tracker">
+      <div class="face mainface tracker show">
         <div class="trstrip">
           <div class="trstat"><div class="trn" id="t-qual">&mdash;</div><div class="trl">Qualified on the board</div></div>
           <div class="trstat"><div class="trn" id="t-agents">&mdash;</div><div class="trl">Agents on the board</div></div>
@@ -896,13 +899,13 @@ export const STATIC_BOARDS = {
           <rect x="325" y="21" width="28" height="12" rx="2"/>
         </g>
       </svg>
-      <div class="face railface show">
+      <div class="face railface">
         <div class="raillabel">Selling Days Left</div>
         <div class="bignum" id="left">8</div>
         <div class="railrule"></div>
         <div class="railfoot"><span id="window">Tue Aug 11 &rarr; Thu Aug 20</span><br>Closes End of Shift</div>
       </div>
-      <div class="face railface promo"><div class="haze" id="haze"></div><img id="flyer" alt="STHHC contest — Bucs vs Chiefs"></div>
+      <div class="face railface promo show"><div class="haze" id="haze"></div><img id="flyer" alt="STHHC contest — Bucs vs Chiefs"></div>
     </div>
   </div>
 
@@ -1089,16 +1092,27 @@ export const STATIC_BOARDS = {
   }
   standings(); setInterval(standings, 60000);
 
-  // Rotate both halves together: prizes + countdown, then standings + flyer.
-  var DWELL = 12000, i = 0;
-  setInterval(function(){
-    var next = 1 - i;
-    document.querySelectorAll('.main .face')[i].classList.remove('show');
-    document.querySelectorAll('.rail .face')[i].classList.remove('show');
-    document.querySelectorAll('.main .face')[next].classList.add('show');
-    document.querySelectorAll('.rail .face')[next].classList.add('show');
-    i = next;
-  }, DWELL);
+  // Rotate both halves together: standings + flyer, then prizes + countdown.
+  // The scoreboard is the scene the floor actually reads, so it opens the
+  // board and holds twice as long as the prizes scene.
+  var SCORE = 1;
+  var DWELL = [12000, 24000];   // [prizes, scoreboard]
+  var i = SCORE;
+  var board = document.querySelector('.board');
+  function paintAsk(){ board.classList.toggle('noask', i === SCORE); }
+  paintAsk();
+  (function loop(){
+    setTimeout(function(){
+      var next = 1 - i;
+      document.querySelectorAll('.main .face')[i].classList.remove('show');
+      document.querySelectorAll('.rail .face')[i].classList.remove('show');
+      document.querySelectorAll('.main .face')[next].classList.add('show');
+      document.querySelectorAll('.rail .face')[next].classList.add('show');
+      i = next;
+      paintAsk();
+      loop();
+    }, DWELL[i]);
+  })();
 })();
 </script>
 </body>
