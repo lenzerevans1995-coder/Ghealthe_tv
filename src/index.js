@@ -7,6 +7,8 @@
 //   GET  /board/month-open        static month-open flyer (self-dating)
 //   GET  /board/early-out         static early-out points counter (?sthhc=&core=&hi=&goal=&asof=)
 //   GET  /board/rotation          cycles the above (one URL per TV)
+//   GET  /board/run15             standalone STHHC "Run to 15" gauge (own screen)
+//   GET  /board/run15/feed.js     that gauge's feed, rendered from the snapshot
 //   GET  /console                 desk view: left menu rail + the boards in a frame
 //   GET  /unlock                  saves the key on this device (?key=…&to=…), then redirects
 //   GET  /k/<key>                 same, key in the path — survives link shorteners
@@ -18,6 +20,7 @@
 import { renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { STATIC_BOARDS } from './static_boards.js';
 import { withTicker } from './ticker.js';
+import { RUN15_BOARD } from './run15.js';
 import CONTEST_FLYER from '../assets/contest-Flyer_august.png';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
@@ -118,6 +121,17 @@ async function route(request, env, url) {
     return html(renderRotation(boards, dwell, url.searchParams.get('key') || ''));
   }
 
+  // Run to 15 stands alone: its own screen, its own feed, no ticker bar and
+  // no place in the console menu or the rotation. Routed ahead of /board/*
+  // so the shared ticker wrapper never touches it.
+  if (path === '/board/run15') return html(RUN15_BOARD);
+  if (path === '/board/run15/feed.js') {
+    const { snap } = await loadMergedSnapshot(env);
+    return new Response(run15Feed(snap), {
+      headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
+    });
+  }
+
   // Every board wears the live sales ticker as its header bar. Injected here
   // rather than in each template so static and rendered boards stay in step.
   if (path.startsWith('/board/')) {
@@ -136,6 +150,51 @@ async function route(request, env, url) {
   }
 
   return new Response('Not found', { status: 404 });
+}
+
+// ---------- run to 15 ----------
+
+// Floor record as of Aug 19 2026: 14, set twice (Aug 10 and Aug 11). Kept
+// here rather than recomputed per request; a snapshot may override it.
+const RUN15_DEFAULTS = { goal: 15, record: 14, record_note: 'AUG 10 · AUG 11' };
+
+// Today's STHHC writes, oldest first. The refresh Routine stores them on the
+// snapshot; failing that they are recovered from the ticker rail, which keeps
+// only its most recent rows and so can come up short on a busy day.
+function sthhcToday(snap) {
+  if (Array.isArray(snap.sthhc_today)) return snap.sthhc_today;
+  const day = snap.board_date || '';
+  return (Array.isArray(snap.ticker) ? snap.ticker : [])
+    .filter((t) => t && t.bucket === 'STHHC' && String(t.at || '').startsWith(day))
+    .map((t) => ({ agent: t.agent, premium: t.premium, at: String(t.at).slice(11) }))
+    .reverse();
+}
+
+function run15Feed(snap) {
+  const named = sthhcToday(snap);
+  const counted = Number(snap.today && snap.today.sthhc) || 0;
+
+  // A webhook can move the count before the next push carries the name.
+  // Pad the tail so the gauge reads the true number; the padding carries no
+  // agent, so it fills a segment without claiming a writer.
+  const sales = named.slice();
+  for (let i = sales.length; i < counted; i++) sales.push({ agent: null });
+
+  // Per-selling-day average over completed days only — today is still running.
+  const done = Number(snap.month && snap.month.selling_days_done) || 0;
+  const mtd = Number(snap.mtd && snap.mtd.sthhc) || 0;
+  const average = done > 0 ? Math.round(((mtd - counted) / done) * 10) / 10 : null;
+
+  const cfg = { ...RUN15_DEFAULTS, ...(snap.run15 || {}) };
+  const feed = {
+    goal: cfg.goal,
+    record: cfg.record,
+    record_note: cfg.record_note,
+    average: average == null ? undefined : average,
+    generated_at: snap.generated_at,
+    sales,
+  };
+  return `window.STHHC = ${JSON.stringify(feed)};`;
 }
 
 // ---------- auth ----------
