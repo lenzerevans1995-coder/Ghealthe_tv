@@ -17,7 +17,7 @@
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
 //   GET  /healthz                 liveness probe (no auth)
 
-import { renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
+import { DISABLED_BOARDS, renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { STATIC_BOARDS } from './static_boards.js';
 import { withTicker } from './ticker.js';
 import { RUN15_BOARD } from './run15.js';
@@ -116,7 +116,8 @@ async function route(request, env, url) {
 
   if (path === '/board/rotation') {
     const boards = (url.searchParams.get('boards') || 'live,daily,mtd,leaders/sthhc')
-      .split(',').map((s) => s.trim()).filter(Boolean);
+      .split(',').map((s) => s.trim()).filter(Boolean)
+      .filter((s) => !DISABLED_BOARDS.has(s));
     const dwell = parseInt(url.searchParams.get('dwell') || '20', 10) || 20;
     return html(renderRotation(boards, dwell, url.searchParams.get('key') || ''));
   }
@@ -136,6 +137,9 @@ async function route(request, env, url) {
   // rather than in each template so static and rendered boards stay in step.
   if (path.startsWith('/board/')) {
     const which = path.slice('/board/'.length);
+    // A switched-off board answers like one that was never built, so a TV still
+    // pinned to its URL fails loudly instead of showing a dead window.
+    if (DISABLED_BOARDS.has(which)) return new Response('Board disabled', { status: 404 });
     if (STATIC_BOARDS[which]) return html(withTicker(STATIC_BOARDS[which]));
     const { snap, meta } = await loadMergedSnapshot(env);
     if (which === 'live') return html(withTicker(renderLive(snap, meta)));

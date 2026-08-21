@@ -403,9 +403,16 @@ const CONSOLE_TABS = [
   { slug: 'contest/sthhc', label: 'Ticket Run', sub: 'Bucs vs Chiefs contest' },
 ];
 
+// Boards that are built but switched off: kept out of the console menu, out of
+// the rotation, and 404 on their own route. The Ticket Run's Aug 11-20 window
+// closed, so it sits here until a new window replaces it. Remove the slug to
+// turn a board back on.
+export const DISABLED_BOARDS = new Set(['contest/sthhc']);
+
 export function renderConsole(key, active) {
-  const tabs = CONSOLE_TABS.some((t) => t.slug === active) ? active : CONSOLE_TABS[0].slug;
-  const items = CONSOLE_TABS.map(
+  const shown = CONSOLE_TABS.filter((t) => !DISABLED_BOARDS.has(t.slug));
+  const tabs = shown.some((t) => t.slug === active) ? active : shown[0].slug;
+  const items = shown.map(
     (t) => `
     <button class="tab${t.slug === tabs ? ' on' : ''}" data-slug="${esc(t.slug)}">
       <span class="tl">${esc(t.label)}</span>
