@@ -24,7 +24,7 @@ import { STATIC_BOARDS } from './static_boards.js';
 import { withTicker } from './ticker.js';
 import { RUN15_BOARD } from './run15.js';
 import { LIVE_SALES_BOARD } from './live_sales.js';
-import CONTEST_FLYER from '../assets/contest-Flyer_august.png';
+import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
 
@@ -105,9 +105,9 @@ async function route(request, env, url) {
   // Board imagery. Boards pass their own ?key= through on the <img src>,
   // so this stays behind the same gate as everything else. Immutable —
   // a new picture gets a new filename.
-  if (path === '/assets/contest-flyer-aug11.png') {
+  if (path === '/assets/contest-flyer-aug11.jpg') {
     return new Response(CONTEST_FLYER, {
-      headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' },
+      headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' },
     });
   }
 

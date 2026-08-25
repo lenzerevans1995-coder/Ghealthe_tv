@@ -17,8 +17,10 @@ database_id = "5fa2a007-b31d-4ffe-930f-9d6d99182dc7"
 #   ONYX_SIGNING_SECRET  Onyx webhook signing secret (milestone 3)
 
 # Board imagery is bundled with the Worker and served from /assets/*, so the
-# pages stay self-contained and the board key still gates every read.
+# pages stay self-contained and the board key still gates every read. Whole
+# files count against the Worker's 3 MiB size limit, so keep them small —
+# photographic flyers as JPEG, not PNG.
 [[rules]]
 type = "Data"
-globs = ["**/*.png"]
+globs = ["**/*.png", "**/*.jpg"]
 fallthrough = true
