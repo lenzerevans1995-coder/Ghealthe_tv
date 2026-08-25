@@ -398,6 +398,7 @@ export function renderMtd(snap, meta) {
 // this route carries the rail — /board/* stays chrome-free for the TVs.
 const CONSOLE_TABS = [
   { slug: 'live', label: 'Live Board', sub: "Today's running total" },
+  { slug: 'sales', label: 'Live Sales', sub: 'Latest write, sale by sale' },
   { slug: 'mtd', label: 'Month to Date', sub: 'MTD totals + pace' },
   { slug: 'leaders/sthhc', label: 'STHHC Leaders', sub: 'Top 5 + floor totals' },
   { slug: 'contest/sthhc', label: 'Ticket Run', sub: 'Bucs vs Chiefs contest' },

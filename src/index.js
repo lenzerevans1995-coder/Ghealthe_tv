@@ -9,6 +9,8 @@
 //   GET  /board/rotation          cycles the above (one URL per TV)
 //   GET  /board/run15             standalone STHHC "Run to 15" gauge (own screen)
 //   GET  /board/run15/feed.js     that gauge's feed, rendered from the snapshot
+//   GET  /board/sales             Live Sales — the latest write, big, plus today's tally
+//   GET  /board/sales/feed.js     that board's feed, rendered from the snapshot
 //   GET  /console                 desk view: left menu rail + the boards in a frame
 //   GET  /unlock                  saves the key on this device (?key=…&to=…), then redirects
 //   GET  /k/<key>                 same, key in the path — survives link shorteners
@@ -21,6 +23,7 @@ import { DISABLED_BOARDS, renderConsole, renderDaily, renderLive, renderLeadersS
 import { STATIC_BOARDS } from './static_boards.js';
 import { withTicker } from './ticker.js';
 import { RUN15_BOARD } from './run15.js';
+import { LIVE_SALES_BOARD } from './live_sales.js';
 import CONTEST_FLYER from '../assets/contest-Flyer_august.png';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
@@ -133,6 +136,16 @@ async function route(request, env, url) {
     });
   }
 
+  // Live Sales stands alone the same way: its own screen, its own feed, and
+  // its own ticker along the foot, so the shared bar is not stacked on top.
+  if (path === '/board/sales') return html(LIVE_SALES_BOARD);
+  if (path === '/board/sales/feed.js') {
+    const { snap } = await loadMergedSnapshot(env);
+    return new Response(salesFeed(snap), {
+      headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
+    });
+  }
+
   // Every board wears the live sales ticker as its header bar. Injected here
   // rather than in each template so static and rendered boards stay in step.
   if (path.startsWith('/board/')) {
@@ -199,6 +212,70 @@ function run15Feed(snap) {
     sales,
   };
   return `window.STHHC = ${JSON.stringify(feed)};`;
+}
+
+// ---------- live sales ----------
+
+// The Live Sales board reads today's writes one by one. Names come from the
+// snapshot's ticker rail (newest first, Eastern wall-clock time); the tallies
+// beside them come from `today`, which webhooks also move — so the rail can
+// run a sale behind without the counters being wrong.
+const SALES_PRODUCTS = new Set(['CORE', 'STHHC', 'HI']);
+
+function salesFeed(snap) {
+  const day = snap.board_date || '';
+  const sales = (Array.isArray(snap.ticker) ? snap.ticker : [])
+    .filter((t) => t && SALES_PRODUCTS.has(t.bucket) && String(t.at || '').startsWith(day))
+    .map((t) => {
+      const at = String(t.at); // 'YYYY-MM-DD HH:MM'
+      const name = String(t.agent || '').trim();
+      const sp = name.indexOf(' ');
+      return {
+        id: saleId(at, name, t.bucket),
+        first: sp > 0 ? name.slice(0, sp) : name,
+        last: sp > 0 ? name.slice(sp + 1) : '',
+        product: t.bucket,
+        carrier: t.carrier || '',
+        plan: t.plan || '',
+        time: clock12(at.slice(11, 16)),
+        ts: at,
+      };
+    });
+
+  const today = snap.today || {};
+  const feed = {
+    date_label: today.label || '',
+    generated_at: snap.generated_at,
+    demo: !!snap.demo,
+    totals: {
+      CORE: Number(today.core) || 0,
+      STHHC: Number(today.sthhc) || 0,
+      HI: Number(today.hi) || 0,
+    },
+    sales,
+  };
+  return `window.SALES = ${JSON.stringify(feed)};`;
+}
+
+// A write carries no id of its own, so one is derived from the write itself:
+// the minute puts ids in time order, the name/product hash separates two
+// writes landing in the same minute. Derived rather than counted, because the
+// board flags a sale as NEW on an id it has not seen before — an id that
+// shifted between refreshes would flash sales that are already on the wall.
+function saleId(at, name, bucket) {
+  const minutes = Math.floor(Date.parse(`${at.slice(0, 10)}T${at.slice(11, 16)}:00Z`) / 60000) || 0;
+  let h = 0;
+  for (const ch of `${name}|${bucket}`) h = (h * 31 + ch.charCodeAt(0)) % 997;
+  return minutes * 1000 + h;
+}
+
+// '14:07' -> '2:07 PM'. The rail's times are already Eastern, so this is a
+// reformat, never a conversion.
+function clock12(hhmm) {
+  const [h, m] = hhmm.split(':');
+  const hour = Number(h);
+  if (!Number.isFinite(hour) || !m) return hhmm;
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`;
 }
 
 // ---------- auth ----------
