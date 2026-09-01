@@ -49,9 +49,15 @@ retired. Crons are UTC: after the November DST change, shift the hour range from
 
 ## Deploy (one time)
 
+Deploys need Cloudflare credentials. `wrangler login` is interactive, so in a Claude Code
+session set **`CLOUDFLARE_API_TOKEN`** as an environment variable on the environment the
+session runs in (claude.ai/code → Environments) rather than pasting a token into the chat:
+every new session then inherits it, and the token stays out of transcripts. Scope it to
+Account → *Workers Scripts: Edit* and *D1: Edit* — that is all any command here needs.
+
 ```bash
 npm install
-npx wrangler login                          # or CLOUDFLARE_API_TOKEN env var
+npx wrangler login                          # or the CLOUDFLARE_API_TOKEN env var above
 npx wrangler d1 create ghealthe_tv          # paste the printed database_id into wrangler.toml
 npm run db:init
 npx wrangler secret put BOARD_KEY           # any long random string
