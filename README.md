@@ -19,7 +19,8 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 | `/console` | Desk view — left menu rail for clicking between Live, Live Sales, The Paper Chase, MTD, STHHC Leaders and the Ticket Run (`?board=mtd` opens on a tab). The rail exists only here; `/board/*` stays chrome-free for the TVs |
 | `/api/stats` | Merged snapshot JSON (what the boards render from) |
 | `/ingest` | POST, bearer-secret — snapshot push from the Claude Routine |
-| `/webhooks/onyx` | POST, HMAC-verified — Onyx POLICY_CREATED / POLICY_UPDATED |
+| `/webhooks/onyx` | POST, HMAC-verified — Onyx POLICY_CREATED / POLICY_UPDATED. Moves today's counts, and scores contest points for The Paper Chase |
+| `/api/webhook-status` | What the webhook endpoint has actually received (counts, last delivery, last event type) — the answer to "is Onyx delivering?", which `policy_events` cannot give because every snapshot push prunes it |
 | `/healthz` | Liveness, no auth |
 
 All GET routes require the board key. Pass it as `?key=<BOARD_KEY>` — or visit
@@ -83,3 +84,13 @@ webhook events already covered by it.
 one row per agent (`agent`, `points`, `points_week`, `sthhc_apps`, `sthhc_apps_q`, `sthhc_prem`,
 `hi_apps`, `hi_prem`), exactly the shape of the contest query. It is stored under its own key,
 so snapshot pushes leave it alone.
+
+Between those pushes the board moves on Onyx webhooks: a POLICY_CREATED for an STHHC or HI
+is scored on arrival (premium at or above the $50 / $30 bar scores in full, below it scores
+half) and folded over the last push, so a write reaches the wall in seconds. Two limits are
+worth knowing. The delivery carries no call id, so the "STHHC written on the same call as a
+Core scores zero" rule falls back to matching the lead — an approximation the next push
+recomputes properly. And the delivery names the agent only by email and user id, so the name
+comes from the `agent_roster` row in D1; an agent missing from it is recorded but not scored
+until the next push, rather than shown under a guessed name. Refresh that roster when people
+join.

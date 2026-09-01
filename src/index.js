@@ -102,6 +102,13 @@ async function route(request, env, url) {
     return new Response(null, { status: 302, headers: { location: dest } });
   }
 
+  // What the Onyx webhook endpoint has actually received. Behind the board
+  // key like every other read; no payloads, just counts and the last event.
+  if (path === '/api/webhook-status') {
+    const row = await env.DB.prepare('SELECT v, updated_at FROM kv WHERE k = ?').bind('webhook_stats').first();
+    return json(row ? { ...JSON.parse(row.v), updated_at: row.updated_at } : { received: 0, note: 'no deliveries recorded' });
+  }
+
   if (path === '/api/stats') {
     const { snap } = await loadMergedSnapshot(env);
     return json(snap);
@@ -156,8 +163,7 @@ async function route(request, env, url) {
   // the refresh Routine overwrites the snapshot wholesale and would drop them.
   if (path === '/board/paperchase') return html(PAPER_CHASE_BOARD);
   if (path === '/board/paperchase/feed.js') {
-    const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('paper_chase').first();
-    const feed = row ? row.v : JSON.stringify({ generated_at: null, rows: [] });
+    const feed = JSON.stringify(await loadContestStandings(env));
     return new Response(`window.PAPER_CHASE = ${feed};`, {
       headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
     });
@@ -399,6 +405,63 @@ async function handleIngest(request, env) {
   return json({ ok: true });
 }
 
+// The standings the board renders: the last pushed baseline with any webhook
+// deliveries newer than it folded on top. Same shape as the snapshot boards —
+// the ten-minute push is the source of truth and resets the baseline; webhooks
+// only move it forward in between, so a missed or duplicated delivery heals on
+// the next push rather than compounding.
+async function loadContestStandings(env) {
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('paper_chase').first();
+  const base = row ? JSON.parse(row.v) : { generated_at: null, rows: [] };
+  const rows = (base.rows || []).map((r) => ({ ...r }));
+  const since = base.generated_at || '1970-01-01T00:00:00Z';
+
+  const events = await env.DB.prepare(
+    'SELECT policy_id, ts, bucket, agent, premium, lead_id, scorable FROM contest_events WHERE ts > ?'
+  ).bind(since).all();
+  const fresh = events.results || [];
+  if (!fresh.length) return base;
+
+  // An STHHC written on the same call as a Core scores zero. The delivery
+  // carries no call id, so the lead stands in for it: two policies keyed for
+  // one customer in the same stretch are the attached case the rule is about.
+  // Only an approximation — the next push recomputes it from the call itself.
+  const coreLeads = new Set(fresh.filter((e) => e.bucket === 'CORE' && e.lead_id).map((e) => e.lead_id));
+
+  const byAgent = new Map(rows.map((r) => [r.agent, r]));
+  let latest = base.generated_at;
+  let applied = 0;
+
+  for (const e of fresh) {
+    if (e.ts > latest) latest = e.ts;
+    if (!e.scorable || !e.agent || e.bucket === 'CORE') continue;
+    const attached = e.bucket === 'STHHC' && e.lead_id && coreLeads.has(e.lead_id);
+    const points = attached ? 0 : contestPoints(e.bucket, e.premium);
+    const prem = Number(e.premium) || 0;
+
+    let row = byAgent.get(e.agent);
+    if (!row) {
+      row = { agent: e.agent, points: 0, points_week: 0, sthhc_apps: 0, sthhc_apps_q: 0, sthhc_prem: 0, hi_apps: 0, hi_prem: 0 };
+      byAgent.set(e.agent, row);
+      rows.push(row);
+    }
+    row.points = Number(row.points || 0) + points;
+    row.points_week = Number(row.points_week || 0) + points; // deliveries are always this week
+    if (e.bucket === 'STHHC') {
+      row.sthhc_apps = Number(row.sthhc_apps || 0) + 1;
+      if (prem >= 50) row.sthhc_apps_q = Number(row.sthhc_apps_q || 0) + 1;
+      row.sthhc_prem = Number(row.sthhc_prem || 0) + prem;
+    } else {
+      row.hi_apps = Number(row.hi_apps || 0) + 1;
+      row.hi_prem = Number(row.hi_prem || 0) + prem;
+    }
+    applied++;
+  }
+
+  rows.sort((a, b) => Number(b.points) - Number(a.points));
+  return { generated_at: applied > 0 ? latest : base.generated_at, rows, live_adds: applied };
+}
+
 // ---------- contest standings ingest ----------
 
 // The Paper Chase standings are one Onyx query, pushed here the same way the
@@ -417,6 +480,8 @@ async function handlePaperChaseIngest(request, env) {
   await env.DB.prepare(
     'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
   ).bind('paper_chase', JSON.stringify(feed), new Date().toISOString()).run();
+  // Deliveries at or before the new baseline are already counted in it.
+  await env.DB.prepare('DELETE FROM contest_events WHERE ts <= ?').bind(feed.generated_at).run();
   return json({ ok: true, rows: feed.rows.length });
 }
 
@@ -428,10 +493,15 @@ async function handleWebhook(request, env) {
   const raw = await request.text();
   const sig = request.headers.get('x-onyx-signature-256') || '';
   if (!(await verifyHmac(raw, sig, env.ONYX_SIGNING_SECRET))) {
+    // Counted, not just refused: "nothing is arriving" and "everything is
+    // arriving and being rejected" look identical from the events table,
+    // which every snapshot push prunes.
+    await noteWebhook(env, { signature: 'rejected', raw });
     return new Response('bad signature', { status: 401 });
   }
 
   const event = JSON.parse(raw);
+  await noteWebhook(env, { signature: 'verified', raw, type: event.event ?? event.event_type ?? event.type ?? null });
   const policy = event.policy || event; // payload shape verified at milestone 3
   const product = classify({
     policy_type: policy.policy_type ?? policy.type,
@@ -455,7 +525,109 @@ async function handleWebhook(request, env) {
     'ON CONFLICT(policy_id) DO UPDATE SET ts = excluded.ts, product = excluded.product, agent = excluded.agent, payload = excluded.payload'
   ).bind(policyId, new Date().toISOString(), product, agent != null ? String(agent) : null, raw).run();
 
+  // The Paper Chase scores off the same delivery, but needs more of it than
+  // the counters do: premium, the lead (for the attached-STHHC rule) and a
+  // display name. Recorded separately so a missing field degrades that board
+  // alone, and never the counts.
+  await recordContestEvent(env, { event, policy, product, policyId });
+
   return json({ ok: true, product });
+}
+
+// ---------- contest scoring from webhooks ----------
+
+// Points, straight from the contest rules: an STHHC at $50+ or an HI at $30+
+// scores its premium, below the bar it scores half, and an STHHC written on
+// the same call as a Core scores nothing. The zero rule is applied at read
+// time — the Core may not have arrived yet when the STHHC does.
+function contestPoints(bucket, premium) {
+  const prem = Number(premium) || 0;
+  if (bucket === 'STHHC') return Math.round(prem >= 50 ? prem : prem / 2);
+  if (bucket === 'HI') return Math.round(prem >= 30 ? prem : prem / 2);
+  return 0;
+}
+
+const CONTEST_BUCKET = { sthhc: 'STHHC', hi: 'HI', core: 'CORE' };
+
+// Onyx names the agent by email and user id, never by display name, so the
+// name comes from a roster stored alongside the standings. An agent the
+// roster doesn't know is recorded but not scored: the board would rather be
+// ten minutes behind than put a wrong name on the wall.
+async function resolveAgentName(env, key) {
+  if (key == null) return null;
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('agent_roster').first();
+  if (!row) return null;
+  const roster = JSON.parse(row.v);
+  const k = String(key).toLowerCase();
+  return roster.byId?.[k] ?? roster.byEmail?.[k] ?? null;
+}
+
+async function recordContestEvent(env, { event, policy, product, policyId }) {
+  const bucket = CONTEST_BUCKET[product];
+  if (!bucket) return; // ancillary: no part in this contest
+
+  const details = policy.medicare_details ?? event.medicare_details ?? {};
+  const premium = firstNumber([
+    details.premium, details.premium_amount,
+    policy.premium, policy.premium_amount, event.premium,
+  ]);
+  const agentKey =
+    event.agent?.user_id ?? policy.agent?.user_id ?? event.agent_user_id ??
+    event.agent?.email ?? policy.agent?.email ?? null;
+  const leadId = event.lead?.id ?? event.lead_id ?? policy.lead_id ?? event.person?.id ?? null;
+  const agent = await resolveAgentName(env, agentKey);
+
+  // Scored only when every input the rules need is actually present. A Core
+  // needs no premium — it is recorded purely so an STHHC on the same call can
+  // be zeroed.
+  const scorable = agent != null && (bucket === 'CORE' || premium != null) ? 1 : 0;
+
+  await env.DB.prepare(
+    'INSERT INTO contest_events (policy_id, ts, bucket, agent, agent_key, premium, lead_id, scorable) ' +
+    'VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(policy_id) DO UPDATE SET ' +
+    'ts = excluded.ts, bucket = excluded.bucket, agent = excluded.agent, agent_key = excluded.agent_key, ' +
+    'premium = excluded.premium, lead_id = excluded.lead_id, scorable = excluded.scorable'
+  ).bind(
+    policyId, new Date().toISOString(), bucket, agent,
+    agentKey != null ? String(agentKey) : null,
+    premium ?? 0, leadId != null ? String(leadId) : null, scorable
+  ).run();
+}
+
+function firstNumber(candidates) {
+  for (const c of candidates) {
+    const n = Number(c);
+    if (c != null && c !== '' && Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+// Durable record of what the endpoint actually receives — survives the
+// policy_events pruning, so it answers whether Onyx is delivering at all.
+// Keeps one raw payload so the field names can be read off a real event
+// rather than guessed from the docs.
+async function noteWebhook(env, { signature, raw, type }) {
+  try {
+    const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('webhook_stats').first();
+    const stats = row ? JSON.parse(row.v) : { received: 0, verified: 0, rejected: 0 };
+    stats.received = (stats.received || 0) + 1;
+    stats[signature] = (stats[signature] || 0) + 1;
+    stats.last_at = new Date().toISOString();
+    stats.last_signature = signature;
+    if (type) stats.last_type = type;
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+    ).bind('webhook_stats', JSON.stringify(stats), now).run();
+    if (signature === 'verified') {
+      await env.DB.prepare(
+        'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+      ).bind('webhook_last', raw.slice(0, 8000), now).run();
+    }
+  } catch {
+    // Telemetry must never cost a delivery: a failed write here would make
+    // Onyx retry an event the board already has.
+  }
 }
 
 async function verifyHmac(body, header, secret) {
