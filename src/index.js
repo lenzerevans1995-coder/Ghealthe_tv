@@ -11,11 +11,14 @@
 //   GET  /board/run15/feed.js     that gauge's feed, rendered from the snapshot
 //   GET  /board/sales             Live Sales — the latest write, big, plus today's tally
 //   GET  /board/sales/feed.js     that board's feed, rendered from the snapshot
+//   GET  /board/paperchase        The Paper Chase — September contest standings (own screen)
+//   GET  /board/paperchase/feed.js  that board's standings, pushed to /ingest/paperchase
 //   GET  /console                 desk view: left menu rail + the boards in a frame
 //   GET  /unlock                  saves the key on this device (?key=…&to=…), then redirects
 //   GET  /k/<key>                 same, key in the path — survives link shorteners
 //   GET  /api/stats               current merged snapshot (JSON)
 //   POST /ingest                  snapshot push from the Claude Routine (bearer secret)
+//   POST /ingest/paperchase       contest standings push (bearer secret, same as /ingest)
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
 //   GET  /healthz                 liveness probe (no auth)
 
@@ -24,6 +27,7 @@ import { STATIC_BOARDS } from './static_boards.js';
 import { withTicker } from './ticker.js';
 import { RUN15_BOARD } from './run15.js';
 import { LIVE_SALES_BOARD } from './live_sales.js';
+import { PAPER_CHASE_BOARD } from './paperchase.js';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
@@ -58,6 +62,7 @@ async function route(request, env, url) {
   if (path === '/favicon.ico') return new Response(null, { status: 204 });
 
   if (path === '/ingest' && request.method === 'POST') return handleIngest(request, env);
+  if (path === '/ingest/paperchase' && request.method === 'POST') return handlePaperChaseIngest(request, env);
   if (path === '/webhooks/onyx' && request.method === 'POST') return handleWebhook(request, env);
 
   // Key in the path, not the query: /k/<key> survives link shorteners and chat
@@ -142,6 +147,18 @@ async function route(request, env, url) {
   if (path === '/board/sales/feed.js') {
     const { snap } = await loadMergedSnapshot(env);
     return new Response(salesFeed(snap), {
+      headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
+    });
+  }
+
+  // The Paper Chase carries its own header, rail and ask band, so it stands
+  // alone too. Its standings live in their own row rather than on the snapshot:
+  // the refresh Routine overwrites the snapshot wholesale and would drop them.
+  if (path === '/board/paperchase') return html(PAPER_CHASE_BOARD);
+  if (path === '/board/paperchase/feed.js') {
+    const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('paper_chase').first();
+    const feed = row ? row.v : JSON.stringify({ generated_at: null, rows: [] });
+    return new Response(`window.PAPER_CHASE = ${feed};`, {
       headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
     });
   }
@@ -380,6 +397,27 @@ async function handleIngest(request, env) {
   // Events at or before the new baseline are folded into the snapshot already.
   await env.DB.prepare('DELETE FROM policy_events WHERE ts <= ?').bind(snap.generated_at).run();
   return json({ ok: true });
+}
+
+// ---------- contest standings ingest ----------
+
+// The Paper Chase standings are one Onyx query, pushed here the same way the
+// snapshot is. Stored under their own key so a snapshot push cannot clear them.
+async function handlePaperChaseIngest(request, env) {
+  if (!env.INGEST_SECRET) return new Response('ingest not configured', { status: 503 });
+  const auth = request.headers.get('authorization') || '';
+  if (!timingSafeEqual(auth, `Bearer ${env.INGEST_SECRET}`)) {
+    return new Response('unauthorized', { status: 401 });
+  }
+  const body = await request.json();
+  if (!Array.isArray(body.rows)) {
+    return new Response('standings missing required field (rows)', { status: 400 });
+  }
+  const feed = { generated_at: body.generated_at || new Date().toISOString(), rows: body.rows };
+  await env.DB.prepare(
+    'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+  ).bind('paper_chase', JSON.stringify(feed), new Date().toISOString()).run();
+  return json({ ok: true, rows: feed.rows.length });
 }
 
 // ---------- Onyx webhook ----------

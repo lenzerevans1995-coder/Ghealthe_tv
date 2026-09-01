@@ -11,11 +11,12 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 |---|---|
 | `/board/live` | Today's running production (Core / STHHC / HI / Ancillary / Total), calls, conversion, today's leaders |
 | `/board/sales` | **Live Sales** — the newest write across the screen (name, product, carrier and plan), the five before it, today's Core / STHHC / HI tally, and a scrolling roll of everyone on the board. Stands alone like `/board/run15` — its own screen, its own feed (`/board/sales/feed.js`), no ticker bar layered on top — but it drops into the rotation too (`?boards=live,sales,daily`) |
+| `/board/paperchase` | **The Paper Chase** — September STHHC/HI contest standings: top scorers, the four individual races, team points, first-to-a-grand, floor unlock and the weekly draw. Its own screen and its own feed (`/board/paperchase/feed.js`), served from the `paper_chase` row in D1 rather than the snapshot, which a Routine push would overwrite. Refresh it by pushing new standings to `/ingest/paperchase` |
 | `/board/daily` | Yesterday's recap + selling days left + today's focus push |
 | `/board/leaders/sthhc` | STHHC leaderboard (top 5 + floor totals) |
 | `/board/contest/sthhc` | STHHC ticket-run contest — prizes, the six qualifying rules, and selling days left until the contest closes (edit `CLOSE`/`CLOSE_LABEL` in `src/static_boards.js` to re-run it for another game; the flyer is `assets/`, served under a versioned filename so a replacement can't be masked by the TVs' day-long image cache — keep it a JPEG, since bundled images count against the Worker's 3 MiB limit) |
 | `/board/rotation` | Cycles the boards with a crossfade — **this is the URL for PosterBooking** (`?boards=live,daily,leaders/sthhc&dwell=20`) |
-| `/console` | Desk view — left menu rail for clicking between Live, Live Sales, MTD, STHHC Leaders and the Ticket Run (`?board=mtd` opens on a tab). The rail exists only here; `/board/*` stays chrome-free for the TVs |
+| `/console` | Desk view — left menu rail for clicking between Live, Live Sales, The Paper Chase, MTD, STHHC Leaders and the Ticket Run (`?board=mtd` opens on a tab). The rail exists only here; `/board/*` stays chrome-free for the TVs |
 | `/api/stats` | Merged snapshot JSON (what the boards render from) |
 | `/ingest` | POST, bearer-secret — snapshot push from the Claude Routine |
 | `/webhooks/onyx` | POST, HMAC-verified — Onyx POLICY_CREATED / POLICY_UPDATED |
@@ -77,3 +78,8 @@ own refresh. TVs are assumed 16:9 landscape.
 minimum `generated_at` (ISO timestamp), `today`, and `month`; see `src/demo.js` for the
 full shape the boards consume. Each push replaces the snapshot wholesale and prunes
 webhook events already covered by it.
+
+`POST /ingest/paperchase` takes the same bearer secret and a `{ generated_at, rows }` body —
+one row per agent (`agent`, `points`, `points_week`, `sthhc_apps`, `sthhc_apps_q`, `sthhc_prem`,
+`hi_apps`, `hi_prem`), exactly the shape of the contest query. It is stored under its own key,
+so snapshot pushes leave it alone.
