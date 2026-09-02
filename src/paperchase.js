@@ -128,10 +128,11 @@ export const PAPER_CHASE_BOARD = String.raw`<!DOCTYPE html>
   .card{background:var(--panel);border:1px solid var(--panelLine);border-radius:clamp(4px,5.4px,8px);padding:clamp(10px,16.2px,20px) clamp(12px,24.96px,24px);display:flex;flex-direction:column;min-height:0}
   .card.grow{flex:1}
   .card .lbl{font-family:var(--cond);font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--mint);font-size:clamp(9px,12.96px,15px);margin-bottom:clamp(5px,8.64px,10px)}
-  .teamrow{display:grid;grid-template-columns:1fr auto;align-items:center;padding:clamp(2px,3.67px,6px) 0;font-family:var(--cond);font-weight:600;text-transform:uppercase;letter-spacing:.055em;font-size:clamp(11px,16.74px,21px);color:var(--mute)}
+  .card.grow #teams{flex:1;display:flex;flex-direction:column;justify-content:space-between;min-height:0}
+  .teamrow{display:grid;grid-template-columns:1fr auto;align-items:center;padding:4px 0;font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.055em;font-size:26px;color:var(--mute)}
   .teamrow.on{color:var(--paper)}
   .teamrow.on .v{color:var(--gold);font-weight:800}
-  .teamrow .v{font-family:var(--display);font-size:clamp(11px,16.2px,20px);color:rgba(159,196,179,.55);font-variant-numeric:tabular-nums}
+  .teamrow .v{font-family:var(--display);font-size:24px;color:rgba(159,196,179,.55);font-variant-numeric:tabular-nums}
 
   .meter{margin-top:clamp(5px,7.56px,10px)}
   .meter .track{height:clamp(6px,9.18px,12px);background:rgba(255,255,255,.07);border:1px solid rgba(63,214,138,.22);border-radius:99px;overflow:hidden}
