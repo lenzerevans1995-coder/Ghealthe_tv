@@ -11,7 +11,7 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 |---|---|
 | `/board/live` | Today's running production (Core / STHHC / HI / Ancillary / Total), calls, conversion, today's leaders |
 | `/board/sales` | **Live Sales** — the newest write across the screen (name, product, carrier and plan), the five before it, today's Core / STHHC / HI tally, and a scrolling roll of everyone on the board. Stands alone like `/board/run15` — its own screen, its own feed (`/board/sales/feed.js`), no ticker bar layered on top — but it drops into the rotation too (`?boards=live,sales,daily`) |
-| `/board/paperchase` | **The Paper Chase** — September STHHC/HI contest standings: top scorers, the four individual races, team points, first-to-a-grand, floor unlock and the weekly draw. Its own screen and its own feed (`/board/paperchase/feed.js`), served from the `paper_chase` row in D1 rather than the snapshot, which a Routine push would overwrite. Refresh it by pushing new standings to `/ingest/paperchase` |
+| `/board/paperchase` | **The Paper Chase** — September STHHC/HI contest standings: top scorers, the four individual races, team points, first-to-a-grand, floor unlock and the weekly draw. Its own screen and its own feed (`/board/paperchase/feed.js`), served from the `paper_chase` row in D1 rather than the snapshot, which a Routine push would overwrite. Carries the new-sale takeover: a full-screen card when an agent's STHHC or HI app count rises, 8 s, then back to the standings. Refresh it by pushing new standings to `/ingest/paperchase` |
 | `/board/daily` | Yesterday's recap + selling days left + today's focus push |
 | `/board/leaders/sthhc` | STHHC leaderboard (top 5 + floor totals) |
 | `/board/contest/sthhc` | STHHC ticket-run contest — prizes, the six qualifying rules, and selling days left until the contest closes (edit `CLOSE`/`CLOSE_LABEL` in `src/static_boards.js` to re-run it for another game; the flyer is `assets/`, served under a versioned filename so a replacement can't be masked by the TVs' day-long image cache — keep it a JPEG, since bundled images count against the Worker's 3 MiB limit) |
@@ -100,3 +100,17 @@ recomputes properly. And the delivery names the agent only by email and user id,
 comes from the `agent_roster` row in D1; an agent missing from it is recorded but not scored
 until the next push, rather than shown under a guessed name. Refresh that roster when people
 join.
+
+### Contest rules the board encodes
+
+An STHHC written on the same call as a Core scores **zero** — no points, and no credit toward
+First to a Grand. That second half is why the feed carries `sthhc_prem_scored` separately from
+`sthhc_prem`: the grand race sums the scored figure, so a zeroed app moves neither panel, and
+the team-points and grand-race numbers agree. Three figures deliberately stay on **all**
+premium, because they describe what was written rather than what the contest pays: Premium
+written, the floor-unlock average against the $62 bar, and the Best STHHC Premium race.
+
+Both scoring paths implement this, and both must change together or the board flips answers
+every hour: the Routine's SQL (`s.pts > 0` filter) and `loadContestStandings()` in
+`src/index.js`. The webhook path approximates the same-call test on the lead, since the
+delivery carries no call id; the hourly push recomputes it from the call itself.

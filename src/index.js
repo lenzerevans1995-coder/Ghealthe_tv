@@ -413,7 +413,14 @@ async function handleIngest(request, env) {
 async function loadContestStandings(env) {
   const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('paper_chase').first();
   const base = row ? JSON.parse(row.v) : { generated_at: null, rows: [] };
-  const rows = (base.rows || []).map((r) => ({ ...r }));
+  // A push made before these fields existed still has to render: default them
+  // rather than let the board show NaN or an empty grand race.
+  const rows = (base.rows || []).map((r) => ({
+    sthhc_prem_scored: Number(r.sthhc_prem_scored ?? r.sthhc_prem) || 0,
+    sthhc_pts: Number(r.sthhc_pts ?? 0) || 0,
+    hi_pts: Number(r.hi_pts ?? 0) || 0,
+    ...r,
+  }));
   const since = base.generated_at || '1970-01-01T00:00:00Z';
 
   const events = await env.DB.prepare(
@@ -441,7 +448,11 @@ async function loadContestStandings(env) {
 
     let row = byAgent.get(e.agent);
     if (!row) {
-      row = { agent: e.agent, points: 0, points_week: 0, sthhc_apps: 0, sthhc_apps_q: 0, sthhc_prem: 0, hi_apps: 0, hi_prem: 0 };
+      row = {
+        agent: e.agent, points: 0, points_week: 0,
+        sthhc_apps: 0, sthhc_apps_q: 0, sthhc_prem: 0, sthhc_prem_scored: 0, sthhc_pts: 0,
+        hi_apps: 0, hi_prem: 0, hi_pts: 0,
+      };
       byAgent.set(e.agent, row);
       rows.push(row);
     }
@@ -451,9 +462,14 @@ async function loadContestStandings(env) {
       row.sthhc_apps = Number(row.sthhc_apps || 0) + 1;
       if (prem >= 50) row.sthhc_apps_q = Number(row.sthhc_apps_q || 0) + 1;
       row.sthhc_prem = Number(row.sthhc_prem || 0) + prem;
+      row.sthhc_pts = Number(row.sthhc_pts || 0) + points;
+      // First to a Grand counts scoring premium only: an app zeroed by the
+      // same-call rule earns the team nothing there either.
+      if (points > 0) row.sthhc_prem_scored = Number(row.sthhc_prem_scored || 0) + prem;
     } else {
       row.hi_apps = Number(row.hi_apps || 0) + 1;
       row.hi_prem = Number(row.hi_prem || 0) + prem;
+      row.hi_pts = Number(row.hi_pts || 0) + points;
     }
     applied++;
   }
