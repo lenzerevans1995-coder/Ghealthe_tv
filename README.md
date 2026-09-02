@@ -114,3 +114,10 @@ Both scoring paths implement this, and both must change together or the board fl
 every hour: the Routine's SQL (`s.pts > 0` filter) and `loadContestStandings()` in
 `src/index.js`. The webhook path approximates the same-call test on the lead, since the
 delivery carries no call id; the hourly push recomputes it from the call itself.
+
+The overlay counts a delivery only when the policy was *written* after the baseline, not
+merely delivered after it. Onyx sends POLICY_UPDATED for edits, so a premium keyed wrong and
+corrected minutes later arrives as a fresh delivery for a policy the baseline already counts:
+adding it again would double the agent's total and throw a celebration for a sale the floor
+already watched. Corrections therefore land on the next push, which recomputes them from
+source — up to an hour, and right rather than fast.

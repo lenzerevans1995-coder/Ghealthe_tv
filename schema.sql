@@ -28,6 +28,8 @@ CREATE INDEX IF NOT EXISTS idx_policy_events_ts ON policy_events (ts);
 CREATE TABLE IF NOT EXISTS contest_events (
   policy_id INTEGER PRIMARY KEY,
   ts TEXT NOT NULL,               -- when the delivery was received
+  submitted_at TEXT,              -- when the policy was written (UTC); an edit
+                                  -- arrives now but belongs to then
   bucket TEXT NOT NULL,           -- CORE | STHHC | HI
   agent TEXT,                     -- resolved display name, else NULL
   agent_key TEXT,                 -- user id / email exactly as delivered

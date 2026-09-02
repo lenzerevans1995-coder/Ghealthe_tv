@@ -423,9 +423,16 @@ async function loadContestStandings(env) {
   }));
   const since = base.generated_at || '1970-01-01T00:00:00Z';
 
+  // Count a delivery only when the policy was WRITTEN after the baseline. A
+  // correction to an earlier policy — a premium keyed wrong and fixed minutes
+  // later — arrives as a delivery now but is already counted in the baseline,
+  // and adding it again would both double the agent's total and throw a
+  // celebration for a sale the floor already saw. Those corrections land with
+  // the next push instead, which recomputes them from source.
   const events = await env.DB.prepare(
-    'SELECT policy_id, ts, bucket, agent, premium, lead_id, scorable FROM contest_events WHERE ts > ?'
-  ).bind(since).all();
+    'SELECT policy_id, ts, submitted_at, bucket, agent, premium, lead_id, scorable FROM contest_events ' +
+    'WHERE ts > ? AND (submitted_at IS NULL OR submitted_at > ?)'
+  ).bind(since, since).all();
   const fresh = events.results || [];
   if (!fresh.length) return base;
 
@@ -591,6 +598,10 @@ async function recordContestEvent(env, { event, policy, product, policyId }) {
     event.agent?.user_id ?? policy.agent?.user_id ?? event.agent_user_id ??
     event.agent?.email ?? policy.agent?.email ?? null;
   const leadId = event.lead?.id ?? event.lead_id ?? policy.lead_id ?? event.person?.id ?? null;
+  // When the policy was written, as against when the delivery arrived. An edit
+  // to an old policy arrives now but belongs to then, and the two must not be
+  // confused — see the overlay's filter.
+  const submittedAt = isoUtc(policy.submitted_timestamp ?? event.timestamp ?? null);
   const agent = await resolveAgentName(env, agentKey);
 
   // Scored only when every input the rules need is actually present. A Core
@@ -599,15 +610,23 @@ async function recordContestEvent(env, { event, policy, product, policyId }) {
   const scorable = agent != null && (bucket === 'CORE' || premium != null) ? 1 : 0;
 
   await env.DB.prepare(
-    'INSERT INTO contest_events (policy_id, ts, bucket, agent, agent_key, premium, lead_id, scorable) ' +
-    'VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(policy_id) DO UPDATE SET ' +
-    'ts = excluded.ts, bucket = excluded.bucket, agent = excluded.agent, agent_key = excluded.agent_key, ' +
-    'premium = excluded.premium, lead_id = excluded.lead_id, scorable = excluded.scorable'
+    'INSERT INTO contest_events (policy_id, ts, submitted_at, bucket, agent, agent_key, premium, lead_id, scorable) ' +
+    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(policy_id) DO UPDATE SET ' +
+    'ts = excluded.ts, submitted_at = excluded.submitted_at, bucket = excluded.bucket, agent = excluded.agent, ' +
+    'agent_key = excluded.agent_key, premium = excluded.premium, lead_id = excluded.lead_id, scorable = excluded.scorable'
   ).bind(
-    policyId, new Date().toISOString(), bucket, agent,
+    policyId, new Date().toISOString(), submittedAt, bucket, agent,
     agentKey != null ? String(agentKey) : null,
     premium ?? 0, leadId != null ? String(leadId) : null, scorable
   ).run();
+}
+
+// Onyx sends timestamps without a zone; they are UTC. Stamp them so string
+// comparison against the baseline's generated_at means what it looks like.
+function isoUtc(value) {
+  if (!value) return null;
+  const s = String(value);
+  return /[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? s : `${s}Z`;
 }
 
 function firstNumber(candidates) {
