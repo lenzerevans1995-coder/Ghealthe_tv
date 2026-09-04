@@ -24,3 +24,11 @@ database_id = "5fa2a007-b31d-4ffe-930f-9d6d99182dc7"
 type = "Data"
 globs = ["**/*.png", "**/*.jpg"]
 fallthrough = true
+
+# Board pages that came in as finished HTML are kept as .html and imported as
+# text, rather than pasted into a JS template literal: no escaping, and the
+# file stays something a browser can open and a diff can read.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true

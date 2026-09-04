@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Paper Chase Weekly Draw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{
+  --edge:#04201A; --field:#072A21; --panel:#0A3428; --rule:#12503C;
+  --mint:#3FD68A; --gold:#F5C942; --ink:#EAF5EF; --dim:#7FA294; --amber:#E8A33D;
+  --display:"Archivo Black","Arial Black",sans-serif;
+  --label:"Barlow Condensed","Arial Narrow",sans-serif;
+  --prose:"Inter",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{background:var(--edge);color:var(--ink);font-family:var(--prose);overflow:hidden;height:100vh}
+#wrap{position:fixed;inset:0;display:grid;place-items:center;background:var(--edge)}
+#stage{width:1920px;height:1080px;position:relative;transform-origin:center center;
+  background:radial-gradient(ellipse at 42% 38%,#0B3A2B 0%,var(--edge) 72%);
+  display:flex;flex-direction:column;overflow:hidden}
+
+/* ── header ─────────────────────────────────────────── */
+header{height:112px;flex:0 0 auto;display:flex;align-items:center;gap:28px;
+  padding:0 44px;border-bottom:2px solid var(--rule);background:var(--field)}
+.brand{display:flex;flex-direction:column;gap:2px}
+.eyebrow{font-family:var(--label);font-size:20px;letter-spacing:.34em;text-transform:uppercase;color:var(--mint)}
+h1{font-family:var(--display);font-size:44px;line-height:1;margin:0;letter-spacing:.01em}
+.hgap{flex:1}
+.hchip{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.hchip .k{font-family:var(--label);font-size:17px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.hchip .v{font-family:var(--display);font-size:30px;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums}
+.hsep{width:2px;height:56px;background:var(--rule)}
+.dot{width:13px;height:13px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 5px rgba(63,214,138,.16)}
+.dot.warn{background:var(--amber);box-shadow:0 0 0 5px rgba(232,163,61,.16)}
+.dot.bad{background:#E4593F;box-shadow:0 0 0 5px rgba(228,89,63,.16)}
+.freshrow{display:flex;align-items:center;gap:10px}
+.freshrow .t{font-family:var(--label);font-size:17px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+
+/* ── body ───────────────────────────────────────────── */
+main{flex:1;display:grid;grid-template-columns:1fr 452px;gap:22px;padding:22px 44px 0 44px;min-height:0}
+
+.hopper{position:relative;border:3px solid var(--gold);border-radius:26px;background:
+  linear-gradient(180deg,rgba(245,201,66,.07),rgba(0,0,0,0) 34%), #05241D;
+  box-shadow:inset 0 0 90px rgba(0,0,0,.55);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.hopper-cap{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding:12px 22px;border-bottom:2px solid rgba(245,201,66,.28)}
+.hopper-cap .l{font-family:var(--label);font-size:21px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
+.hopper-cap .r{font-family:var(--label);font-size:19px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+#drum{position:relative;flex:1;min-height:0}
+
+.stub{position:absolute;border-radius:7px;background:#F3EFE2;color:#123A2C;
+  display:flex;align-items:center;overflow:hidden;
+  box-shadow:0 5px 14px rgba(0,0,0,.45);border:1px solid #cfc7ae}
+.stub .perf{flex:0 0 auto;height:100%;border-right:2px dashed #b9ae90;
+  display:flex;align-items:center;justify-content:center;background:#E5DFCC}
+.stub .ser{font-family:var(--label);font-weight:700;letter-spacing:.06em;color:#7A6A3C;transform:rotate(-90deg)}
+.stub .nm{flex:1;min-width:0;padding:0 10px;display:flex;flex-direction:column;justify-content:center;gap:1px}
+.stub .n1{font-family:var(--label);font-weight:700;text-transform:uppercase;letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.02}
+.stub .n2{font-family:var(--label);font-weight:500;text-transform:uppercase;letter-spacing:.14em;color:#5D7C6E;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stub.lit{background:var(--gold);border-color:#fff;box-shadow:0 0 0 3px #fff,0 0 34px 6px rgba(245,201,66,.75);z-index:40}
+.stub.lit .perf{background:#EFC03A;border-right-color:#9a7c1e}
+.stub.lit .n2{color:#6B5410}
+.stub.won{background:var(--mint);border-color:#fff;box-shadow:0 0 0 4px #fff,0 0 60px 14px rgba(63,214,138,.8);z-index:41}
+.stub.won .perf{background:#33BE79;border-right-color:#1c7a4c}
+.stub.won .n2{color:#0C4A31}
+.tumbling{animation:tumble var(--dur) ease-in-out infinite alternate;animation-delay:var(--del)}
+@keyframes tumble{
+  from{transform:rotate(var(--rot)) translate3d(0,0,0)}
+  to{transform:rotate(calc(var(--rot) * -1.6)) translate3d(var(--dx),var(--dy),0)}
+}
+
+.rail{display:flex;flex-direction:column;gap:14px;min-height:0}
+.card{background:var(--field);border:2px solid var(--rule);border-radius:16px;display:flex;flex-direction:column;min-height:0}
+.card h2{margin:0;font-family:var(--label);font-size:20px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--mint);padding:11px 18px 9px;border-bottom:2px solid var(--rule)}
+.ledger{flex:1;min-height:0;overflow:hidden;padding:4px 8px 8px;display:flex;flex-direction:column}
+.lrow{flex:1 1 0;min-height:0;display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:10px;padding:0 10px}
+.lrow .rk{font-family:var(--label);font-size:calc(var(--lfs,24px) * .72);color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
+.lrow .ag{font-family:var(--label);font-size:var(--lfs,24px);font-weight:600;text-transform:uppercase;letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .tk{font-family:var(--display);font-size:calc(var(--lfs,24px) * .9);color:var(--gold);font-variant-numeric:tabular-nums}
+.lrow.on{background:rgba(63,214,138,.13);border-radius:6px}
+.lfoot{padding:8px 18px 12px;font-size:14px;color:var(--dim);border-top:2px solid var(--rule);line-height:1.45}
+
+.actionbox{flex:0 0 auto;padding:16px 18px 18px;display:flex;flex-direction:column;gap:10px}
+/* Nobody presses anything: the clock runs the draw. The panel that held the
+   button holds the countdown, so the biggest number on the rail is how long
+   the floor has left to put another ticket in. */
+.cdk{font-family:var(--label);font-size:21px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--dim);text-align:center}
+.cd{font-family:var(--display);font-size:76px;line-height:1;text-align:center;color:var(--gold);
+  font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.cd.soon{color:#FFE9A3;text-shadow:0 0 34px rgba(245,201,66,.55)}
+.cd.frozen{font-size:40px;color:var(--mint);letter-spacing:.06em}
+.hint{font-family:var(--label);font-size:17px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);text-align:center}
+
+/* ── ask band ───────────────────────────────────────── */
+.ask{flex:0 0 auto;height:104px;margin:22px 44px 22px;border-radius:14px;background:var(--gold);color:#0A2A1F;
+  display:flex;align-items:center;gap:30px;padding:0 30px}
+.ask .big{font-family:var(--display);font-size:27px;line-height:1.06;flex:0 0 430px}
+.ask .fine{font-family:var(--prose);font-size:16.5px;line-height:1.42;font-weight:500}
+.ask .vr{width:2px;align-self:stretch;margin:16px 0;background:rgba(10,42,31,.28)}
+
+/* ── states ─────────────────────────────────────────── */
+.state{position:absolute;inset:0;display:grid;place-items:center;padding:60px;text-align:center;z-index:10}
+.state .inner{max-width:900px;display:flex;flex-direction:column;gap:14px;align-items:center}
+.state .st{font-family:var(--display);font-size:34px;color:var(--gold)}
+.state .sp{font-family:var(--prose);font-size:20px;line-height:1.5;color:var(--ink)}
+.state .sq{font-family:var(--label);font-size:19px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+textarea{width:640px;height:150px;background:#04231C;color:var(--ink);border:2px solid var(--rule);
+  border-radius:10px;padding:12px;font-family:var(--prose);font-size:15px;resize:none}
+.mini{font-family:var(--label);font-size:19px;letter-spacing:.14em;text-transform:uppercase;
+  background:var(--rule);color:var(--ink);border:0;border-radius:9px;padding:10px 22px;cursor:pointer}
+.mini:hover{background:#17654B}
+
+/* ── winner takeover ────────────────────────────────── */
+#win{position:absolute;inset:0;z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 42%,#0E4835 0%,#03190F 78%)}
+#win.show{display:flex}
+#win .kick{font-family:var(--label);font-size:30px;letter-spacing:.44em;text-transform:uppercase;color:var(--gold);
+  opacity:0;animation:rise .5s .05s forwards}
+#win .who{font-family:var(--display);font-size:150px;line-height:1;margin:14px 0 8px;color:#fff;
+  white-space:nowrap;opacity:0;animation:rise .6s .3s forwards;text-shadow:0 0 60px rgba(63,214,138,.45)}
+#win .team{font-family:var(--label);font-size:38px;letter-spacing:.3em;text-transform:uppercase;color:var(--mint);
+  opacity:0;animation:rise .5s .55s forwards}
+#win .meta{display:flex;gap:0;margin-top:44px;opacity:0;animation:rise .5s .8s forwards;
+  border:2px solid var(--rule);border-radius:14px;overflow:hidden;background:rgba(7,42,33,.7)}
+#win .meta div{padding:16px 40px;display:flex;flex-direction:column;align-items:center;gap:4px;border-right:2px solid var(--rule)}
+#win .meta div:last-child{border-right:0}
+#win .meta .k{font-family:var(--label);font-size:17px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+#win .meta .v{font-family:var(--display);font-size:34px;color:var(--gold);font-variant-numeric:tabular-nums}
+#win .prize{margin-top:36px;font-family:var(--display);font-size:46px;color:var(--gold);
+  opacity:0;animation:rise .5s 1s forwards}
+#clear{position:absolute;right:26px;bottom:22px;opacity:.4}
+#clear:hover{opacity:1}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+canvas#fx{position:absolute;inset:0;pointer-events:none;z-index:62}
+@media (prefers-reduced-motion:reduce){
+  .tumbling{animation:none}
+  #win .kick,#win .who,#win .team,#win .meta,#win .prize{animation-duration:.01s}
+}
+</style>
+
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <header>
+    <div class="brand">
+      <div class="eyebrow">The Paper Chase &middot; September 2026</div>
+      <h1>Weekly Draw</h1>
+    </div>
+    <div class="hgap"></div>
+    <div class="hchip"><div class="k">In the hat</div><div class="v" id="hTickets">&mdash;</div></div>
+    <div class="hsep"></div>
+    <div class="hchip"><div class="k">Prize</div><div class="v">$50</div></div>
+    <div class="hsep"></div>
+    <div class="hchip"><div class="k" id="clkK">Draw at 4:00 PM</div><div class="v" id="clkV">&mdash;</div></div>
+    <div class="hsep"></div>
+    <div class="hchip"><div class="k">Tickets as of</div>
+      <div class="freshrow"><span class="dot" id="dot"></span><span class="t" id="freshT">&mdash;</span></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hopper">
+      <div class="hopper-cap">
+        <div class="l">Tickets in the drum</div>
+        <div class="r" id="capR">week of Mon Sep 1 &ndash; Fri Sep 4</div>
+      </div>
+      <div id="drum"></div>
+    </section>
+
+    <aside class="rail">
+      <div class="card" style="flex:1">
+        <h2>Who holds what</h2>
+        <div class="ledger" id="ledger"></div>
+        <div class="lfoot" id="lfoot">&nbsp;</div>
+      </div>
+      <div class="card">
+        <div class="actionbox">
+          <div class="cdk" id="cdK">Draw begins in</div>
+          <div class="cd" id="cdV">&mdash;</div>
+          <div class="hint" id="hint">one ticket, one name, $50</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="ask">
+    <div class="big">50 points in the week&nbsp;=&nbsp;one ticket in the hat.</div>
+    <div class="vr"></div>
+    <div class="fine">
+      At&nbsp;$50+/mo STHHC and $30+/mo HI, <strong>$1 of premium = 1 point</strong> &mdash; below those thresholds a dollar
+      buys half a point, so it takes twice the premium to move.<br>
+      Tickets reset every Monday, and an STHHC written on the same call as an MA enrollment earns nothing anywhere.
+    </div>
+  </div>
+
+  <div class="state" id="state" style="display:none"><div class="inner" id="stateInner"></div></div>
+
+  <canvas id="fx"></canvas>
+  <div id="win">
+    <div class="kick">Winner of the weekly draw</div>
+    <div class="who" id="wName">&nbsp;</div>
+    <div class="team" id="wTeam">&nbsp;</div>
+    <div class="meta">
+      <div><span class="k">Ticket drawn</span><span class="v" id="wSer">&mdash;</span></div>
+      <div><span class="k">Tickets held</span><span class="v" id="wHeld">&mdash;</span></div>
+      <div><span class="k">Points this week</span><span class="v" id="wPts">&mdash;</span></div>
+      <div><span class="k">Odds</span><span class="v" id="wOdds">&mdash;</span></div>
+    </div>
+    <div class="prize">$50</div>
+    <button class="mini" id="clear">Clear result</button>
+  </div>
+</div></div>
+
+<script>
+/* ── contest roster: 9 teams x 5 seats, fixed for September ─────────────── */
+const TEAMS = {
+  "Honey Badgers":["Manar Ettayem","Nicole Bell-Royster","Armando Martinez","John Gregory","Mariyeisi Umpierre"],
+  "Barracudas":["Tianna Thompson","Basem Moussa","Hunter Cole","Brandon Lugo","Quinn Slaydon"],
+  "Vipers":["Savanna Holloway","Marilyn Johnson","Timothy Jackson","Andre Cintron","David Calhoun"],
+  "Piranhas":["ChenY'ere Franklin","Shani Fareed","Deon McClendon","Chelsea Hammers","Trinaka Edmond"],
+  "Scorpions":["Juana Bustos-Roblero","Sumesh Chakkalakkal","Yancy Harrier","Adam Menendez","Sophia Asencio"],
+  "Hornets":["Raymond Mccrea","George Corbin","Gwendolyn Ingram","Cortney Sanders","Andre Banfield"],
+  "Mambas":["Jesenia Morell","Damien Goode","Alexi Lebrun","Victor Cruz","Marcos Manzueta"],
+  "Cobras":["Nifda Colon","Rosalva Diaz","Luis Lopez","Avah Burns","Sumit Lal"],
+  "Wolverines":["Sherly Riley","Irelys Padierna","Shirley Davis","Kameron Smith","Jalen McClendon"]
+};
+const TEAM_OF = {};
+for (const [t, names] of Object.entries(TEAMS)) names.forEach(n => TEAM_OF[n.toLowerCase()] = t);
+const teamOf = n => TEAM_OF[(n||"").toLowerCase()] || "Not on a team";
+
+const PTS_PER_TICKET = 50;
+
+/* Tickets come from the contest board's own feed — points_week is already
+   there, refreshed by the Onyx webhook within seconds of a sale and recomputed
+   hourly. One ladder for the standings and the drum, so the hat can never
+   disagree with the board next to it. */
+
+/* ── state ──────────────────────────────────────────────────────────────── */
+let agents = [];        // [{agent, points, tickets}] ticket-holders first
+let tickets = [];       // flat drum: one entry per ticket
+let locked = false;     // true once a draw has run — late pulls stop moving the hat
+let drawing = false;
+let lastStamp = 0;
+
+const $ = s => document.querySelector(s);
+const drum = $("#drum"), ledger = $("#ledger");
+const QS = location.search;                     // carries the board key through
+const QS_PARAMS = new URLSearchParams(QS);
+
+/* ── stage fit ──────────────────────────────────────────────────────────── */
+function fit(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  $("#stage").style.transform = `scale(${s})`;
+}
+addEventListener("resize", fit); fit();
+
+/* ── clock / countdown to 4:00 PM ET ────────────────────────────────────── */
+function etParts(){
+  const f = new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour12:false,
+    hour:"2-digit",minute:"2-digit",second:"2-digit",weekday:"short",month:"short",day:"numeric"});
+  const p = {}; f.formatToParts(new Date()).forEach(x => p[x.type] = x.value); return p;
+}
+/* Preview runs the whole thing on a short clock so it can be watched end to
+   end: countdown, draw, winner, and round again. Same code path as Friday —
+   only the clock is different, so a preview that looks right IS the thing that
+   runs. */
+const PREVIEW = /\/preview\/?$/.test(location.pathname) || QS_PARAMS.get("preview") === "1";
+const DRAW_HOUR = 16;              // 4:00 PM ET
+const FREEZE_SECONDS = 60;         // the hat stops moving at 3:59
+const PREVIEW_COUNTDOWN = 10;      // seconds of countdown in preview
+const PREVIEW_HOLD = 14;           // how long the winner holds before looping
+
+let phase = "countdown";           // countdown | drawing | winner
+let previewStart = Date.now();
+
+function secondsToDraw(){
+  if (PREVIEW) return PREVIEW_COUNTDOWN - Math.floor((Date.now() - previewStart) / 1000);
+  const p = etParts();
+  return DRAW_HOUR*3600 - ((+p.hour)*3600 + (+p.minute)*60 + (+p.second));
+}
+function hms(t){
+  const h = Math.floor(t/3600), m = Math.floor(t%3600/60), s = t%60;
+  return (h ? h + ":" + String(m).padStart(2,"0") : String(m)) + ":" + String(s).padStart(2,"0");
+}
+
+function tickClock(){
+  const p = etParts();
+  const left = secondsToDraw();
+  const cdV = $("#cdV"), cdK = $("#cdK");
+
+  if (phase === "countdown"){
+    if (left > 0){
+      cdK.textContent = frozen() ? "Hat is closed — drawing in" : "Draw begins in";
+      cdV.textContent = hms(left);
+      cdV.className = "cd" + (left <= 60 ? " soon" : "");
+      $("#clkK").textContent = "Draw at 4:00 PM";
+      $("#clkV").textContent = PREVIEW ? "preview" : hms(Math.max(0,left));
+      $("#clkV").style.color = "var(--ink)";
+      $("#hint").textContent = frozen()
+        ? "no more tickets — the hat is set"
+        : "one ticket, one name, $50";
+    }
+    if (left <= 0 && tickets.length) startDraw();
+    else if (left <= 0){ cdK.textContent = "No tickets in the hat"; cdV.textContent = "—"; }
+  } else if (phase === "drawing"){
+    cdK.textContent = "Drawing"; cdV.textContent = "…"; cdV.className = "cd soon";
+  } else {
+    cdK.textContent = "Winner drawn"; cdV.textContent = "$50"; cdV.className = "cd frozen";
+    $("#clkK").textContent = "Time now";
+    $("#clkV").textContent = p.hour + ":" + p.minute;
+    $("#clkV").style.color = "var(--gold)";
+  }
+  $("#capR").textContent = PREVIEW ? "preview — looping" :
+    "week of Mon Sep 1 – " + p.weekday + " " + p.month + " " + p.day;
+}
+
+/* The hat that draws is the hat as it stood at 3:59: a sale keyed while the
+   animation runs must not change the odds it is already showing. Preview's
+   whole countdown is shorter than the real freeze window, so it gets its own —
+   otherwise the hat would be closed before it was ever filled. */
+function freezeWindow(){ return PREVIEW ? 2 : FREEZE_SECONDS; }
+function frozen(){ return phase !== "countdown" || secondsToDraw() <= freezeWindow(); }
+
+function startDraw(){
+  if (phase !== "countdown" || !tickets.length) return;
+  phase = "drawing";
+  runDraw();
+}
+
+tickClock(); setInterval(tickClock, 250);
+
+/* ── rendering ──────────────────────────────────────────────────────────── */
+function rebuild(rows){
+  agents = rows.map(r => ({
+    agent: r.agent,
+    points: Number(r.points_week) || 0,
+    tickets: Math.floor((Number(r.points_week)||0) / PTS_PER_TICKET)
+  })).sort((a,b) => b.tickets - a.tickets || b.points - a.points || a.agent.localeCompare(b.agent));
+
+  tickets = [];
+  agents.filter(a => a.tickets > 0).forEach(a => {
+    for (let i = 0; i < a.tickets; i++) tickets.push({agent: a.agent, holder: a});
+  });
+  tickets.forEach((t, i) => t.serial = String(i + 1).padStart(3, "0"));
+
+  renderLedger(); renderDrum();
+  $("#hTickets").textContent = tickets.length;
+}
+
+function renderLedger(){
+  const holders = agents.filter(a => a.tickets > 0);
+  const dry = agents.length - holders.length;
+  ledger.innerHTML = holders.map((a, i) =>
+    `<div class="lrow" data-agent="${esc(a.agent)}">
+       <span class="rk">${i+1}</span>
+       <span class="ag">${esc(a.agent)}</span>
+       <span class="tk">${a.tickets}</span>
+     </div>`).join("");
+  if (holders.length){
+    const rowH = (ledger.clientHeight - 12) / holders.length;
+    ledger.style.setProperty("--lfs", Math.max(14, Math.min(24, Math.floor(rowH * 0.74))) + "px");
+  }
+  const near = agents.filter(a => a.tickets === 0).sort((x,y) => y.points - x.points)[0];
+  $("#lfoot").innerHTML = holders.length + " agents hold " + tickets.length + " tickets."
+    + (dry ? " " + dry + " more scored this week without reaching 50 points"
+        + (near ? " — closest is " + esc(near.agent) + ", " + (PTS_PER_TICKET - near.points) + " points out." : ".") : "");
+}
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function renderDrum(){
+  drum.innerHTML = "";
+  const N = tickets.length; if (!N) return;
+  const W = drum.clientWidth, H = drum.clientHeight, PAD = 18;
+  let best = null;
+  for (let cols = 1; cols <= 8; cols++){
+    const rows = Math.ceil(N/cols);
+    const cw = (W - PAD*2)/cols, ch = (H - PAD*2)/rows;
+    if (ch < 46 || cw < 150) continue;
+    const score = Math.abs((ch/cw) - 0.40);
+    if (!best || score < best.score) best = {cols, rows, cw, ch, score};
+  }
+  if (!best) best = {cols: Math.ceil(Math.sqrt(N*2)), rows: Math.ceil(N/Math.ceil(Math.sqrt(N*2))),
+                     cw:(W-PAD*2)/Math.ceil(Math.sqrt(N*2)), ch:(H-PAD*2)/Math.ceil(N/Math.ceil(Math.sqrt(N*2)))};
+  const sw = best.cw * 0.90, sh = Math.min(best.ch * 0.84, sw * 0.46);
+  const nameSize = Math.max(17, Math.min(30, sw * 0.115));
+
+  tickets.forEach((t, i) => {
+    const r = Math.floor(i / best.cols), c = i % best.cols;
+    const cx = PAD + c*best.cw + (best.cw - sw)/2 + (rnd(i) - .5) * best.cw * 0.07;
+    const cy = PAD + r*best.ch + (best.ch - sh)/2 + (rnd(i+99) - .5) * best.ch * 0.10;
+    const rot = (rnd(i+7) - .5) * 7;
+    const el = document.createElement("div");
+    el.className = "stub"; el.dataset.i = i;
+    el.style.cssText = `left:${cx}px;top:${cy}px;width:${sw}px;height:${sh}px;--rot:${rot}deg;`
+      + `--dx:${(rnd(i+3)-.5)*10}px;--dy:${(rnd(i+5)-.5)*10}px;`
+      + `--dur:${(1.1 + rnd(i+11)*0.9).toFixed(2)}s;--del:${(rnd(i+13)*0.6).toFixed(2)}s;`
+      + `transform:rotate(${rot}deg)`;
+    el.innerHTML =
+      `<div class="perf" style="width:${Math.round(sh*0.46)}px">
+         <span class="ser" style="font-size:${Math.round(sh*0.24)}px">${t.serial}</span>
+       </div>
+       <div class="nm">
+         <span class="n1" style="font-size:${nameSize}px">${esc(t.agent)}</span>
+         <span class="n2" style="font-size:${Math.round(nameSize*0.55)}px">${esc(teamOf(t.agent))}</span>
+       </div>`;
+    drum.appendChild(el);
+  });
+  // shrink any name that would otherwise clip — the floor reads these from 30 feet
+  drum.querySelectorAll(".n1").forEach(n => {
+    n.style.textOverflow = "clip";              // ellipsis clamps scrollWidth and hides the overflow
+    let px = parseFloat(n.style.fontSize);
+    while (n.scrollWidth > n.clientWidth - 1 && px > 12){ px -= 1; n.style.fontSize = px + "px"; }
+    n.style.textOverflow = "ellipsis";
+  });
+}
+function rnd(seed){ const x = Math.sin(seed * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+/* ── the draw ───────────────────────────────────────────────────────────── */
+function pickIndex(n){
+  const buf = new Uint32Array(1), limit = Math.floor(4294967296 / n) * n;
+  let v; do { crypto.getRandomValues(buf); v = buf[0]; } while (v >= limit);
+  return v % n;
+}
+
+function runDraw(){
+  if (drawing || !tickets.length) return;
+  drawing = true; locked = true;
+  $("#hint").textContent = "hold the room";
+
+  const stubs = [...drum.querySelectorAll(".stub")];
+  stubs.forEach(s => s.classList.add("tumbling"));
+  const winner = pickIndex(tickets.length);
+
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const hops = reduce ? 6 : Math.max(26, tickets.length * 2 + 18);
+  const seq = [];
+  for (let i = 0; i < hops; i++) seq.push((winner + 1 + i) % tickets.length);
+  seq[seq.length - 1] = winner;
+
+  let k = 0, lit = null;
+  const step = () => {
+    if (lit) lit.classList.remove("lit");
+    lit = stubs[seq[k]]; if (lit) lit.classList.add("lit");
+    k++;
+    if (k < seq.length){
+      const p = k / seq.length;
+      setTimeout(step, reduce ? 90 : 55 + Math.pow(p, 3.1) * 460);
+    } else {
+      setTimeout(() => finish(winner, stubs), reduce ? 200 : 850);
+    }
+  };
+  step();
+}
+
+function finish(idx, stubs){
+  const t = tickets[idx];
+  stubs.forEach(s => s.classList.remove("tumbling", "lit"));
+  const s = stubs[idx]; if (s) s.classList.add("won");
+  [...ledger.querySelectorAll(".lrow")].forEach(r => {
+    if (r.dataset.agent === t.agent) r.classList.add("on");
+  });
+
+  $("#wName").textContent = t.agent;
+  $("#wTeam").textContent = teamOf(t.agent);
+  $("#wSer").textContent = "#" + t.serial;
+  $("#wHeld").textContent = t.holder.tickets + " of " + tickets.length;
+  $("#wPts").textContent = t.holder.points;
+  $("#wOdds").textContent = Math.round(t.holder.tickets / tickets.length * 100) + "%";
+  fitWinnerName();
+  $("#win").classList.add("show");
+  $("#hint").textContent = "winner: " + t.agent;
+  drawing = false; phase = "winner";
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) confetti();
+  // Friday: the winner stays up until someone takes the board down. Preview:
+  // hold, then round again so the whole sequence can be watched on a loop.
+  if (PREVIEW) setTimeout(resetForPreview, PREVIEW_HOLD * 1000);
+}
+
+function resetForPreview(){
+  $("#win").classList.remove("show");
+  drum.querySelectorAll(".stub").forEach(s => s.classList.remove("won", "lit", "tumbling"));
+  ledger.querySelectorAll(".lrow").forEach(r => r.classList.remove("on"));
+  locked = false; phase = "countdown"; previewStart = Date.now();
+  $("#hint").textContent = "one ticket, one name, $50";
+  renderDrum();
+}
+
+function fitWinnerName(){
+  const el = $("#wName"); let size = 150; el.style.fontSize = size + "px";
+  while (el.scrollWidth > 1680 && size > 54){ size -= 4; el.style.fontSize = size + "px"; }
+}
+
+/* No draw key and no draw button: the clock owns it. M still opens hand entry
+   as the last-second escape hatch, and Clear result is there for a re-run
+   somebody decides to make in the room. */
+addEventListener("keydown", e => { if (e.key === "m" || e.key === "M") manualEntry(); });
+$("#clear").addEventListener("click", () => {
+  if (PREVIEW) return resetForPreview();
+  $("#win").classList.remove("show"); locked = false; phase = "countdown";
+  $("#hint").textContent = "one ticket, one name, $50";
+  drum.querySelectorAll(".stub").forEach(s => s.classList.remove("won"));
+  ledger.querySelectorAll(".lrow").forEach(r => r.classList.remove("on"));
+});
+
+/* ── gold shower ────────────────────────────────────────────────────────── */
+function confetti(){
+  const cv = $("#fx"), ctx = cv.getContext("2d");
+  cv.width = 1920; cv.height = 1080;
+  const bits = Array.from({length: 160}, () => ({
+    x: Math.random()*1920, y: -Math.random()*900, w: 7 + Math.random()*9, h: 12 + Math.random()*14,
+    vy: 2.4 + Math.random()*3.6, vr: (Math.random()-.5)*.22, r: Math.random()*6.28,
+    c: Math.random() < .62 ? "#F5C942" : (Math.random() < .5 ? "#3FD68A" : "#F3EFE2")
+  }));
+  const t0 = performance.now();
+  (function frame(now){
+    ctx.clearRect(0,0,1920,1080);
+    bits.forEach(b => {
+      b.y += b.vy; b.r += b.vr; b.x += Math.sin(b.y/48)*.9;
+      if (b.y > 1120){ b.y = -30; b.x = Math.random()*1920; }
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r);
+      ctx.fillStyle = b.c; ctx.fillRect(-b.w/2, -b.h/2, b.w, b.h); ctx.restore();
+    });
+    if (now - t0 < 9000) requestAnimationFrame(frame); else ctx.clearRect(0,0,1920,1080);
+  })(performance.now());
+}
+
+/* ── states ─────────────────────────────────────────────────────────────── */
+function showState(title, para, note, withManual){
+  $("#stateInner").innerHTML =
+    `<div class="st">${esc(title)}</div><div class="sp">${para}</div>` +
+    (note ? `<div class="sq">${esc(note)}</div>` : "") +
+    (withManual ? `<button class="mini" id="mBtn">Enter tickets by hand</button>` : "");
+  $("#state").style.display = "grid";
+  if (withManual) $("#mBtn").addEventListener("click", manualEntry);
+}
+function hideState(){ $("#state").style.display = "none"; }
+
+function manualEntry(){
+  $("#stateInner").innerHTML =
+    `<div class="st">Enter tickets by hand</div>
+     <div class="sp">One agent per line: <em>Name, points</em> &mdash; or <em>Name, points</em> straight off the
+     Weekly Draw Tickets board. Tickets are still ${PTS_PER_TICKET} points each.</div>
+     <textarea id="mTa" placeholder="Savanna Holloway, 236&#10;Manar Ettayem, 175"></textarea>
+     <div style="display:flex;gap:12px"><button class="mini" id="mGo">Load the drum</button>
+     <button class="mini" id="mBack">Back</button></div>`;
+  $("#state").style.display = "grid";
+  $("#mGo").addEventListener("click", () => {
+    const rows = $("#mTa").value.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+      const m = l.match(/^(.*?)[,\t]\s*(\d+(?:\.\d+)?)\s*$/);
+      return m ? {agent: m[1].trim(), points_week: Number(m[2])} : null;
+    }).filter(Boolean);
+    if (!rows.length) return;
+    locked = false; rebuild(rows); hideState();
+    setFresh("warn", "entered by hand");
+  });
+  $("#mBack").addEventListener("click", hideState);
+}
+
+function setFresh(kind, text){
+  $("#dot").className = "dot" + (kind === "ok" ? "" : " " + kind);
+  $("#freshT").textContent = text;
+}
+function agoText(ms){
+  const m = Math.round((Date.now() - ms) / 60000);
+  return m <= 1 ? "live · just now" : "live · " + m + " min ago";
+}
+
+/* ── the hat: the contest board's feed ──────────────────────────────────── */
+const FEED = "/board/paperchase/feed.js";
+const POLL_MS = 30000;
+
+function applyFeed(d){
+  if (!d || !Array.isArray(d.rows)) return;
+  // The hat is set once the freeze starts — but an empty board still has to
+  // fill, or a screen opened inside the last minute would draw from nothing.
+  if (frozen() && tickets.length) return;
+  const rows = d.rows
+    .map(r => ({agent: r.agent, points_week: Number(r.points_week) || 0}))
+    .filter(r => r.points_week > 0);
+  rebuild(rows);
+  hideState();
+  const gen = d.generated_at ? new Date(d.generated_at) : null;
+  const mins = gen ? Math.round((Date.now() - gen.getTime()) / 60000) : null;
+  setFresh(mins == null || mins < 30 ? "ok" : "warn",
+    gen ? new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"2-digit"}).format(gen)
+        : "no stamp");
+}
+
+function loadFeed(){
+  const old = document.getElementById("feedScript");
+  if (old) old.remove();
+  const el = document.createElement("script");
+  el.id = "feedScript";
+  el.src = FEED + QS + (QS ? "&" : "?") + "v=" + Date.now();
+  el.onload = () => applyFeed(window.PAPER_CHASE);
+  el.onerror = () => {
+    setFresh("bad", "no feed");
+    if (!tickets.length) showState("Waiting on the standings feed",
+      "The drum fills from the contest board's numbers. This screen cannot reach them right now.",
+      "it keeps trying on its own", true);
+  };
+  document.body.appendChild(el);
+}
+
+showState("Filling the hat", "Reading this week's points from the contest board.", "", false);
+loadFeed();
+setInterval(loadFeed, POLL_MS);
+
+addEventListener("resize", () => { if (tickets.length) renderDrum(); });
+</script>
+</body>
+</html>

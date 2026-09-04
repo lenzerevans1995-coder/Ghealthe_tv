@@ -13,6 +13,8 @@
 //   GET  /board/sales/feed.js     that board's feed, rendered from the snapshot
 //   GET  /board/paperchase        The Paper Chase — September contest standings (own screen)
 //   GET  /board/paperchase/feed.js  that board's standings, pushed to /ingest/paperchase
+//   GET  /board/draw              Weekly Draw — counts down, draws itself at 4:00 PM ET
+//   GET  /board/draw/preview      the same board on a 10-second clock, looping
 //   GET  /console                 desk view: left menu rail + the boards in a frame
 //   GET  /unlock                  saves the key on this device (?key=…&to=…), then redirects
 //   GET  /k/<key>                 same, key in the path — survives link shorteners
@@ -28,6 +30,7 @@ import { withTicker } from './ticker.js';
 import { RUN15_BOARD } from './run15.js';
 import { LIVE_SALES_BOARD } from './live_sales.js';
 import { PAPER_CHASE_BOARD } from './paperchase.js';
+import WEEKLY_DRAW_BOARD from './boards/weekly_draw.html';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
@@ -168,6 +171,11 @@ async function route(request, env, url) {
       headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
     });
   }
+
+  // The Weekly Draw runs itself: it counts down to 4:00 PM ET, freezes the hat
+  // at 3:59, draws, and leaves the winner up. /preview is the same page on a
+  // short clock, looping, so Friday can be watched before Friday.
+  if (path === '/board/draw' || path === '/board/draw/preview') return html(WEEKLY_DRAW_BOARD);
 
   // Every board wears the live sales ticker as its header bar. Injected here
   // rather than in each template so static and rendered boards stay in step.
