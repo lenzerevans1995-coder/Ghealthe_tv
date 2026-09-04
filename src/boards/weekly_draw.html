@@ -17,8 +17,12 @@
 }
 *{box-sizing:border-box}
 body{background:var(--edge);color:var(--ink);font-family:var(--prose);overflow:hidden;height:100vh}
-#wrap{position:fixed;inset:0;display:grid;place-items:center;background:var(--edge)}
-#stage{width:1920px;height:1080px;position:relative;transform-origin:center center;
+#wrap{position:fixed;inset:0;background:var(--edge);overflow:hidden}
+/* Pinned to the middle and translated back by half itself, rather than centred
+   by the layout: once the 1920x1080 box is bigger than the window, a centred
+   grid start-aligns it instead, and scaling then shrinks it around the wrong
+   point — the board ends up half its overflow right and down. */
+#stage{width:1920px;height:1080px;position:fixed;top:50%;left:50%;transform-origin:center center;
   background:radial-gradient(ellipse at 42% 38%,#0B3A2B 0%,var(--edge) 72%);
   display:flex;flex-direction:column;overflow:hidden}
 
@@ -256,11 +260,29 @@ const QS = location.search;                     // carries the board key through
 const QS_PARAMS = new URLSearchParams(QS);
 
 /* ── stage fit ──────────────────────────────────────────────────────────── */
-function fit(){
-  const s = Math.min(innerWidth/1920, innerHeight/1080);
-  $("#stage").style.transform = `scale(${s})`;
+/* ?overscan=5 trims the edges on a TV that crops them; ?debug=1 prints what the
+   screen actually reported. A player can report its size late or change it
+   after load, so this re-measures on every signal available rather than
+   trusting one resize event. */
+const OVERSCAN = Math.min(15, Math.max(0, parseFloat(QS_PARAMS.get("overscan")) || 0));
+let lastW = 0, lastH = 0;
+function fit(force){
+  const vv = window.visualViewport;
+  const w = (vv && vv.width) || document.documentElement.clientWidth || innerWidth;
+  const h = (vv && vv.height) || document.documentElement.clientHeight || innerHeight;
+  if (!w || !h) return;
+  if (!force && w === lastW && h === lastH) return;
+  lastW = w; lastH = h;
+  const s = Math.min(w/1920, h/1080) * (1 - OVERSCAN/100);
+  $("#stage").style.transform = `translate(-50%,-50%) scale(${s})`;
+  if (QS_PARAMS.get("debug") === "1") $("#capR").textContent = w + " x " + h + "  scale " + s.toFixed(4);
 }
-addEventListener("resize", fit); fit();
+["resize","orientationchange","load","pageshow"].forEach(e => addEventListener(e, () => fit(true)));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => fit(true));
+if (window.ResizeObserver) new ResizeObserver(() => fit()).observe(document.documentElement);
+[0,100,300,600,1000,2000,4000].forEach(t => setTimeout(() => fit(true), t));
+setInterval(fit, 2000);
+fit(true);
 
 /* ── clock / countdown to 4:00 PM ET ────────────────────────────────────── */
 function etParts(){
