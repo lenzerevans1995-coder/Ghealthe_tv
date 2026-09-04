@@ -303,8 +303,13 @@ const PREVIEW_HOLD = 14;           // how long the winner holds before looping
 let phase = "countdown";           // countdown | drawing | winner
 let previewStart = Date.now();
 
+/* The countdown is the server's, not this screen's: every board counts to the
+   same instant, whatever its own clock says. Falls back to local ET only if the
+   Worker cannot be reached. */
+let serverAnchor = null;   // {seconds, at}
 function secondsToDraw(){
   if (PREVIEW) return PREVIEW_COUNTDOWN - Math.floor((Date.now() - previewStart) / 1000);
+  if (serverAnchor) return serverAnchor.seconds - Math.floor((Date.now() - serverAnchor.at) / 1000);
   const p = etParts();
   return DRAW_HOUR*3600 - ((+p.hour)*3600 + (+p.minute)*60 + (+p.second));
 }
@@ -351,10 +356,50 @@ function tickClock(){
 function freezeWindow(){ return PREVIEW ? 2 : FREEZE_SECONDS; }
 function frozen(){ return phase !== "countdown" || secondsToDraw() <= freezeWindow(); }
 
+/* The result is decided once, by the Worker, and written down. The page asks
+   for it and plays it — it never picks. A pick made in the browser is made once
+   per screen: two TVs would crown two different people, and a reload would
+   quietly reroll. */
+let resultPolling = false;
+async function pollResult(){
+  if (resultPolling || PREVIEW) return;
+  resultPolling = true;
+  try {
+    const r = await fetch("/api/draw" + QS, {cache: "no-store"});
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d && typeof d.seconds_to_draw === "number") serverAnchor = {seconds: d.seconds_to_draw, at: Date.now()};
+    if (d && d.winner && phase !== "winner") playResult(d);
+  } catch (e) { /* the countdown keeps running; try again next tick */ }
+  finally { resultPolling = false; }
+}
+setInterval(() => {
+  const left = secondsToDraw();
+  // every 5s normally, every second through the last half-minute and after
+  if (left > 30 && (Date.now() % 5000) > 1100) return;
+  pollResult();
+}, 1000);
+pollResult();
+
 function startDraw(){
   if (phase !== "countdown" || !tickets.length) return;
+  if (PREVIEW){ phase = "drawing"; runDraw(pickIndex(tickets.length)); return; }
+  pollResult();          // 4:00 — ask the Worker for the result and play it
+}
+
+/* Land on the winner's own ticket. The stats shown are the record's, not this
+   screen's arithmetic, so a screen whose hat drifted still shows one truth. */
+function playResult(rec){
+  const want = String(rec.winner.agent || "").toLowerCase();
+  let idx = tickets.findIndex(t => String(t.agent).toLowerCase() === want);
+  if (idx < 0){
+    // the winner is not in this screen's hat — show the record without a stub
+    phase = "drawing";
+    showWinner(rec, null);
+    return;
+  }
   phase = "drawing";
-  runDraw();
+  runDraw(idx, rec);
 }
 
 tickClock(); setInterval(tickClock, 250);
@@ -453,14 +498,14 @@ function pickIndex(n){
   return v % n;
 }
 
-function runDraw(){
+function runDraw(winner, rec){
   if (drawing || !tickets.length) return;
-  drawing = true; locked = true;
+  drawing = true; locked = true; phase = "drawing";
   $("#hint").textContent = "hold the room";
 
   const stubs = [...drum.querySelectorAll(".stub")];
   stubs.forEach(s => s.classList.add("tumbling"));
-  const winner = pickIndex(tickets.length);
+  pendingRecord = rec || null;
 
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const hops = reduce ? 6 : Math.max(26, tickets.length * 2 + 18);
@@ -483,6 +528,8 @@ function runDraw(){
   step();
 }
 
+let pendingRecord = null;
+
 function finish(idx, stubs){
   const t = tickets[idx];
   stubs.forEach(s => s.classList.remove("tumbling", "lit"));
@@ -490,16 +537,9 @@ function finish(idx, stubs){
   [...ledger.querySelectorAll(".lrow")].forEach(r => {
     if (r.dataset.agent === t.agent) r.classList.add("on");
   });
-
-  $("#wName").textContent = t.agent;
-  $("#wTeam").textContent = teamOf(t.agent);
-  $("#wSer").textContent = "#" + t.serial;
-  $("#wHeld").textContent = t.holder.tickets + " of " + tickets.length;
-  $("#wPts").textContent = t.holder.points;
-  $("#wOdds").textContent = Math.round(t.holder.tickets / tickets.length * 100) + "%";
-  fitWinnerName();
+  showWinner(pendingRecord, t);
+  pendingRecord = null;
   $("#win").classList.add("show");
-  $("#hint").textContent = "winner: " + t.agent;
   drawing = false; phase = "winner";
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches) confetti();
   // Friday: the winner stays up until someone takes the board down. Preview:
@@ -514,6 +554,23 @@ function resetForPreview(){
   locked = false; phase = "countdown"; previewStart = Date.now();
   $("#hint").textContent = "one ticket, one name, $50";
   renderDrum();
+}
+
+function showWinner(rec, t){
+  const agent = rec ? rec.winner.agent : t.agent;
+  $("#wName").textContent = agent;
+  $("#wTeam").textContent = teamOf(agent);
+  $("#wSer").textContent  = "#" + (rec ? rec.winner.serial : t.serial);
+  $("#wHeld").textContent = (rec ? rec.winner.tickets_held : t.holder.tickets)
+                          + " of " + (rec ? rec.hat.tickets : tickets.length);
+  $("#wPts").textContent  = rec ? rec.winner.points_week : t.holder.points;
+  $("#wOdds").textContent = (rec ? rec.winner.odds_pct
+                                 : Math.round(t.holder.tickets / tickets.length * 100)) + "%";
+  $("#hint").textContent = "winner: " + agent;
+  fitWinnerName();
+  $("#win").classList.add("show");
+  phase = "winner"; drawing = false;
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) confetti();
 }
 
 function fitWinnerName(){

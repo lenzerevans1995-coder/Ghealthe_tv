@@ -15,6 +15,7 @@
 //   GET  /board/paperchase/feed.js  that board's standings, pushed to /ingest/paperchase
 //   GET  /board/draw              Weekly Draw — counts down, draws itself at 4:00 PM ET
 //   GET  /board/draw/preview      the same board on a 10-second clock, looping
+//   GET  /api/draw                the week's draw result — decided once, here, so every screen agrees
 //   GET  /console                 desk view: left menu rail + the boards in a frame
 //   GET  /unlock                  saves the key on this device (?key=…&to=…), then redirects
 //   GET  /k/<key>                 same, key in the path — survives link shorteners
@@ -110,6 +111,14 @@ async function route(request, env, url) {
   if (path === '/api/webhook-status') {
     const row = await env.DB.prepare('SELECT v, updated_at FROM kv WHERE k = ?').bind('webhook_stats').first();
     return json(row ? { ...JSON.parse(row.v), updated_at: row.updated_at } : { received: 0, note: 'no deliveries recorded' });
+  }
+
+  // The draw result. Decided in one place and written down, because a pick made
+  // in the browser is made once per screen: two TVs would crown two different
+  // people, and a reload would quietly reroll. First read at or after 4:00 PM ET
+  // draws the hat and stores it; every read after that returns the same record.
+  if (path === '/api/draw') {
+    return json(await resolveDraw(env, url.searchParams.get('date')));
   }
 
   if (path === '/api/stats') {
@@ -491,6 +500,98 @@ async function loadContestStandings(env) {
 
   rows.sort((a, b) => Number(b.points) - Number(a.points));
   return { generated_at: applied > 0 ? latest : base.generated_at, rows, live_adds: applied };
+}
+
+// ---------- the weekly draw ----------
+
+const TICKET_POINTS = 50;
+const DRAW_HOUR_ET = 16; // 4:00 PM
+
+function etNow() {
+  const f = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const p = {};
+  for (const part of f.formatToParts(new Date())) p[part.type] = part.value;
+  const hour = Number(p.hour) % 24; // some ICU builds render midnight as 24
+  return { date: `${p.year}-${p.month}-${p.day}`, hour, minute: Number(p.minute), second: Number(p.second) };
+}
+
+// The hat, built exactly as the board builds it, so a serial means the same
+// thing on the screen and in the record.
+function buildHat(rows) {
+  const holders = (rows || [])
+    .map((r) => ({ agent: r.agent, points: Number(r.points_week) || 0 }))
+    .map((a) => ({ ...a, tickets: Math.floor(a.points / TICKET_POINTS) }))
+    .filter((a) => a.tickets > 0)
+    .sort((a, b) => b.tickets - a.tickets || b.points - a.points || a.agent.localeCompare(b.agent));
+  const flat = [];
+  holders.forEach((h) => { for (let i = 0; i < h.tickets; i++) flat.push(h); });
+  return { holders, flat };
+}
+
+// Uniform over the flat ticket array — weighted by tickets held, like a hat.
+// Rejection sampling so the modulo cannot skew it.
+function drawIndex(n) {
+  const buf = new Uint32Array(1);
+  const limit = Math.floor(4294967296 / n) * n;
+  let v;
+  do { crypto.getRandomValues(buf); v = buf[0]; } while (v >= limit);
+  return v % n;
+}
+
+// Seconds until the draw, from the server's own clock so every screen counts to
+// the same instant. `draw_config` overrides the 4:00 slot for a test run.
+async function secondsToDraw(env) {
+  const cfg = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('draw_config').first();
+  if (cfg) {
+    const at = Date.parse(JSON.parse(cfg.v).draw_at || '');
+    if (Number.isFinite(at)) return Math.round((at - Date.now()) / 1000);
+  }
+  const now = etNow();
+  return (DRAW_HOUR_ET - now.hour) * 3600 - now.minute * 60 - now.second;
+}
+
+async function resolveDraw(env, dateParam) {
+  const now = etNow();
+  const date = dateParam || now.date;
+  const key = `draw:${date}`;
+
+  const existing = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(key).first();
+  if (existing) return JSON.parse(existing.v);
+
+  if (dateParam) return { date, pending: true, reason: 'no draw recorded for that date' };
+  const left = await secondsToDraw(env);
+  if (left > 0) return { date, pending: true, seconds_to_draw: left };
+
+  const { flat, holders } = buildHat((await loadContestStandings(env)).rows);
+  if (!flat.length) return { date, pending: true, reason: 'no tickets in the hat' };
+
+  const idx = drawIndex(flat.length);
+  const w = flat[idx];
+  const record = {
+    date,
+    decided_at: new Date().toISOString(),
+    source: 'drawn',
+    winner: {
+      agent: w.agent,
+      serial: String(idx + 1).padStart(3, '0'),
+      tickets_held: w.tickets,
+      points_week: w.points,
+      odds_pct: Math.round((w.tickets / flat.length) * 100),
+    },
+    hat: { tickets: flat.length, holders: holders.length },
+  };
+
+  // First writer wins: two screens asking at the same instant must not each
+  // draw. Whoever loses the race reads back the record that stuck.
+  await env.DB.prepare(
+    'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING'
+  ).bind(key, JSON.stringify(record), record.decided_at).run();
+  const stored = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(key).first();
+  return stored ? JSON.parse(stored.v) : record;
 }
 
 // ---------- contest standings ingest ----------
