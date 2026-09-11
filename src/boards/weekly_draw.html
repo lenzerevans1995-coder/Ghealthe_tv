@@ -174,7 +174,7 @@ canvas#fx{position:absolute;inset:0;pointer-events:none;z-index:62}
     <section class="hopper">
       <div class="hopper-cap">
         <div class="l">Tickets in the drum</div>
-        <div class="r" id="capR">week of Mon Sep 1 &ndash; Fri Sep 4</div>
+        <div class="r" id="capR">this contest week</div>
       </div>
       <div id="drum"></div>
     </section>
@@ -290,6 +290,22 @@ function etParts(){
     hour:"2-digit",minute:"2-digit",second:"2-digit",weekday:"short",month:"short",day:"numeric"});
   const p = {}; f.formatToParts(new Date()).forEach(x => p[x.type] = x.value); return p;
 }
+/* Tickets reset Monday, so the caption has to name THIS week's Monday. Derive it
+   from the ET date rather than writing it in — a hardcoded date silently turns
+   into a lie the following week. */
+function weekStartET(){
+  const d = new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",
+    year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const noon = new Date(d + "T12:00:00Z");           // midday: no DST edge
+  noon.setUTCDate(noon.getUTCDate() - ((noon.getUTCDay() + 6) % 7));
+  // The contest is a calendar month, so in a month's first partial week the
+  // Monday sits before the contest even opened. Don't claim days that month
+  // never had.
+  const first = new Date(d.slice(0,7) + "-01T12:00:00Z");
+  const start = noon < first ? first : noon;
+  return new Intl.DateTimeFormat("en-US",{timeZone:"UTC",
+    weekday:"short",month:"short",day:"numeric"}).format(start);
+}
 /* Preview runs the whole thing on a short clock so it can be watched end to
    end: countdown, draw, winner, and round again. Same code path as Friday —
    only the clock is different, so a preview that looks right IS the thing that
@@ -346,7 +362,7 @@ function tickClock(){
     $("#clkV").style.color = "var(--gold)";
   }
   $("#capR").textContent = PREVIEW ? "preview — looping" :
-    "week of Mon Sep 1 – " + p.weekday + " " + p.month + " " + p.day;
+    "week of " + weekStartET() + " – " + p.weekday + " " + p.month + " " + p.day;
 }
 
 /* The hat that draws is the hat as it stood at 3:59: a sale keyed while the
