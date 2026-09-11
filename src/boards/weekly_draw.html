@@ -452,9 +452,12 @@ function renderLedger(){
     ledger.style.setProperty("--lfs", Math.max(14, Math.min(24, Math.floor(rowH * 0.74))) + "px");
   }
   const near = agents.filter(a => a.tickets === 0).sort((x,y) => y.points - x.points)[0];
-  $("#lfoot").innerHTML = holders.length + " agents hold " + tickets.length + " tickets."
+  const plural = (n, one, many) => n + " " + (n === 1 ? one : (many || one + "s"));
+  const short = near ? PTS_PER_TICKET - near.points : 0;
+  $("#lfoot").innerHTML = plural(holders.length, "agent")
+    + (holders.length === 1 ? " holds " : " hold ") + plural(tickets.length, "ticket") + "."
     + (dry ? " " + dry + " more scored this week without reaching 50 points"
-        + (near ? " — closest is " + esc(near.agent) + ", " + (PTS_PER_TICKET - near.points) + " points out." : ".") : "");
+        + (near ? " — closest is " + esc(near.agent) + ", " + plural(short, "point") + " out." : ".") : "");
 }
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
