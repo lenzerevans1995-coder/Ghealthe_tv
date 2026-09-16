@@ -1,0 +1,154 @@
+/* The Paper Chase — roster, summer baselines and the derived scoring the four
+   contest boards share.
+   
+   Ported from the data.py that shipped with the board renders. The live feed
+   (/board/paperchase/feed.js) already carries every per-agent figure these
+   boards need — agent, points, points_week, sthhc_apps, sthhc_apps_q, hi_apps,
+   sthhc_prem, sthhc_prem_scored, hi_prem — so nothing here re-derives a number
+   the Worker already computed. What lives here is the part the feed cannot
+   know: who sits on which team, and what each agent did over the summer. */
+
+window.PC_CONFIG = (function () {
+  const SEATS = 45, FLOOR_NUMBER = 180, UNLOCK_APPS = 200, UNLOCK_AVG = 62, GRAND = 1000;
+
+  const TEAMS = {
+    "Honey Badgers": ["Manar Ettayem","Nicole Bell-Royster","Armando Martinez","John Gregory","Mariyeisi Umpierre"],
+    "Barracudas":    ["Tianna Thompson","Basem Moussa","Hunter Cole","Brandon Lugo","Quinn Slaydon"],
+    "Vipers":        ["Savanna Holloway","Marilyn Johnson","Timothy Jackson","Andre Cintron","David Calhoun"],
+    "Piranhas":      ["ChenY'ere Franklin","Shani Fareed","Deon McClendon","Chelsea Hammers","Trinaka Edmond"],
+    "Scorpions":     ["Juana Bustos-Roblero","Sumesh Chakkalakkal","Yancy Harrier","Adam Menendez","Sophia Asencio"],
+    "Hornets":       ["Raymond Mccrea","George Corbin","Gwendolyn Ingram","Cortney Sanders","Andre Banfield"],
+    "Mambas":        ["Jesenia Morell","Damien Goode","Alexi Lebrun","Victor Cruz","Marcos Manzueta"],
+    "Cobras":        ["Nifda Colon","Rosalva Diaz","Luis Lopez","Avah Burns","Sumit Lal"],
+    "Wolverines":    ["Sherly Riley","Irelys Padierna","Shirley Davis","Kameron Smith","Jalen McClendon"],
+  };
+
+  // July + August average monthly points under September rules (Onyx pull,
+  // sum/2 rounded). The floor of 180 is applied in summerOf, not here, so the
+  // raw figure stays visible for anyone checking the math.
+  const SUMMER_RAW = {
+    "Savanna Holloway":1047,"Sherly Riley":974,"Tianna Thompson":864,"ChenY'ere Franklin":822,"Manar Ettayem":738,
+    "Juana Bustos-Roblero":637,"Sumesh Chakkalakkal":634,"Jesenia Morell":612,"Raymond Mccrea":562,"Damien Goode":554,
+    "Alexi Lebrun":498,"George Corbin":436,"Rosalva Diaz":410,"John Gregory":390,"Shani Fareed":380,"Nifda Colon":363,
+    "Marilyn Johnson":331,"Timothy Jackson":304,"Deon McClendon":292,"Avah Burns":270,"Sumit Lal":264,"Andre Banfield":256,
+    "Gwendolyn Ingram":245,"Cortney Sanders":234,"Irelys Padierna":226,"Andre Cintron":214,"Hunter Cole":204,
+    "Basem Moussa":188,"Nicole Bell-Royster":188,"Kameron Smith":186,"Victor Cruz":176,"Jalen McClendon":172,
+    "Brandon Lugo":164,"Chelsea Hammers":130,"Adam Menendez":108,"Sophia Asencio":60,"Quinn Slaydon":52,
+    "Mariyeisi Umpierre":50,"Armando Martinez":26,"Shirley Davis":8,
+  };
+
+  const TEAM_OF = {};
+  for (const [t, ms] of Object.entries(TEAMS)) for (const a of ms) TEAM_OF[a] = t;
+
+  const PTS_PER_TICKET = 50;
+  const num = (v) => Number(v) || 0;
+
+  function index(rows) {
+    const by = {};
+    for (const r of rows || []) by[r.agent] = r;
+    return by;
+  }
+
+  const summerOf = (a) => Math.max(FLOOR_NUMBER, SUMMER_RAW[a] || 0);
+
+  function make(rows) {
+    const AG = index(rows);
+    const get = (a, k) => num((AG[a] || {})[k]);
+    const pts   = (a) => get(a, 'points');
+    const wk    = (a) => get(a, 'points_week');
+    const apps  = (a) => get(a, 'sthhc_apps') + get(a, 'hi_apps');
+    const pct   = (a) => pts(a) / summerOf(a);
+    const beat  = (a) => pts(a) >= summerOf(a);
+    const triple= (a) => pts(a) >= 1.3 * summerOf(a);
+
+    // End-of-month hat: a ticket per 50 points for the month, doubled for
+    // clearing your summer number and tripled for clearing it by 30%, plus a
+    // flat 3 for writing 12 apps.
+    function lastHat(a) {
+      let t = Math.floor(pts(a) / PTS_PER_TICKET);
+      if (triple(a)) t *= 3; else if (beat(a)) t *= 2;
+      if (apps(a) >= 12) t += 3;
+      return t;
+    }
+    const weeklyTickets = (a) => Math.floor(wk(a) / PTS_PER_TICKET);
+    // Above the qualifying line a dollar of premium is a point, so the gap to
+    // the next ticket is also the dollars it takes to get there.
+    const toNextTicket = (a) => PTS_PER_TICKET - (wk(a) % PTS_PER_TICKET);
+
+    function teamRows() {
+      const out = Object.entries(TEAMS).map(([team, ms]) => ({
+        team,
+        points:  ms.reduce((s, a) => s + pts(a), 0),
+        grand:   ms.reduce((s, a) => s + get(a, 'sthhc_prem_scored'), 0),
+        scoring: ms.filter((a) => pts(a) > 0).length,
+        cashed:  ms.filter((a) => pts(a) >= FLOOR_NUMBER).length,
+        members: ms.slice().sort((x, y) => pts(y) - pts(x)),
+      }));
+      out.sort((a, b) => b.points - a.points || a.team.localeCompare(b.team));
+      return out;
+    }
+
+    const scoring = Object.keys(AG).filter((a) => pts(a) > 0 || apps(a) > 0);
+    const sum = (k) => scoring.reduce((s, a) => s + get(a, k), 0);
+    const floor = {
+      points: scoring.reduce((s, a) => s + pts(a), 0),
+      scoring: scoring.length,
+      sthhc_apps: sum('sthhc_apps'), hi_apps: sum('hi_apps'),
+      sthhc_prem: sum('sthhc_prem'), sthhc_prem_scored: sum('sthhc_prem_scored'),
+      hi_prem: sum('hi_prem'),
+    };
+    floor.unlock_avg = floor.sthhc_apps ? floor.sthhc_prem / floor.sthhc_apps : 0;
+
+    return { AG, get, pts, wk, apps, pct, beat, triple, summerOf,
+             lastHat, weeklyTickets, toNextTicket, teamRows, floor,
+             agents: Object.keys(AG) };
+  }
+
+  /* Dates the boards print. Derived, never written in: a hardcoded date is a
+     lie the moment the month turns. Selling days are weekdays left in the
+     month including today; draws are the Fridays left. */
+  function etToday() {
+    const d = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York',
+      year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    return new Date(d + 'T12:00:00Z');   // midday: immune to DST
+  }
+  const fmt = (d, o) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', ...o }).format(d);
+
+  function dates() {
+    const today = etToday();
+    const y = today.getUTCFullYear(), m = today.getUTCMonth();
+    const end = new Date(Date.UTC(y, m + 1, 0, 12));
+    let selling = 0; const fridays = [];
+    for (let d = new Date(today); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      const dow = d.getUTCDay();
+      if (dow >= 1 && dow <= 5) selling++;
+      if (dow === 5) fridays.push(fmt(d, { month: 'short', day: 'numeric' }));
+    }
+    const monday = new Date(today);
+    monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+    const first = new Date(Date.UTC(y, m, 1, 12));
+    const weekStart = monday < first ? first : monday;
+    const friday = new Date(weekStart);
+    friday.setUTCDate(friday.getUTCDate() + 4);
+    const weekEnd = friday > end ? end : friday;
+    const short = (d) => (d.getUTCMonth() + 1) + '/' + d.getUTCDate();
+    // The Last Hat is drawn once the month has closed and cancels are off, so
+    // it lands on the first Friday of the following month, not the last Friday
+    // of this one.
+    const nextMonth = new Date(Date.UTC(y, m + 1, 1, 12));
+    while (nextMonth.getUTCDay() !== 5) nextMonth.setUTCDate(nextMonth.getUTCDate() + 1);
+    return {
+      lastHatDate: 'Fri ' + fmt(nextMonth, { month: 'short', day: 'numeric' }),
+      settleDate: fmt(new Date(Date.UTC(y, m + 1, 1, 12)), { weekday: 'short', month: 'short', day: 'numeric' }),
+      stamp: 'through ' + fmt(today, { weekday: 'short', month: 'short', day: 'numeric' }),
+      month: fmt(today, { month: 'long', year: 'numeric' }),
+      sellingDaysLeft: selling,
+      weekLabel: 'Mon ' + short(weekStart) + ' – Fri ' + short(weekEnd),
+      nextDraw: fridays[0] ? 'Fri ' + fridays[0] : '—',
+      drawsLeft: fridays,
+    };
+  }
+
+  return { SEATS, FLOOR_NUMBER, UNLOCK_APPS, UNLOCK_AVG, GRAND, PTS_PER_TICKET,
+           TEAMS, SUMMER_RAW, TEAM_OF, summerOf, make, dates };
+})();

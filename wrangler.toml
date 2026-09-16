@@ -27,8 +27,11 @@ fallthrough = true
 
 # Board pages that came in as finished HTML are kept as .html and imported as
 # text, rather than pasted into a JS template literal: no escaping, and the
-# file stays something a browser can open and a diff can read.
+# file stays something a browser can open and a diff can read. Shared board CSS
+# and the contest's client-side scoring module ride the same rule — .clientjs
+# marks a file that runs in the browser, so the bundler ships it as text rather
+# than trying to resolve it as one of the Worker's own modules.
 [[rules]]
 type = "Text"
-globs = ["**/*.html"]
+globs = ["**/*.html", "**/*.css", "**/*.clientjs"]
 fallthrough = true

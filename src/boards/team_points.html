@@ -1,0 +1,161 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Paper Chase — Team Points</title>
+<link rel="stylesheet" href="/board/contest-fonts.css">
+<style>
+
+:root{--field:#072A21;--edge:#04201A;--panel:#0B3A2E;--line:#155A46;--mint:#3FD68A;--gold:#F5C942;
+--amber:#F2A43A;--paper:#F3F7F2;--mute:#8FB8A4;--dim:#5E8A76;
+--disp:'Archivo Black','Oswald','Arial Narrow',sans-serif;--lab:'Barlow Condensed','Oswald','Arial Narrow',sans-serif;--pro:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--edge)}
+#wrap{position:fixed;inset:0;background:var(--edge);overflow:hidden}
+#stage{width:1920px;height:1080px;position:fixed;top:50%;left:50%;transform-origin:center center;
+  background:var(--field);color:var(--paper);font-family:var(--pro);display:flex;flex-direction:column}
+.hdr{height:104px;background:var(--edge);border-bottom:3px solid var(--gold);display:flex;align-items:center;padding:0 56px;gap:32px;flex:none}
+.hdr .brand{font-family:var(--disp);font-size:40px;color:var(--gold);letter-spacing:.5px;white-space:nowrap}
+.hdr .sub{font-family:var(--lab);font-weight:700;font-size:26px;color:var(--mute);text-transform:uppercase;letter-spacing:2px;white-space:nowrap}
+.hdr .stamp{margin-left:auto;text-align:right;font-family:var(--lab);font-weight:700;font-size:24px;color:var(--mute);text-transform:uppercase;letter-spacing:2px;line-height:1.1}
+.hdr .stamp b{display:block;color:var(--paper);font-size:30px}
+.main{flex:1 1 auto;display:flex;gap:28px;padding:22px 56px 0 56px;min-height:0}
+.rail{width:470px;flex:none;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:26px 28px;display:flex;flex-direction:column;gap:20px}
+.ask{height:132px;flex:none;margin-top:22px;background:var(--gold);color:var(--edge);display:flex;align-items:center;padding:0 56px;gap:40px}
+.ask .big{font-family:var(--disp);font-size:44px;line-height:1.05;white-space:nowrap}
+.ask .fine{font-family:var(--pro);font-weight:600;font-size:21px;line-height:1.3;max-width:900px;margin-left:auto}
+.lab{font-family:var(--lab);font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--mute)}
+.num{font-family:var(--lab);font-weight:800;font-variant-numeric:tabular-nums}
+.disp{font-family:var(--disp)}
+.gold{color:var(--gold)}.mint{color:var(--mint)}.amber{color:var(--amber)}.mute{color:var(--mute)}.dim{color:var(--dim)}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:14px}
+
+.list{flex:1 1 auto;display:flex;flex-direction:column}
+.list .h{display:grid;grid-template-columns:70px 1fr 200px 170px 170px;padding:0 24px 10px;font-size:22px}
+.row{display:grid;grid-template-columns:70px 1fr 200px 170px 170px;align-items:center;padding:0 24px;height:82px;border-top:2px solid var(--line)}
+.row:last-child{border-bottom:2px solid var(--line)}
+.row .rk{font-size:40px;color:var(--mute)}.row.r1 .rk,.row.r1 .tm{color:var(--gold)}.row.r2 .rk,.row.r2 .tm{color:var(--mint)}
+.row .tm{font-family:var(--disp);font-size:36px}
+.row .pt{font-size:46px;text-align:right}.row .pt small{font-size:22px;color:var(--mute);margin-left:8px;font-weight:700}
+.row .st{font-size:30px;text-align:right;color:var(--mute)}.row .st b{color:var(--paper)}
+.row.r1 .pt{color:var(--gold)}
+.tag{font-family:var(--lab);font-weight:700;font-size:18px;letter-spacing:1.5px;text-transform:uppercase;margin-left:12px;padding:2px 10px;border-radius:6px;background:var(--gold);color:var(--edge);vertical-align:middle}
+.tag.m{background:var(--mint)}
+.g{display:flex;flex-direction:column;gap:9px}
+.g .b{display:grid;grid-template-columns:150px 1fr 90px;align-items:center;gap:12px;font-size:22px}
+.g .b .n{font-family:var(--lab);font-weight:700;font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g .b .bar{height:22px;background:var(--edge);border-radius:6px;overflow:hidden}.g .b .bar i{display:block;height:100%;background:var(--mint)}
+.g .b.lead .bar i{background:var(--gold)}.g .b .v{text-align:right;font-size:26px}
+.rail h3{font-size:22px}.rail .hero{font-family:var(--disp);font-size:54px;color:var(--gold);line-height:1}
+.rail .kv{display:flex;justify-content:space-between;font-size:24px}.rail .kv b{font-size:30px}
+.sep{border-top:2px solid var(--line)}
+.ru{font-size:22px;line-height:1.5;color:var(--paper)}.ru b{color:var(--gold)}
+
+</style></head><body>
+<div id="wrap"><div id="stage">
+  <div class="hdr"><div class="brand">THE PAPER CHASE</div><div class="sub">Team Points</div>
+    <div class="stamp">Standings<b id="stamp">—</b></div></div>
+  <div class="main">
+    <div class="list"><div class="h lab"><span>#</span><span>Team</span>
+      <span style="text-align:right">Points</span><span style="text-align:right">Seats</span>
+      <span style="text-align:right">Cashed</span></div>
+      <div id="rows"></div></div>
+    <div class="rail">
+      <div><div class="lab" style="font-size:22px">First to a Grand — $200</div>
+        <div class="hero" id="grandHero">—</div>
+        <div class="lab" style="font-size:20px;margin-top:4px" id="grandWho">&nbsp;</div></div>
+      <div class="g" id="grandBars"></div>
+      <div class="sep"></div>
+      <div><div class="lab" style="font-size:22px;margin-bottom:6px">Runners-up race — gap to 2nd</div>
+        <div class="ru" id="gap">&nbsp;</div></div>
+      <div class="sep"></div>
+      <div><div class="lab" style="font-size:22px;margin-bottom:6px">Floor lunch unlock</div>
+        <div class="kv"><span>STHHC apps</span><b class="num" id="unlockApps">—</b></div>
+        <div class="kv"><span>Average premium</span><b class="num amber" id="unlockAvg">—</b></div>
+        <div class="lab" style="font-size:18px;margin-top:4px" id="unlockNote">&nbsp;</div></div>
+    </div>
+  </div>
+  <div class="ask"><div class="big" id="askBig">&nbsp;</div><div class="fine">Team prizes need
+    <b>180 points of your own</b> to cash your share — under that, it splits among teammates who
+    cleared it. First to a Grand counts only STHHC premium that scored: an STHHC on the same call
+    as an MA/MAPD adds nothing anywhere.</div></div>
+</div></div>
+<script src="/board/contest.js"></script>
+<script src="/board/paperchase/feed.js"></script>
+<script>
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
+const QS = new URLSearchParams(location.search);
+const OVERSCAN = Math.max(0, Math.min(10, Number(QS.get('overscan')) || 0));
+
+/* One transform for the whole board: authored at 1920x1080, scaled to fit
+   whatever panel it lands on, so type and boxes shrink together instead of
+   reflowing at different rates. */
+function fit() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const s = Math.min(w / 1920, h / 1080) * (1 - OVERSCAN / 100);
+  $('#stage').style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize', fit); setInterval(fit, 2000); fit();
+
+const TAGS = ['$600 Champs', '$300 Runners-up'];
+
+function render() {
+  const feed = window.PAPER_CHASE;
+  const C = window.PC_CONFIG;
+  if (!feed || !C) return;
+  const M = C.make(feed.rows), D = C.dates();
+
+  $('#stamp').textContent = D.stamp;
+  $('#askBig').textContent = D.sellingDaysLeft + ' selling day' +
+    (D.sellingDaysLeft === 1 ? '' : 's') + ' left.';
+
+  const teams = M.teamRows();
+  $('#rows').innerHTML = teams.map((t, i) => {
+    const tag = TAGS[i] ? `<span class="tag${i === 1 ? ' m' : ''}">${TAGS[i]}</span>` : '';
+    return `<div class="row r${i + 1}">
+      <div class="rk num">${i + 1}</div>
+      <div class="tm">${esc(t.team)}${tag}</div>
+      <div class="pt num">${t.points.toLocaleString('en-US')}<small>PTS</small></div>
+      <div class="st num"><b>${t.scoring}</b>/5 scoring</div>
+      <div class="st num"><b>${t.cashed}</b>/5 at 180</div></div>`;
+  }).join('');
+
+  // First to a Grand runs on scored STHHC premium, so a zeroed app moves nothing.
+  const byGrand = teams.slice().sort((a, b) => b.grand - a.grand);
+  const lead = byGrand[0];
+  $('#grandHero').innerHTML = money(lead.grand) +
+    `<span style="font-size:24px;color:var(--mute);font-family:var(--lab);font-weight:700"> / ${money(C.GRAND)}</span>`;
+  $('#grandWho').textContent = lead.team + ' lead · scored STHHC premium';
+  $('#grandBars').innerHTML = byGrand.slice(0, 6).map((t, i) =>
+    `<div class="b${i ? '' : ' lead'}"><span class="n">${esc(t.team)}</span>
+      <span class="bar"><i style="width:${Math.min(100, t.grand / C.GRAND * 100).toFixed(1)}%"></i></span>
+      <span class="v num">${money(t.grand)}</span></div>`).join('');
+
+  const second = teams[1];
+  $('#gap').innerHTML = second
+    ? teams.slice(2, 5).map((t) => `<b>${esc(t.team)}</b> ${second.points - t.points} back`).join(' · ')
+    : '&nbsp;';
+
+  const f = M.floor;
+  $('#unlockApps').innerHTML = f.sthhc_apps +
+    ` <span class="mute" style="font-size:22px">/ ${C.UNLOCK_APPS}</span>`;
+  $('#unlockAvg').textContent = '$' + f.unlock_avg.toFixed(2);
+  $('#unlockNote').textContent =
+    `needs to be $${C.UNLOCK_AVG} at ${C.UNLOCK_APPS} apps · all or nothing`;
+}
+
+render();
+// The feed is a snapshot pushed every few minutes; re-pull it rather than make
+// the floor look at a board that stopped when the tab was opened.
+setInterval(async () => {
+  try {
+    const r = await fetch('/board/paperchase/feed.js?t=' + Date.now(), { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const t = await r.text();
+    const m = t.indexOf('=');
+    window.PAPER_CHASE = JSON.parse(t.slice(m + 1).trim().replace(/;$/, ''));
+    render();
+  } catch (e) { /* keep the last good paint on the screen */ }
+}, 60000);
+
+</script>
+</body></html>

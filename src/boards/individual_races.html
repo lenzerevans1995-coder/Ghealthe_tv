@@ -1,0 +1,164 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Paper Chase — Individual Races</title>
+<link rel="stylesheet" href="/board/contest-fonts.css">
+<style>
+
+:root{--field:#072A21;--edge:#04201A;--panel:#0B3A2E;--line:#155A46;--mint:#3FD68A;--gold:#F5C942;
+--amber:#F2A43A;--paper:#F3F7F2;--mute:#8FB8A4;--dim:#5E8A76;
+--disp:'Archivo Black','Oswald','Arial Narrow',sans-serif;--lab:'Barlow Condensed','Oswald','Arial Narrow',sans-serif;--pro:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--edge)}
+#wrap{position:fixed;inset:0;background:var(--edge);overflow:hidden}
+#stage{width:1920px;height:1080px;position:fixed;top:50%;left:50%;transform-origin:center center;
+  background:var(--field);color:var(--paper);font-family:var(--pro);display:flex;flex-direction:column}
+.hdr{height:104px;background:var(--edge);border-bottom:3px solid var(--gold);display:flex;align-items:center;padding:0 56px;gap:32px;flex:none}
+.hdr .brand{font-family:var(--disp);font-size:40px;color:var(--gold);letter-spacing:.5px;white-space:nowrap}
+.hdr .sub{font-family:var(--lab);font-weight:700;font-size:26px;color:var(--mute);text-transform:uppercase;letter-spacing:2px;white-space:nowrap}
+.hdr .stamp{margin-left:auto;text-align:right;font-family:var(--lab);font-weight:700;font-size:24px;color:var(--mute);text-transform:uppercase;letter-spacing:2px;line-height:1.1}
+.hdr .stamp b{display:block;color:var(--paper);font-size:30px}
+.main{flex:1 1 auto;display:flex;gap:28px;padding:22px 56px 0 56px;min-height:0}
+.rail{width:470px;flex:none;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:26px 28px;display:flex;flex-direction:column;gap:20px}
+.ask{height:132px;flex:none;margin-top:22px;background:var(--gold);color:var(--edge);display:flex;align-items:center;padding:0 56px;gap:40px}
+.ask .big{font-family:var(--disp);font-size:44px;line-height:1.05;white-space:nowrap}
+.ask .fine{font-family:var(--pro);font-weight:600;font-size:21px;line-height:1.3;max-width:900px;margin-left:auto}
+.lab{font-family:var(--lab);font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--mute)}
+.num{font-family:var(--lab);font-weight:800;font-variant-numeric:tabular-nums}
+.disp{font-family:var(--disp)}
+.gold{color:var(--gold)}.mint{color:var(--mint)}.amber{color:var(--amber)}.mute{color:var(--mute)}.dim{color:var(--dim)}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:14px}
+
+.grid{flex:1 1 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
+.card{padding:18px 20px 14px;display:flex;flex-direction:column;overflow:hidden}
+.card .pz{font-family:var(--disp);font-size:24px;line-height:1.05;height:64px;white-space:nowrap}
+.card .pz small{display:block;font-family:var(--lab);font-weight:700;font-size:20px;color:var(--gold);letter-spacing:2px;margin-top:4px}
+.card .rule{font-size:16px;color:var(--mute);letter-spacing:1px;height:44px;line-height:1.3;margin:6px 0 4px;border-bottom:2px solid var(--line)}
+.rw{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px;height:90px;border-bottom:1px solid #0f4536}
+.rw .k{font-family:var(--lab);font-weight:800;font-size:30px;color:var(--mute)}
+.rw .n{font-family:var(--pro);font-weight:600;font-size:21px;line-height:1.1;overflow:hidden}
+.rw .n small{display:block;font-family:var(--lab);font-weight:700;font-size:16px;color:var(--mute);letter-spacing:1px;text-transform:uppercase}
+.rw .v{font-family:var(--lab);font-weight:800;font-size:34px;text-align:right;font-variant-numeric:tabular-nums}
+.rw.r1 .k,.rw.r1 .v,.rw.r1 .n{color:var(--gold)}
+.rw.nq .v,.rw.nq .k,.rw.nq .n{color:var(--dim)}.rw.nq .v{font-size:26px}
+.nx{margin-top:auto;font-size:15px;color:var(--mute);letter-spacing:1px;line-height:1.35}
+.nx b{color:var(--paper)}
+
+</style></head><body>
+<div id="wrap"><div id="stage">
+  <div class="hdr"><div class="brand">THE PAPER CHASE</div><div class="sub">Individual Races · $900</div>
+    <div class="stamp">Standings<b id="stamp">—</b></div></div>
+  <div class="main"><div class="grid">
+    <div class="card"><div class="pz">Top Scorer<small>$250</small></div>
+      <div class="rule lab">Most points on the floor</div>
+      <div id="c0"></div>
+      <div class="nx lab" id="f0"></div></div>
+    <div class="card"><div class="pz">Most Improved<small>$200</small></div>
+      <div class="rule lab">Biggest % over your summer number · min 3 apps</div>
+      <div id="c1"></div>
+      <div class="nx lab" id="f1">Pure percentage — a 180 line and a 900 line compete even</div></div>
+    <div class="card"><div class="pz">Best STHHC Prem.<small>$150</small></div>
+      <div class="rule lab">Average premium per app · min 5 apps</div>
+      <div id="c2"></div>
+      <div class="nx lab" id="f2">Every app counts in the average, even a zeroed one</div></div>
+    <div class="card"><div class="pz">Most STHHC Apps<small>$150</small></div>
+      <div class="rule lab">Apps at $50/mo and up · count race</div>
+      <div id="c3"></div>
+      <div class="nx lab" id="f3">A $50 app and a $130 app are worth the same here</div></div>
+    <div class="card"><div class="pz">Best HI Premium<small>$150</small></div>
+      <div class="rule lab">Average premium per app · min 8 apps</div>
+      <div id="c4"></div>
+      <div class="nx lab" id="f4">Grey rows are not qualified yet</div></div>
+  </div></div>
+  <div class="ask"><div class="big">Five prizes. All still open.</div><div class="fine">The line is
+    $50 STHHC / $30 HI a month — under it, $1 = half a point. The two Best Premium races are
+    averages: one small app pulls your number down. Everything settles <span id="settle"></span>
+    after cancels and pends come off.</div></div>
+</div></div>
+<script src="/board/contest.js"></script>
+<script src="/board/paperchase/feed.js"></script>
+<script>
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
+const QS = new URLSearchParams(location.search);
+const OVERSCAN = Math.max(0, Math.min(10, Number(QS.get('overscan')) || 0));
+function fit(){
+  const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080) * (1 - OVERSCAN / 100);
+  $('#stage').style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize', fit); setInterval(fit, 2000); fit();
+const plural = (n, one) => n + ' ' + (n === 1 ? one : one + 's');
+
+
+function rw(i, name, sub, val, nq) {
+  return `<div class="rw r${i} ${nq ? 'nq' : ''}"><span class="k">${nq ? '·' : i}</span>` +
+    `<span class="n">${esc(name)}${sub ? `<small>${esc(sub)}</small>` : ''}</span>` +
+    `<span class="v">${val}</span></div>`;
+}
+/* A premium race is an average, so it needs a minimum app count or one lucky
+   app wins it. Qualified names fill the card first; the nearest unqualified
+   follow in grey so the floor can see who is one app away. */
+function avgRace(M, appsKey, premKey, min, fmt) {
+  const score = (a) => M.get(a, appsKey) ? M.get(a, premKey) / M.get(a, appsKey) : 0;
+  const has = M.agents.filter((a) => M.get(a, appsKey) > 0);
+  const q = has.filter((a) => M.get(a, appsKey) >= min).sort((x, y) => score(y) - score(x));
+  // Order the unqualified by how close they are to qualifying, not by average:
+  // one app at $130 would otherwise sit at the top of the race looking like the
+  // leader, when the point of the grey rows is "who is nearly in".
+  const nq = has.filter((a) => M.get(a, appsKey) < min)
+    .sort((x, y) => M.get(y, appsKey) - M.get(x, appsKey) || score(y) - score(x));
+  const rows = q.slice(0, 6).map((a, i) =>
+    rw(i + 1, a, plural(M.get(a, appsKey), 'app'), fmt(score(a))));
+  for (const a of nq) {
+    if (rows.length >= 6) break;
+    const need = min - M.get(a, appsKey);
+    rows.push(rw(rows.length + 1, a,
+      `${plural(M.get(a, appsKey), 'app')} · ${need} to qualify`, fmt(score(a)), true));
+  }
+  return rows.join('');
+}
+
+function render() {
+  const feed = window.PAPER_CHASE, C = window.PC_CONFIG;
+  if (!feed || !C) return;
+  const M = C.make(feed.rows), D = C.dates();
+  $('#stamp').textContent = D.stamp;
+  const settle = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1, 12));
+  $('#settle').textContent = new Intl.DateTimeFormat('en-US',
+    { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(settle);
+
+  const top = M.agents.filter((a) => M.pts(a) > 0).sort((x, y) => M.pts(y) - M.pts(x));
+  $('#c0').innerHTML = top.slice(0, 6).map((a, i) =>
+    rw(i + 1, a, C.TEAM_OF[a] || '', M.pts(a).toLocaleString('en-US'))).join('');
+  $('#f0').innerHTML = top.length > 1
+    ? `<b>${M.pts(top[0]) - M.pts(top[1])}</b> between 1st and 2nd` : '&nbsp;';
+
+  const imp = M.agents.filter((a) => M.apps(a) >= 3).sort((x, y) => M.pct(y) - M.pct(x));
+  $('#c1').innerHTML = imp.slice(0, 6).map((a, i) =>
+    rw(i + 1, a, M.pts(a) + ' vs ' + M.summerOf(a), Math.round(M.pct(a) * 100) + '%')).join('');
+
+  $('#c2').innerHTML = avgRace(M, 'sthhc_apps', 'sthhc_prem', 5, (v) => '$' + v.toFixed(2));
+
+  const cnt = M.agents.filter((a) => M.get(a, 'sthhc_apps_q') > 0)
+    .sort((x, y) => M.get(y, 'sthhc_apps_q') - M.get(x, 'sthhc_apps_q')
+                 || M.get(y, 'sthhc_prem') - M.get(x, 'sthhc_prem'));
+  $('#c3').innerHTML = cnt.slice(0, 6).map((a, i) =>
+    rw(i + 1, a, plural(M.get(a, 'sthhc_apps'), 'written').replace('writtens', 'written'),
+       M.get(a, 'sthhc_apps_q'))).join('');
+
+  $('#c4').innerHTML = avgRace(M, 'hi_apps', 'hi_prem', 8, (v) => '$' + v.toFixed(2));
+}
+
+
+render();
+setInterval(async () => {
+  try {
+    const r = await fetch('/board/paperchase/feed.js?t=' + Date.now(), { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const t = await r.text();
+    window.PAPER_CHASE = JSON.parse(t.slice(t.indexOf('=') + 1).trim().replace(/;$/, ''));
+    render();
+  } catch (e) { /* keep the last good paint up */ }
+}, 60000);
+
+</script>
+</body></html>

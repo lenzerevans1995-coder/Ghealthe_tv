@@ -32,6 +32,12 @@ import { RUN15_BOARD } from './run15.js';
 import { LIVE_SALES_BOARD } from './live_sales.js';
 import { PAPER_CHASE_BOARD } from './paperchase.js';
 import WEEKLY_DRAW_BOARD from './boards/weekly_draw.html';
+import TEAM_POINTS_BOARD from './boards/team_points.html';
+import TEAM_BREAKDOWN_BOARD from './boards/team_breakdown.html';
+import INDIVIDUAL_RACES_BOARD from './boards/individual_races.html';
+import CASH_DRAWS_BOARD from './boards/cash_draws.html';
+import CONTEST_FONTS from './boards/contest_fonts.css';
+import CONTEST_CONFIG from './boards/contest.clientjs';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
@@ -180,6 +186,28 @@ async function route(request, env, url) {
       headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
     });
   }
+
+  // The four contest boards share one 374 KB block of display faces and one
+  // roster/scoring module. Served on their own URLs so the browser fetches each
+  // once and reuses it across the rotation, rather than four boards carrying
+  // four copies of the same type through the Worker's 3 MiB budget.
+  if (path === '/board/contest-fonts.css') {
+    return new Response(CONTEST_FONTS, {
+      headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=86400' },
+    });
+  }
+  if (path === '/board/contest.js') {
+    return new Response(CONTEST_CONFIG, {
+      headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=3600' },
+    });
+  }
+
+  // The four contest boards, each its own screen and each reading the same
+  // standings feed the Paper Chase board already publishes.
+  if (path === '/board/teampoints') return html(TEAM_POINTS_BOARD);
+  if (path === '/board/teams')      return html(TEAM_BREAKDOWN_BOARD);
+  if (path === '/board/races')      return html(INDIVIDUAL_RACES_BOARD);
+  if (path === '/board/draws')      return html(CASH_DRAWS_BOARD);
 
   // The Weekly Draw runs itself: it counts down to 4:00 PM ET, freezes the hat
   // at 3:59, draws, and leaves the winner up. /preview is the same page on a
