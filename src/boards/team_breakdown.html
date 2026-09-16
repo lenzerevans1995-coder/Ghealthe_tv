@@ -33,8 +33,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--edge)}
 .card .top .rk{font-family:var(--lab);font-weight:800;font-size:30px;color:var(--mute)}
 .card .top .tm{font-family:var(--disp);font-size:28px;flex:1 1 auto;white-space:nowrap}
 .card.r1 .top .tm,.card.r1 .top .rk{color:var(--gold)}.card.r2 .top .tm,.card.r2 .top .rk{color:var(--mint)}
-.card .top .tp{font-family:var(--lab);font-weight:800;font-size:34px}.card .top .tp small{font-size:18px;color:var(--mute);margin-left:4px}
-.card .top .gr{font-family:var(--lab);font-weight:700;font-size:20px;color:var(--mute)}.card .top .gr b{color:var(--paper)}
 .card .h{display:grid;grid-template-columns:1fr 90px 100px 90px;font-size:15px;padding:0 0 3px;border-bottom:2px solid var(--line)}
 .card .h span:not(:first-child){text-align:right}
 .ag{display:grid;grid-template-columns:1fr 90px 100px 90px;align-items:center;height:32px;border-bottom:1px solid #0f4536;font-family:var(--lab);font-weight:700;font-size:24px}
@@ -92,9 +90,7 @@ function render() {
              `<span class="c ${M.beat(a) ? 'b1' : ''}">${pc}%</span></div>`;
     }).join('');
     return `<div class="card r${i + 1}">
-      <div class="top"><span class="rk">${i + 1}</span><span class="tm">${esc(t.team)}</span>
-        <span class="gr">grand <b>${money(t.grand)}</b></span>
-        <span class="tp">${t.points.toLocaleString('en-US')}<small>PTS</small></span></div>
+      <div class="top"><span class="rk">${i + 1}</span><span class="tm">${esc(t.team)}</span></div>
       <div class="h lab"><span>Agent</span><span>Points</span><span>Summer #</span><span>Of #</span></div>
       ${seats}</div>`;
   }).join('');
@@ -106,15 +102,53 @@ function render() {
 
 
 render();
-setInterval(async () => {
+
+/* The board follows a socket, not a timer: the Worker pokes it the moment an
+   Onyx webhook moves the standings, so a sale reaches the floor in about a
+   second instead of whenever the next poll came due.
+
+   The timer stays as a floor, not a ceiling. A TV on hotel-grade wifi will drop
+   the socket and not always notice, and a Worker redeploy closes every one of
+   them, so a slow poll runs underneath regardless and the screen is never more
+   than a couple of minutes stale even if the socket is quietly dead. */
+let pulling = false;
+async function pull() {
+  if (pulling) return;
+  pulling = true;
   try {
     const r = await fetch('/board/paperchase/feed.js?t=' + Date.now(), { credentials: 'same-origin' });
-    if (!r.ok) return;
-    const t = await r.text();
-    window.PAPER_CHASE = JSON.parse(t.slice(t.indexOf('=') + 1).trim().replace(/;$/, ''));
-    render();
-  } catch (e) { /* keep the last good paint up */ }
-}, 60000);
+    if (r.ok) {
+      const t = await r.text();
+      window.PAPER_CHASE = JSON.parse(t.slice(t.indexOf('=') + 1).trim().replace(/;$/, ''));
+      render();
+    }
+  } catch (e) { /* keep the last good paint on the screen */ }
+  finally { pulling = false; }
+}
+setInterval(pull, 120000);
+
+let ws = null, backoff = 1000;
+function connect() {
+  try {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/board/live-ws${location.search}`);
+  } catch (e) { return retry(); }
+  ws.onopen = () => { backoff = 1000; pull(); };   // catch up on anything missed while away
+  ws.onmessage = (ev) => {
+    let m = {}; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.type === 'standings') pull();
+  };
+  ws.onclose = retry;
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+}
+// Back off on reconnect so a Worker redeploy doesn't have every TV in the
+// building stampeding the socket at the same instant.
+function retry() {
+  ws = null;
+  setTimeout(connect, backoff + Math.random() * 1000);
+  backoff = Math.min(backoff * 2, 30000);
+}
+connect();
 
 </script>
 </body></html>

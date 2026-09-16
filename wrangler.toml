@@ -35,3 +35,15 @@ fallthrough = true
 type = "Text"
 globs = ["**/*.html", "**/*.css", "**/*.clientjs"]
 fallthrough = true
+
+# Boards hold a WebSocket so a sale reaches the screens as soon as its webhook
+# lands, instead of waiting out a poll. A Worker cannot hold a connection, so
+# the sockets live in this Durable Object. SQLite-backed because that is the
+# class the free plan supports.
+[[durable_objects.bindings]]
+name = "BOARD_HUB"
+class_name = "BoardHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BoardHub"]

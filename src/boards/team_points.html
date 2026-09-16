@@ -144,18 +144,53 @@ function render() {
 }
 
 render();
-// The feed is a snapshot pushed every few minutes; re-pull it rather than make
-// the floor look at a board that stopped when the tab was opened.
-setInterval(async () => {
+
+/* The board follows a socket, not a timer: the Worker pokes it the moment an
+   Onyx webhook moves the standings, so a sale reaches the floor in about a
+   second instead of whenever the next poll came due.
+
+   The timer stays as a floor, not a ceiling. A TV on hotel-grade wifi will drop
+   the socket and not always notice, and a Worker redeploy closes every one of
+   them, so a slow poll runs underneath regardless and the screen is never more
+   than a couple of minutes stale even if the socket is quietly dead. */
+let pulling = false;
+async function pull() {
+  if (pulling) return;
+  pulling = true;
   try {
     const r = await fetch('/board/paperchase/feed.js?t=' + Date.now(), { credentials: 'same-origin' });
-    if (!r.ok) return;
-    const t = await r.text();
-    const m = t.indexOf('=');
-    window.PAPER_CHASE = JSON.parse(t.slice(m + 1).trim().replace(/;$/, ''));
-    render();
+    if (r.ok) {
+      const t = await r.text();
+      window.PAPER_CHASE = JSON.parse(t.slice(t.indexOf('=') + 1).trim().replace(/;$/, ''));
+      render();
+    }
   } catch (e) { /* keep the last good paint on the screen */ }
-}, 60000);
+  finally { pulling = false; }
+}
+setInterval(pull, 120000);
+
+let ws = null, backoff = 1000;
+function connect() {
+  try {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/board/live-ws${location.search}`);
+  } catch (e) { return retry(); }
+  ws.onopen = () => { backoff = 1000; pull(); };   // catch up on anything missed while away
+  ws.onmessage = (ev) => {
+    let m = {}; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.type === 'standings') pull();
+  };
+  ws.onclose = retry;
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+}
+// Back off on reconnect so a Worker redeploy doesn't have every TV in the
+// building stampeding the socket at the same instant.
+function retry() {
+  ws = null;
+  setTimeout(connect, backoff + Math.random() * 1000);
+  backoff = Math.min(backoff * 2, 30000);
+}
+connect();
 
 </script>
 </body></html>

@@ -27,6 +27,7 @@
 
 import { DISABLED_BOARDS, renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { STATIC_BOARDS } from './static_boards.js';
+import { BoardHub, hub, notifyBoards } from './hub.js';
 import { withTicker } from './ticker.js';
 import { RUN15_BOARD } from './run15.js';
 import { LIVE_SALES_BOARD } from './live_sales.js';
@@ -46,6 +47,8 @@ import { DEMO_SNAPSHOT } from './demo.js';
 // threshold tolerates one missed cycle plus generation time so it only shows
 // when refreshes are actually failing.
 const STALE_AFTER_MS = 25 * 60 * 1000;
+
+export { BoardHub };
 
 export default {
   async fetch(request, env) {
@@ -186,6 +189,16 @@ async function route(request, env, url) {
       headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
     });
   }
+
+  // Boards hold this open and repaint when it fires. The key check above still
+  // applies, so an unkeyed page cannot listen in.
+  if (path === '/board/live-ws') {
+    if (request.headers.get('Upgrade') !== 'websocket') {
+      return new Response('expected websocket', { status: 426 });
+    }
+    return hub(env).fetch('https://hub/connect', request);
+  }
+  if (path === '/api/hub-status') return hub(env).fetch('https://hub/status');
 
   // The four contest boards share one 374 KB block of display faces and one
   // roster/scoring module. Served on their own URLs so the browser fetches each
@@ -642,6 +655,7 @@ async function handlePaperChaseIngest(request, env) {
   ).bind('paper_chase', JSON.stringify(feed), new Date().toISOString()).run();
   // Deliveries at or before the new baseline are already counted in it.
   await env.DB.prepare('DELETE FROM contest_events WHERE ts <= ?').bind(feed.generated_at).run();
+  await notifyBoards(env, { reason: 'snapshot', rows: feed.rows.length });
   return json({ ok: true, rows: feed.rows.length });
 }
 
@@ -690,6 +704,10 @@ async function handleWebhook(request, env) {
   // display name. Recorded separately so a missing field degrades that board
   // alone, and never the counts.
   await recordContestEvent(env, { event, policy, product, policyId });
+
+  // The standings just moved; tell every open board rather than making them
+  // wait out a poll.
+  await notifyBoards(env, { reason: 'webhook', product });
 
   return json({ ok: true, product });
 }
