@@ -96,26 +96,37 @@ so snapshot pushes leave it alone.
 Between those pushes the board moves on Onyx webhooks: a POLICY_CREATED for an STHHC or HI
 is scored on arrival (premium at or above the $50 / $30 bar scores in full, below it scores
 half) and folded over the last push, so a write reaches the wall in seconds. Two limits are
-worth knowing. The delivery carries no call id, so the "STHHC written on the same call as a
-Core scores zero" rule falls back to matching the lead — an approximation the next push
-recomputes properly. And the delivery names the agent only by email and user id, so the name
+worth knowing. The delivery carries no call id and cannot tell one call from several, so the
+one-call rule (below) falls back to matching the lead: an STHHC and a Core keyed for the same
+customer in the same stretch are held out until the next push, which recomputes it from the
+calls themselves. And the delivery names the agent only by email and user id, so the name
 comes from the `agent_roster` row in D1; an agent missing from it is recorded but not scored
 until the next push, rather than shown under a guessed name. Refresh that roster when people
 join.
 
 ### Contest rules the board encodes
 
-An STHHC written on the same call as a Core scores **zero** — no points, and no credit toward
-First to a Grand. That second half is why the feed carries `sthhc_prem_scored` separately from
-`sthhc_prem`: the grand race sums the scored figure, so a zeroed app moves neither panel, and
-the team-points and grand-race numbers agree. Three figures deliberately stay on **all**
-premium, because they describe what was written rather than what the contest pays: Premium
-written, the floor-unlock average against the $62 bar, and the Best STHHC Premium race.
+An STHHC sold to a customer on the same day as their Core counts only if the customer had more
+than one call with that agent that day. On a single call it broke the rule and **counts nowhere**:
+no points, no credit toward First to a Grand, and it is left out of the app and premium totals
+too — apps written, premium written, the floor-unlock average against the $62 bar, and the two
+premium and count races. An STHHC with no Core to that customer that day is unaffected, and so
+is an HI.
+
+The test is made in Onyx, per agent and per Eastern-time day: a Core and an STHHC to the same
+person by the same agent, and fewer than two calls (distinct `lead_interaction_id`) between them
+that day, not counting coaching, shadowing, barge or calls that never connected. It is *not* a
+comparison of the two policies' call records, which is stricter: a Core and an STHHC sold within
+one call of a customer who also called twice more that day count, because there were multiple
+calls. Change it in the `attached` CTE of the Routine's SQL.
+
+`sthhc_prem_scored` is still in the feed for the boards that read it, and now always equals
+`sthhc_prem`.
 
 Both scoring paths implement this, and both must change together or the board flips answers
-every hour: the Routine's SQL (`s.pts > 0` filter) and `loadContestStandings()` in
-`src/index.js`. The webhook path approximates the same-call test on the lead, since the
-delivery carries no call id; the hourly push recomputes it from the call itself.
+every hour: the Routine's SQL and `loadContestStandings()` in `src/index.js`. The webhook path
+holds an ambiguous STHHC out entirely rather than counting it, so a sale appears late rather than
+appearing and being taken back.
 
 The overlay counts a delivery only when the policy was *written* after the baseline, not
 merely delivered after it. Onyx sends POLICY_UPDATED for edits, so a premium keyed wrong and

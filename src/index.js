@@ -494,10 +494,15 @@ async function loadContestStandings(env) {
   const fresh = events.results || [];
   if (!fresh.length) return base;
 
-  // An STHHC written on the same call as a Core scores zero. The delivery
-  // carries no call id, so the lead stands in for it: two policies keyed for
-  // one customer in the same stretch are the attached case the rule is about.
-  // Only an approximation — the next push recomputes it from the call itself.
+  // An STHHC sold to a customer on the same day as their Core counts only when
+  // the customer had more than one call with that agent that day. On a single
+  // call it broke the rule and counts nowhere — not points, not First to a
+  // Grand, not the app or premium totals. The delivery carries no call id and
+  // cannot tell one call from several, so the lead stands in for it: a Core
+  // and an STHHC keyed for one customer in the same stretch are held out until
+  // the next push, which recomputes it from the calls themselves. Holding out
+  // (rather than counting) errs toward a sale appearing late over a sale
+  // appearing and then being taken back.
   const coreLeads = new Set(fresh.filter((e) => e.bucket === 'CORE' && e.lead_id).map((e) => e.lead_id));
 
   const byAgent = new Map(rows.map((r) => [r.agent, r]));
@@ -508,7 +513,8 @@ async function loadContestStandings(env) {
     if (e.ts > latest) latest = e.ts;
     if (!e.scorable || !e.agent || e.bucket === 'CORE') continue;
     const attached = e.bucket === 'STHHC' && e.lead_id && coreLeads.has(e.lead_id);
-    const points = attached ? 0 : contestPoints(e.bucket, e.premium);
+    if (attached) continue;   // counts nowhere until the next push settles it
+    const points = contestPoints(e.bucket, e.premium);
     const prem = Number(e.premium) || 0;
 
     let row = byAgent.get(e.agent);
@@ -528,9 +534,9 @@ async function loadContestStandings(env) {
       if (prem >= 50) row.sthhc_apps_q = Number(row.sthhc_apps_q || 0) + 1;
       row.sthhc_prem = Number(row.sthhc_prem || 0) + prem;
       row.sthhc_pts = Number(row.sthhc_pts || 0) + points;
-      // First to a Grand counts scoring premium only: an app zeroed by the
-      // same-call rule earns the team nothing there either.
-      if (points > 0) row.sthhc_prem_scored = Number(row.sthhc_prem_scored || 0) + prem;
+      // Kept as its own field for the boards that read it. A violating STHHC no
+      // longer reaches here, so it now always equals sthhc_prem.
+      row.sthhc_prem_scored = Number(row.sthhc_prem_scored || 0) + prem;
     } else {
       row.hi_apps = Number(row.hi_apps || 0) + 1;
       row.hi_prem = Number(row.hi_prem || 0) + prem;
@@ -760,8 +766,8 @@ async function recordContestEvent(env, { event, policy, product, policyId }) {
   const agent = await resolveAgentName(env, agentKey);
 
   // Scored only when every input the rules need is actually present. A Core
-  // needs no premium — it is recorded purely so an STHHC on the same call can
-  // be zeroed.
+  // needs no premium — it is recorded purely so an STHHC sold to the same
+  // customer can be held out until the next push checks the calls.
   const scorable = agent != null && (bucket === 'CORE' || premium != null) ? 1 : 0;
 
   await env.DB.prepare(

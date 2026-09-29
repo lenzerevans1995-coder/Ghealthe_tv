@@ -271,7 +271,7 @@ export const PAPER_CHASE_BOARD = String.raw`<!DOCTYPE html>
         <div class="lbl">First to a grand &nbsp;·&nbsp; $200</div>
         <div class="figs"><span class="big" id="grandN">—</span><span class="of" id="grandL">of $1,000 STHHC premium</span></div>
         <div class="meter"><div class="track"><div class="bar gold" id="grandBar" style="width:0%"></div></div></div>
-        <div class="note">STHHC premium that scored. An app zeroed by the same-call rule counts nothing here either. Paid <b>the day you cross</b>.</div>
+        <div class="note">STHHC premium that scored. An STHHC that broke the one-call rule counts nothing here either. Paid <b>the day you cross</b>.</div>
       </div>
 
       <div class="card">
@@ -291,7 +291,7 @@ export const PAPER_CHASE_BOARD = String.raw`<!DOCTYPE html>
 
   <div class="band">
     <div class="ask" id="ask">Write the paper. Chase the money.</div>
-    <div class="sub">STHHC never rides the same call as an MA enrollment. Attach it and it scores zero.</div>
+    <div class="sub">STHHC needs its own call. Sold to the same customer as a Core on a single call, it counts nowhere.</div>
   </div>
 
   <div class="veil" id="veil">
