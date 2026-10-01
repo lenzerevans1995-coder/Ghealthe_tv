@@ -14,6 +14,8 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 | `/board/paperchase` | **The Paper Chase** — September STHHC/HI contest standings: top scorers, the four individual races, team points, first-to-a-grand, floor unlock and the weekly draw. Its own screen and its own feed (`/board/paperchase/feed.js`), served from the `paper_chase` row in D1 rather than the snapshot, which a Routine push would overwrite. Drawn at a fixed 1920x1080 and scaled to the screen, so a TV of any resolution or aspect gets the design as intended rather than type and boxes resizing at different rates (`?overscan=5` trims edges a TV crops; `?debug=1` shows the measured viewport and scale). Carries the new-sale takeover: a full-screen card when an agent's STHHC or HI app count rises, 8 s, then back to the standings. Refresh it by pushing new standings to `/ingest/paperchase` |
 | `/board/draw` | **Weekly Draw** — the Friday $50 raffle. Counts down to 4:00 PM ET, closes the hat at 3:59, runs the draw on its own and leaves the winner up. Tickets are `FLOOR(points_week / 50)` read straight from the contest board's feed, so the drum and the standings can never disagree. Nobody presses anything |
 | `/board/draw/preview` | The same board on a 10-second clock, looping countdown → draw → winner, for checking it before Friday |
+| `/board/teampoints`, `/board/teams`, `/board/races`, `/board/draws` | The four contest boards — team points, every seat by team, the five individual races, and the cash draws. All read the Paper Chase feed and repaint over the socket |
+| `/board/aep` | **AEP appointment tracker** — enrollment appointments booked per agent for a set window (week 1 is 10/15–10/21, goal 40 each), ranked with ties, a floor total, agents with one or more booked, and days until AEP opens. Feed is `/board/aep/feed.js`; counts are pushed to `/ingest/aep` |
 | `/board/daily` | Yesterday's recap + selling days left + today's focus push |
 | `/board/leaders/sthhc` | STHHC leaderboard (top 5 + floor totals) |
 | `/board/contest/sthhc` | STHHC ticket-run contest — prizes, the six qualifying rules, and selling days left until the contest closes (edit `CLOSE`/`CLOSE_LABEL` in `src/static_boards.js` to re-run it for another game; the flyer is `assets/`, served under a versioned filename so a replacement can't be masked by the TVs' day-long image cache — keep it a JPEG, since bundled images count against the Worker's 3 MiB limit) |
@@ -80,6 +82,29 @@ https://ghealthe-tv-boards.<account>.workers.dev/board/rotation?key=<BOARD_KEY>
 
 Set PosterBooking's own page-reload to something long (e.g. daily) — the page manages its
 own refresh. TVs are assumed 16:9 landscape.
+
+## AEP appointment tracker
+
+`/board/aep` counts **enrollment appointments** per agent that *start* inside a window — not
+appointments booked inside it. Most of what shows up for 10/15–10/21 was booked weeks or months
+ago for those dates, so the count only ever grows until the window passes.
+
+An agent's count is the pipeline appointments with `appointment_type = 'ENROLLMENT'` whose start
+falls on an Eastern-time date in the window, excluding any whose task is cancelled, attributed to
+`COALESCE(appointments.user_id, tasks.assigned_to_user_id, tasks.created_by_user_id)` and never to
+the system user (-1). The roster is worker profile 507, `ENABLED`, minus the standing exclusions
+(8, 1108, 3748, 1595, 1607), the same cohort as the MTD sales report, so an agent with nothing booked
+still appears as a zero and the "of N" is the real floor. It reproduces the hand-built board it
+replaced for 28 of 29 agents; the exception is one extra appointment in Onyx for Jalen McClendon.
+
+A Routine runs the query and POSTs `{generated_at, window, goal, aep_open, rows:[{agent, booked}]}`
+to `/ingest/aep` with the same bearer secret as the other pushes. The Worker stores it as the
+`aep_tracker` row, remembers the first push of each Eastern day so the board can say "up from N
+this morning", and tells open boards over the socket. An empty or malformed roster is refused, so a
+failed query leaves the last real counts on screen instead of blanking them.
+
+The window, the goal and the AEP open date travel in the push, so the board has none of them
+written in. Moving to week 2 means changing the window in the Routine's query and payload.
 
 ## Snapshot ingest contract
 

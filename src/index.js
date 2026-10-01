@@ -22,6 +22,9 @@
 //   GET  /api/stats               current merged snapshot (JSON)
 //   POST /ingest                  snapshot push from the Claude Routine (bearer secret)
 //   POST /ingest/paperchase       contest standings push (bearer secret, same as /ingest)
+//   POST /ingest/aep              AEP appointment counts per agent (bearer secret, same as /ingest)
+//   GET  /board/aep               AEP appointment tracker — enrollment appointments booked, by agent
+//   GET  /board/aep/feed.js       that board's counts
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
 //   GET  /healthz                 liveness probe (no auth)
 
@@ -34,6 +37,7 @@ import { LIVE_SALES_BOARD } from './live_sales.js';
 import { PAPER_CHASE_BOARD } from './paperchase.js';
 import WEEKLY_DRAW_BOARD from './boards/weekly_draw.html';
 import TEAM_POINTS_BOARD from './boards/team_points.html';
+import AEP_TRACKER_BOARD from './boards/aep_tracker.html';
 import TEAM_BREAKDOWN_BOARD from './boards/team_breakdown.html';
 import INDIVIDUAL_RACES_BOARD from './boards/individual_races.html';
 import CASH_DRAWS_BOARD from './boards/cash_draws.html';
@@ -76,6 +80,7 @@ async function route(request, env, url) {
 
   if (path === '/ingest' && request.method === 'POST') return handleIngest(request, env);
   if (path === '/ingest/paperchase' && request.method === 'POST') return handlePaperChaseIngest(request, env);
+  if (path === '/ingest/aep' && request.method === 'POST') return handleAepIngest(request, env);
   if (path === '/webhooks/onyx' && request.method === 'POST') return handleWebhook(request, env);
 
   // Key in the path, not the query: /k/<key> survives link shorteners and chat
@@ -218,6 +223,13 @@ async function route(request, env, url) {
   // The four contest boards, each its own screen and each reading the same
   // standings feed the Paper Chase board already publishes.
   if (path === '/board/teampoints') return html(TEAM_POINTS_BOARD);
+  if (path === '/board/aep') return html(AEP_TRACKER_BOARD);
+  if (path === '/board/aep/feed.js') {
+    const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('aep_tracker').first();
+    return new Response(`window.AEP_TRACKER = ${row ? row.v : 'null'};`, {
+      headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
+    });
+  }
   if (path === '/board/teams')      return html(TEAM_BREAKDOWN_BOARD);
   if (path === '/board/races')      return html(INDIVIDUAL_RACES_BOARD);
   if (path === '/board/draws')      return html(CASH_DRAWS_BOARD);
@@ -663,6 +675,61 @@ async function handlePaperChaseIngest(request, env) {
   await env.DB.prepare('DELETE FROM contest_events WHERE ts <= ?').bind(feed.generated_at).run();
   await notifyBoards(env, { reason: 'snapshot', rows: feed.rows.length });
   return json({ ok: true, rows: feed.rows.length });
+}
+
+// ---------- AEP appointment counts ingest ----------
+
+// The Eastern calendar date of an instant. "This morning" on the board means
+// since the first push of the Eastern day, and a day that turns over at UTC
+// midnight would reset it at 8 PM.
+function etDateOf(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+async function handleAepIngest(request, env) {
+  if (!env.INGEST_SECRET) return new Response('ingest not configured', { status: 503 });
+  const auth = request.headers.get('authorization') || '';
+  if (!timingSafeEqual(auth, `Bearer ${env.INGEST_SECRET}`)) {
+    return new Response('unauthorized', { status: 401 });
+  }
+  const body = await request.json();
+  const rows = Array.isArray(body.rows)
+    ? body.rows.map((r) => ({ agent: String(r.agent || '').trim(), booked: Number(r.booked) }))
+    : null;
+  // An empty or malformed roster is a failed query, not a floor with nobody on
+  // it. Refuse it, so the board keeps its last real counts instead of blanking.
+  if (!rows || !rows.length || rows.some((r) => !r.agent || !Number.isInteger(r.booked) || r.booked < 0)) {
+    return new Response('rows must be a non-empty list of {agent, booked}', { status: 400 });
+  }
+
+  const generatedAt = body.generated_at || new Date().toISOString();
+  const total = rows.reduce((s, r) => s + r.booked, 0);
+  const day = etDateOf(generatedAt) || etNow().date;
+
+  // The morning figure is the first push of the Eastern day, carried forward
+  // until the day changes.
+  const prev = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('aep_tracker').first();
+  let dayStartTotal = total;
+  if (prev) {
+    try {
+      const p = JSON.parse(prev.v);
+      if (p.day === day && Number.isFinite(p.day_start_total)) dayStartTotal = p.day_start_total;
+    } catch (e) { /* unreadable previous row: start the day from this push */ }
+  }
+
+  const feed = {
+    generated_at: generatedAt, day, day_start_total: dayStartTotal, total,
+    window: body.window || null, goal: Number(body.goal) || 40,
+    aep_open: body.aep_open || '2026-10-15', rows,
+  };
+  await env.DB.prepare(
+    'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+  ).bind('aep_tracker', JSON.stringify(feed), new Date().toISOString()).run();
+  await notifyBoards(env, { type: 'aep', total });
+  return json({ ok: true, rows: rows.length, total });
 }
 
 // ---------- Onyx webhook ----------
