@@ -71,8 +71,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--edge)}
 #cele.on .nm:nth-of-type(2){animation-delay:.6s}
 #cele.on .nm:nth-of-type(3){animation-delay:.95s}
 @keyframes rise{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
-#cele .nm + .nm{margin-top:20px}
-#cele .nm i{font-style:normal;color:var(--gold)}
+#cele .nm + .nm{margin-top:14px}
+#cele .nm .amt{display:block;font-family:var(--lab);font-weight:800;font-size:58px;letter-spacing:6px;color:var(--gold);line-height:1.1;margin-top:-4px;text-shadow:none}
 #cele .glow{position:absolute;left:50%;top:50%;width:1500px;height:1500px;margin:-750px 0 0 -750px;border-radius:50%;
   background:conic-gradient(from 0deg,rgba(245,201,66,.0),rgba(245,201,66,.10),rgba(245,201,66,0),rgba(63,214,138,.10),rgba(245,201,66,0));
   animation:spin 14s linear infinite}
@@ -252,10 +252,10 @@ function showCele(on) {
   const c = $('#cele');
   if (PREVIEW) $('#ribbon').style.display = on ? 'block' : 'none';
   if (on) {
-    S.winners.forEach((w, i) => { const el = $('#w' + (i + 1)); el.textContent = w.agent; });
-    for (let i = S.winners.length + 1; i <= 3; i++) $('#w' + i).textContent = '';
+    S.winners.forEach((w, i) => { const el = $('#w' + (i + 1)); el.innerHTML = esc(w.agent) + '<span class="amt">$100</span>'; });
+    for (let i = S.winners.length + 1; i <= 3; i++) $('#w' + i).innerHTML = '';
     c.classList.add('on');
-    S.winners.forEach((w, i) => fitName($('#w' + (i + 1)), 1560, 168, 70));
+    S.winners.forEach((w, i) => fitName($('#w' + (i + 1)), 1560, 150, 70));
     startConfetti();
   } else { c.classList.remove('on'); stopConfetti(); }
 }
