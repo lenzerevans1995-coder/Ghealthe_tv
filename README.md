@@ -16,6 +16,7 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 | `/board/draw/preview` | The same board on a 10-second clock, looping countdown → draw → winner, for checking it before Friday |
 | `/board/teampoints`, `/board/teams`, `/board/races`, `/board/draws` | The four contest boards — team points, every seat by team, the five individual races, and the cash draws. All read the Paper Chase feed and repaint over the socket |
 | `/board/aep` | **AEP appointment tracker** — enrollment appointments booked per agent for a set window (week 1 is 10/15–10/21, goal 40 each), ranked with ties, a floor total, agents with one or more booked, and days until AEP opens. Feed is `/board/aep/feed.js`; counts are pushed to `/ingest/aep` |
+| `/board/beatdraw`, `/board/beatdraw/preview` | **Beat Your Number draw** — pulls three names from the agents who cleared their own summer number, one every five seconds, each posted as it lands and taken out of the pool, then a celebration board with just the three names. `/preview` loops it on a short clock with the live pool; `?seed=abc` pins a preview's winners, `?at=7.2` freezes it on a moment, `?countdown=3` shortens its countdown |
 | `/board/daily` | Yesterday's recap + selling days left + today's focus push |
 | `/board/leaders/sthhc` | STHHC leaderboard (top 5 + floor totals) |
 | `/board/contest/sthhc` | STHHC ticket-run contest — prizes, the six qualifying rules, and selling days left until the contest closes (edit `CLOSE`/`CLOSE_LABEL` in `src/static_boards.js` to re-run it for another game; the flyer is `assets/`, served under a versioned filename so a replacement can't be masked by the TVs' day-long image cache — keep it a JPEG, since bundled images count against the Worker's 3 MiB limit) |
@@ -105,6 +106,32 @@ failed query leaves the last real counts on screen instead of blanking them.
 
 The window, the goal and the AEP open date travel in the push, so the board has none of them
 written in. Moving to week 2 means changing the window in the Routine's query and payload.
+
+## Beat Your Number draw
+
+Three names, one every five seconds. The server decides all three at the draw time and stores
+them, exactly as the weekly draw does, so every screen shows the same names and a reload cannot
+re-roll them. The browser only *reveals* what the record says: draw *k* starts `5 × (k−1)` seconds
+after the draw time, spins for 2.5 seconds, and posts its name when it lands. The whole board is a
+function of "seconds since the draw time", so a screen that opens halfway through lands in the right
+place. About 4 seconds after the last name posts it gives way to the celebration, which stays up.
+
+The pool is everyone whose points this month are at least their own summer number (the same test
+the Cash Draws board uses, from the same roster in `src/contest_roster.json`), one name each. Names
+are drawn without replacement, using the same rejection sampling as the weekly draw. The record keeps
+the pool as it stood, so the draw can be audited afterwards. An empty pool writes nothing.
+
+**It does nothing until it is armed.** A board left on a TV must never run a real draw by itself, so
+the draw date is a row, not a constant:
+
+```
+npx wrangler d1 execute ghealthe_tv --remote --command \
+  "INSERT INTO kv (k,v,updated_at) VALUES ('beatdraw_config','{\"draw_at\":\"2026-10-02T20:00:00Z\",\"contest\":\"2026-09\"}',datetime('now')) \
+   ON CONFLICT(k) DO UPDATE SET v=excluded.v, updated_at=excluded.updated_at"
+```
+
+The result is stored as `beatdraw:<contest>`. To run it again, delete that row or arm a new
+`contest`. Until armed, the live board shows the pool and "Date to be announced".
 
 ## Snapshot ingest contract
 

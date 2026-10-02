@@ -1,0 +1,398 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Beat Your Number — Draw</title>
+<link rel="stylesheet" href="/board/contest-fonts.css">
+<style>
+:root{--field:#072A21;--edge:#04201A;--panel:#0B3A2E;--panel2:#0F4636;--line:#155A46;--mint:#3FD68A;--gold:#F5C942;
+--amber:#F2A43A;--paper:#F3F7F2;--mute:#8FB8A4;--dim:#5E8A76;
+--disp:'Archivo Black','Oswald','Arial Narrow',sans-serif;--lab:'Barlow Condensed','Oswald','Arial Narrow',sans-serif;--pro:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--edge)}
+#wrap{position:fixed;inset:0;background:var(--edge);overflow:hidden}
+#stage{width:1920px;height:1080px;position:fixed;top:50%;left:50%;transform-origin:center center;
+  background:var(--field);color:var(--paper);font-family:var(--pro);display:flex;flex-direction:column;overflow:hidden}
+
+.hdr{height:104px;background:var(--edge);border-bottom:3px solid var(--gold);display:flex;align-items:center;padding:0 56px;gap:32px;flex:none}
+.hdr .brand{font-family:var(--disp);font-size:40px;color:var(--gold);letter-spacing:.5px;white-space:nowrap}
+.hdr .sub{font-family:var(--lab);font-weight:700;font-size:26px;color:var(--mute);text-transform:uppercase;letter-spacing:2px;white-space:nowrap}
+.hdr .stamp{margin-left:auto;text-align:right;font-family:var(--lab);font-weight:700;font-size:24px;color:var(--mute);text-transform:uppercase;letter-spacing:2px;line-height:1.1}
+.hdr .stamp b{display:block;color:var(--paper);font-size:38px;font-variant-numeric:tabular-nums}
+.hdr .stamp b.go{color:var(--gold)}
+
+.main{flex:1 1 auto;display:flex;gap:28px;padding:24px 56px 0;min-height:0}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:14px}
+.lab{font-family:var(--lab);font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--mute)}
+
+.pool{flex:1 1 auto;display:flex;flex-direction:column;padding:22px 28px 24px;min-width:0}
+.pool h2{font-family:var(--disp);font-size:34px;font-weight:400;line-height:1.05;display:flex;align-items:baseline;gap:16px}
+.pool h2 small{font-family:var(--lab);font-weight:700;font-size:22px;color:var(--gold);letter-spacing:2px;text-transform:uppercase}
+.pool .rule{font-size:20px;margin:6px 0 16px}
+#grid{flex:1 1 auto;display:grid;gap:12px;min-height:0;align-content:stretch}
+.chip{display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px;min-width:0;
+  background:var(--panel2);border:2px solid var(--line);border-radius:12px;
+  font-family:var(--lab);font-weight:700;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:background .08s,color .08s,transform .08s,border-color .08s}
+.chip.spot{background:var(--gold);border-color:var(--gold);color:var(--edge);transform:scale(1.05);z-index:2}
+.chip.pulled{animation:pulled .75s ease-in forwards}
+@keyframes pulled{0%{background:var(--gold);color:var(--edge);transform:scale(1.12)}55%{background:var(--gold);color:var(--edge);transform:scale(1.18);opacity:1}100%{transform:scale(.4);opacity:0}}
+
+.drawn{width:610px;flex:none;display:flex;flex-direction:column;gap:18px}
+.slot{flex:1 1 0;display:flex;align-items:center;gap:22px;padding:0 28px;min-height:0;position:relative;overflow:hidden}
+.slot .n{font-family:var(--disp);font-size:76px;line-height:1;color:var(--line);width:62px;text-align:center;flex:none}
+.slot .body{min-width:0;flex:1}
+.slot .k{font-size:22px;margin-bottom:4px}
+.slot .nm{font-family:var(--disp);font-size:54px;line-height:1.05;color:var(--dim);white-space:nowrap;overflow:hidden}
+.slot.spin{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 34px rgba(245,201,66,.28)}
+.slot.spin .nm{color:var(--paper)}
+.slot.spin .n{color:var(--gold)}
+.slot.done{border-color:var(--gold);background:linear-gradient(90deg,#14513f,#0B3A2E)}
+.slot.done .nm{color:var(--gold)}
+.slot.done .n{color:var(--gold)}
+.slot.done .nm{animation:post .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes post{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+
+.ask{height:132px;flex:none;margin-top:24px;background:var(--gold);color:var(--edge);display:flex;align-items:center;padding:0 56px;gap:40px}
+.ask .big{font-family:var(--disp);font-size:44px;line-height:1.05;white-space:nowrap}
+.ask .fine{font-weight:600;font-size:21px;line-height:1.3;max-width:900px;margin-left:auto}
+
+#ribbon{position:absolute;bottom:0;left:50%;transform:translateX(-50%);z-index:60;display:none;
+  background:var(--gold);color:var(--edge);font-family:var(--lab);font-weight:800;font-size:24px;letter-spacing:3px;
+  text-transform:uppercase;padding:7px 30px 6px;border-radius:12px 12px 0 0;box-shadow:0 -4px 18px rgba(0,0,0,.4)}
+
+/* the celebration: nothing on it but their names */
+#cele{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 45%,#12604a 0%,#0a3a2d 45%,#04201A 100%);
+  opacity:0;pointer-events:none;transition:opacity .9s ease}
+#cele.on{opacity:1}
+#cele .tag{font-family:var(--lab);font-weight:700;font-size:34px;letter-spacing:10px;text-transform:uppercase;color:var(--gold);margin-bottom:46px}
+#cele .nm{font-family:var(--disp);color:var(--paper);line-height:1.12;white-space:nowrap;text-align:center;
+  text-shadow:0 0 40px rgba(245,201,66,.35);opacity:0;transform:scale(.6)}
+#cele.on .nm{animation:rise .9s cubic-bezier(.2,1.3,.35,1) forwards}
+#cele.on .nm:nth-of-type(1){animation-delay:.25s}
+#cele.on .nm:nth-of-type(2){animation-delay:.6s}
+#cele.on .nm:nth-of-type(3){animation-delay:.95s}
+@keyframes rise{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
+#cele .nm + .nm{margin-top:20px}
+#cele .nm i{font-style:normal;color:var(--gold)}
+#cele .glow{position:absolute;left:50%;top:50%;width:1500px;height:1500px;margin:-750px 0 0 -750px;border-radius:50%;
+  background:conic-gradient(from 0deg,rgba(245,201,66,.0),rgba(245,201,66,.10),rgba(245,201,66,0),rgba(63,214,138,.10),rgba(245,201,66,0));
+  animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#confetti{position:absolute;inset:0;width:100%;height:100%}
+#cele .tag,#cele .nm{position:relative;z-index:3}
+@media (prefers-reduced-motion: reduce){#cele .glow{animation:none}}
+</style></head><body>
+<div id="wrap"><div id="stage">
+  <div id="ribbon">Preview · looping · not the real draw</div>
+
+  <div class="hdr"><div class="brand">THE PAPER CHASE</div><div class="sub">Beat Your Number · three $100 names</div>
+    <div class="stamp"><span id="stampK">Draw</span><b id="stampV">—</b></div></div>
+
+  <div class="main">
+    <div class="card pool">
+      <h2>The pool <small id="poolN"></small></h2>
+      <div class="rule lab">Everyone who cleared their own summer number this month · one name each</div>
+      <div id="grid"></div>
+    </div>
+    <div class="drawn">
+      <div class="card slot" id="s1"><div class="n">1</div><div class="body"><div class="k lab">First name</div><div class="nm">—</div></div></div>
+      <div class="card slot" id="s2"><div class="n">2</div><div class="body"><div class="k lab">Second name</div><div class="nm">—</div></div></div>
+      <div class="card slot" id="s3"><div class="n">3</div><div class="body"><div class="k lab">Third name</div><div class="nm">—</div></div></div>
+    </div>
+  </div>
+
+  <div class="ask"><div class="big" id="askBig">Beat your number. Get in the pool.</div>
+    <div class="fine">Three names, one every five seconds. A name that is pulled comes out of the pool, so the next draw is made from whoever is left.</div></div>
+
+  <div id="cele"><div class="glow"></div><canvas id="confetti" width="1920" height="1080"></canvas>
+    <div class="tag">Beat Your Number</div>
+    <div class="nm" id="w1"></div><div class="nm" id="w2"></div><div class="nm" id="w3"></div>
+  </div>
+</div></div>
+<script src="/board/contest.js"></script>
+<script src="/board/paperchase/feed.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const QS = new URLSearchParams(location.search);
+const OVERSCAN = Math.max(0, Math.min(10, Number(QS.get('overscan')) || 0));
+
+function fit() {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080) * (1 - OVERSCAN / 100);
+  $('#stage').style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize', fit); setInterval(fit, 2000); fit();
+
+/* ── timing ───────────────────────────────────────────────────────────────
+   Everything on screen is a function of one number: seconds since the draw
+   time. Negative is the countdown. Draw k starts at STEP*(k-1) — the first at
+   zero, the second five seconds later, the third five after that — spins for
+   SPIN seconds, and posts its name when the spin lands. Because nothing is
+   remembered between frames, a screen that loads halfway through the sequence
+   lands in exactly the right place, and every screen shows the same moment. */
+const PREVIEW = /\/preview\/?$/.test(location.pathname) || QS.get('preview') === '1';
+const SPIN = 2.5, STEP = 5, AFTER = 4, PULL = 0.75;  // spin length, gap between draws, pause before the celebration, flash-out of a pulled name
+const PREVIEW_COUNTDOWN = Math.max(0, Number(QS.get('countdown')) || 10), PREVIEW_HOLD = 16;  // preview only
+const PIN = QS.get('at') !== null ? Number(QS.get('at')) : null;   // preview only: freeze on a moment, e.g. ?at=7.2
+
+const S = {
+  pool: [],          // [{agent, points, summer, pct}] — the live pool, or the frozen one once drawn
+  winners: [],       // [{order, agent, ...}] — empty until the server has drawn
+  drawAtMs: null, offset: 0, armed: false, drawn: false,
+  previewStart: Date.now(), seed: 'preview',
+};
+const landAt = (k) => STEP * (k - 1) + SPIN;                           // k is 1-based
+const celebrateAt = (n) => STEP * (n - 1) + SPIN + AFTER;
+
+function elapsed() {
+  if (PREVIEW) return PIN !== null ? PIN : (Date.now() - S.previewStart) / 1000 - PREVIEW_COUNTDOWN;
+  if (S.drawAtMs === null) return -Infinity;
+  return (Date.now() + S.offset - S.drawAtMs) / 1000;
+}
+
+/* ── pool ─────────────────────────────────────────────────────────────── */
+function poolFromFeed() {
+  const f = window.PAPER_CHASE, C = window.PC_CONFIG;
+  if (!f || !C) return [];
+  const M = C.make(f.rows);
+  return M.agents.filter((a) => M.beat(a)).map((a) => ({ agent: a, points: M.pts(a), summer: M.summerOf(a), pct: Math.round(M.pct(a) * 100) }))
+    .sort((a, b) => b.pct - a.pct || a.agent.localeCompare(b.agent));
+}
+
+// Without replacement, from the same rejection sampling the server uses.
+function randBelow(n) {
+  const buf = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n; let v;
+  do { crypto.getRandomValues(buf); v = buf[0]; } while (v >= lim);
+  return v % n;
+}
+function previewDraw(pool) {
+  // ?seed=abc pins the preview's winners, so the same moment can be looked at twice.
+  const r = QS.get('seed') ? rng(QS.get('seed')) : null;
+  const left = pool.slice(), out = [];
+  while (out.length < 3 && left.length) {
+    const i = r ? Math.floor(r() * left.length) : randBelow(left.length);
+    out.push({ order: out.length + 1, ...left.splice(i, 1)[0] });
+  }
+  return out;
+}
+
+// A seeded generator, so every screen spins through the same names in the same order.
+function rng(seedStr) {
+  let h = 1779033703 ^ seedStr.length;
+  for (let i = 0; i < seedStr.length; i++) { h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  let a = (h ^= h >>> 16) >>> 0;
+  return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+/* The pool as it stands for draw k: everyone minus the names already posted. */
+function poolFor(k) {
+  const gone = new Set(S.winners.slice(0, k - 1).map((w) => w.agent));
+  return S.pool.filter((p) => !gone.has(p.agent));
+}
+
+// The spin: a spotlight that jumps from chip to chip, fast then slowing, and
+// finishing on the winner. Decided only by (seed, k, time), so it replays identically.
+const STEPS = 26;
+function spinIndex(k, t) {
+  const left = poolFor(k), w = S.winners[k - 1];
+  if (!w || !left.length) return { names: [], idx: -1 };
+  const winIdx = left.findIndex((p) => p.agent === w.agent);
+  const r = rng(S.seed + '|' + k);
+  const seq = []; let last = -1;
+  for (let i = 0; i < STEPS - 1; i++) {
+    let j = Math.floor(r() * left.length);
+    if (left.length > 1 && j === last) j = (j + 1) % left.length;
+    seq.push(j); last = j;
+  }
+  seq.push(winIdx);
+  const x = Math.min(0.999, Math.max(0, t / SPIN));
+  const s = Math.min(STEPS - 1, Math.floor(STEPS * (1 - Math.pow(1 - x, 2.4))));
+  return { names: left.map((p) => p.agent), idx: seq[s] };
+}
+
+/* ── drawing the pool grid ────────────────────────────────────────────── */
+let gridKey = '';
+function buildGrid(list) {
+  const key = list.map((p) => p.agent).join('|') + '#' + S.pool.length;
+  if (key === gridKey) return;
+  gridKey = key;
+  // Size the grid for the whole pool, not for what is left of it, so the chips do
+  // not grow and jump each time a name is pulled.
+  const n = S.pool.length;
+  const cols = n <= 4 ? 2 : n <= 8 ? 2 : n <= 15 ? 3 : n <= 24 ? 4 : 5;
+  const rows = Math.max(1, Math.ceil(n / cols));
+  const gridEl = $('#grid');
+  gridEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  gridEl.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+  const fs = Math.max(24, Math.min(46, Math.floor(620 / rows * 0.42)));
+  gridEl.innerHTML = list.map((p) => `<div class="chip" data-a="${esc(p.agent)}" style="font-size:${fs}px">${esc(p.agent)}</div>`).join('');
+  if (!n) gridEl.innerHTML = '<div class="lab" style="font-size:28px;align-self:center;grid-column:1/-1;text-align:center">No one has cleared their number yet</div>';
+}
+
+function setSlot(i, st, name) {
+  const el = $('#s' + i);
+  const cls = 'card slot' + (st === 'spin' ? ' spin' : st === 'done' ? ' done' : '');
+  if (el.className !== cls) el.className = cls;
+  const nm = el.querySelector('.nm');
+  if (nm.textContent !== name) {
+    nm.textContent = name;
+    // The display face is wide: shrink the name until it fits the slot, never clip it.
+    let px = 54; nm.style.fontSize = px + 'px';
+    while (nm.scrollWidth > nm.clientWidth && px > 26) { px -= 2; nm.style.fontSize = px + 'px'; }
+  }
+}
+
+function fitName(el, maxW, maxPx, minPx) {
+  let px = maxPx; el.style.fontSize = px + 'px';
+  while (el.scrollWidth > maxW && px > minPx) { px -= 4; el.style.fontSize = px + 'px'; }
+}
+let celeShown = false;
+function showCele(on) {
+  if (on === celeShown) return;
+  celeShown = on;
+  const c = $('#cele');
+  if (PREVIEW) $('#ribbon').style.display = on ? 'block' : 'none';
+  if (on) {
+    S.winners.forEach((w, i) => { const el = $('#w' + (i + 1)); el.textContent = w.agent; });
+    for (let i = S.winners.length + 1; i <= 3; i++) $('#w' + i).textContent = '';
+    c.classList.add('on');
+    S.winners.forEach((w, i) => fitName($('#w' + (i + 1)), 1560, 168, 70));
+    startConfetti();
+  } else { c.classList.remove('on'); stopConfetti(); }
+}
+
+/* ── confetti ─────────────────────────────────────────────────────────── */
+let cf = null;
+function startConfetti() {
+  const cv = $('#confetti'), g = cv.getContext('2d');
+  const cols = ['#F5C942', '#3FD68A', '#F3F7F2', '#F2A43A'];
+  const P = Array.from({ length: 190 }, () => ({
+    x: Math.random() * 1920, y: -Math.random() * 1080, w: 10 + Math.random() * 14, h: 16 + Math.random() * 22,
+    vy: 3 + Math.random() * 5, vx: -1.5 + Math.random() * 3, r: Math.random() * 6.28, vr: -.14 + Math.random() * .28,
+    c: cols[Math.floor(Math.random() * cols.length)] }));
+  const t0 = performance.now();
+  cancelAnimationFrame(cf);
+  (function tick() {
+    g.clearRect(0, 0, 1920, 1080);
+    for (const p of P) {
+      p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      if (p.y > 1120) { p.y = -30; p.x = Math.random() * 1920; }
+      g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore();
+    }
+    cf = requestAnimationFrame(tick);
+  })();
+}
+function stopConfetti() { cancelAnimationFrame(cf); const cv = $('#confetti'); cv.getContext('2d').clearRect(0, 0, 1920, 1080); }
+
+/* ── the frame ────────────────────────────────────────────────────────── */
+const mmss = (s) => { s = Math.max(0, Math.ceil(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+function stamp(k, v, go) { if (PREVIEW) k = 'Preview · not the real draw'; if ($('#stampK').textContent !== k) $('#stampK').textContent = k; const b = $('#stampV'); if (b.textContent !== v) b.textContent = v; b.className = go ? 'go' : ''; }
+
+function frame() {
+  const e = elapsed();
+  const n = S.winners.length;
+  // A pulled name flashes out for PULL seconds after it posts, then leaves the pool
+  // for good. Both are set by the clock, so a late-loading screen agrees with the rest.
+  const removed = S.winners.filter((w, i) => e >= landAt(i + 1) + PULL).length;
+  const gone = new Set(S.winners.slice(0, removed).map((w) => w.agent));
+  buildGrid(S.pool.filter((p) => !gone.has(p.agent)));
+  const left = S.pool.length - removed;
+  $('#poolN').textContent = S.pool.length ? (removed ? left + ' left in the hat' : S.pool.length + ' in the hat') : '';
+
+  // posted names, and the one currently spinning
+  let posted = 0, spinning = 0;
+  for (let k = 1; k <= 3; k++) {
+    const w = S.winners[k - 1];
+    if (w && e >= landAt(k)) { posted++; setSlot(k, 'done', w.agent); }
+    else if (w && e >= STEP * (k - 1)) { spinning = k; }
+    else setSlot(k, 'idle', '—');
+  }
+  // chips: spotlight during a spin; the pulled name flashes out when it posts
+  const chips = [...document.querySelectorAll('#grid .chip')];
+  chips.forEach((c) => c.classList.remove('spot'));
+  if (spinning) {
+    const sp = spinIndex(spinning, e - STEP * (spinning - 1));
+    if (sp.idx >= 0) {
+      const name = sp.names[sp.idx];
+      const chip = chips.find((c) => c.dataset.a === name);
+      if (chip) chip.classList.add('spot');
+      setSlot(spinning, 'spin', name);
+    }
+  }
+  S.winners.forEach((w, i) => {
+    if (e >= landAt(i + 1) && e < landAt(i + 1) + PULL) {
+      const chip = chips.find((c) => c.dataset.a === w.agent);
+      if (chip) { chip.classList.add('pulled'); chip.classList.remove('spot'); }
+    }
+  });
+
+  // header stamp
+  if (e === -Infinity || (!PREVIEW && !S.armed)) stamp('Draw', 'Date to be announced', false);
+  else if (e < 0) stamp('Draw begins in', mmss(-e), false);
+  else if (!n) stamp('Draw', 'Drawing…', true);
+  else if (e < celebrateAt(n)) stamp('Draw', spinning ? `Pulling name ${spinning} of ${n}` : `${posted} of ${n} drawn`, true);
+  else stamp('Draw', 'Winners', true);
+
+  showCele(n > 0 && e >= celebrateAt(n));
+  requestAnimationFrame(frame);
+}
+
+/* ── data ─────────────────────────────────────────────────────────────── */
+async function pullFeed() {
+  try {
+    const r = await fetch('/board/paperchase/feed.js?t=' + Date.now(), { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const t = await r.text();
+    window.PAPER_CHASE = JSON.parse(t.slice(t.indexOf('=') + 1).trim().replace(/;$/, ''));
+    if (!S.drawn) S.pool = poolFromFeed();
+  } catch (e) { /* keep the last pool */ }
+}
+
+async function poll() {
+  let next = 15000;
+  try {
+    const r = await fetch('/api/beatdraw?t=' + Date.now(), { credentials: 'same-origin' });
+    const d = await r.json();
+    S.offset = Date.parse(d.server_now) - Date.now();
+    S.armed = !!d.armed;
+    if (d.winners && d.winners.length) {
+      S.armed = true;            // a stored draw only exists once a draw was armed
+      S.drawn = true; S.winners = d.winners; S.pool = d.pool || S.pool;
+      S.drawAtMs = Date.parse(d.draw_at); S.seed = d.decided_at || d.draw_at;
+      next = 60000;
+    } else if (d.armed) {
+      S.drawAtMs = Date.parse(d.draw_at);
+      const left = -elapsed();
+      // Close in on the draw: poll every second from half a minute out until the record exists.
+      next = left <= 30 ? 1000 : Math.min(15000, (left - 30) * 1000);
+    } else { S.drawAtMs = null; next = 15000; }
+  } catch (e) { next = 3000; }
+  setTimeout(poll, Math.max(500, next));
+}
+
+function restartPreview() {
+  S.pool = poolFromFeed();
+  S.winners = previewDraw(S.pool);
+  S.seed = QS.get('seed') || 'preview' + Date.now();
+  S.previewStart = Date.now(); gridKey = '';
+  showCele(false);
+}
+
+(async function start() {
+  await pullFeed();
+  if (PREVIEW) {
+    restartPreview();
+    if (PIN === null) {
+      const cycle = PREVIEW_COUNTDOWN + celebrateAt(Math.max(1, S.winners.length)) + PREVIEW_HOLD;
+      setInterval(restartPreview, cycle * 1000);
+    }
+    setInterval(pullFeed, 60000);
+  } else {
+    S.pool = poolFromFeed();
+    poll();
+    setInterval(pullFeed, 60000);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body></html>

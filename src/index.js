@@ -43,6 +43,8 @@ import INDIVIDUAL_RACES_BOARD from './boards/individual_races.html';
 import CASH_DRAWS_BOARD from './boards/cash_draws.html';
 import CONTEST_FONTS from './boards/contest_fonts.css';
 import CONTEST_CONFIG from './boards/contest.clientjs';
+import BEAT_DRAW_BOARD from './boards/beat_draw.html';
+import ROSTER from './contest_roster.json';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
@@ -131,6 +133,8 @@ async function route(request, env, url) {
   // in the browser is made once per screen: two TVs would crown two different
   // people, and a reload would quietly reroll. First read at or after 4:00 PM ET
   // draws the hat and stores it; every read after that returns the same record.
+  if (path === '/api/beatdraw') return json(await resolveBeatDraw(env));
+
   if (path === '/api/draw') {
     return json(await resolveDraw(env, url.searchParams.get('date')));
   }
@@ -215,7 +219,9 @@ async function route(request, env, url) {
     });
   }
   if (path === '/board/contest.js') {
-    return new Response(CONTEST_CONFIG, {
+    // The roster rides in front of the module so the boards and the server-side
+    // draws read one copy of who is on which team and what each agent's number is.
+    return new Response(`window.PC_ROSTER = ${JSON.stringify(ROSTER)};\n` + CONTEST_CONFIG, {
       headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=3600' },
     });
   }
@@ -223,6 +229,9 @@ async function route(request, env, url) {
   // The four contest boards, each its own screen and each reading the same
   // standings feed the Paper Chase board already publishes.
   if (path === '/board/teampoints') return html(TEAM_POINTS_BOARD);
+  // Beat Your Number: three names drawn from the agents who cleared their own
+  // number, one every five seconds. /preview is the same page on a short loop.
+  if (path === '/board/beatdraw' || path === '/board/beatdraw/preview') return html(BEAT_DRAW_BOARD);
   if (path === '/board/aep') return html(AEP_TRACKER_BOARD);
   if (path === '/board/aep/feed.js') {
     const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('aep_tracker').first();
@@ -675,6 +684,75 @@ async function handlePaperChaseIngest(request, env) {
   await env.DB.prepare('DELETE FROM contest_events WHERE ts <= ?').bind(feed.generated_at).run();
   await notifyBoards(env, { reason: 'snapshot', rows: feed.rows.length });
   return json({ ok: true, rows: feed.rows.length });
+}
+
+// ---------- Beat Your Number draw ----------
+
+const BEAT_WINNERS = 3;
+const BEAT_STEP_SECONDS = 5;   // one name every five seconds, counted from the draw time
+
+// Who is in the pool: everyone whose points this month clear their own summer
+// number. Built here from the same standings and the same roster the boards use,
+// never from what a browser says, so the pool a screen shows and the pool the
+// draw is made from cannot drift apart.
+function beatPool(rows) {
+  const floor = Number(ROSTER.FLOOR_NUMBER) || 180;
+  return (rows || [])
+    .map((r) => {
+      const summer = Math.max(floor, Number(ROSTER.SUMMER_RAW[r.agent]) || 0);
+      const points = Number(r.points) || 0;
+      return { agent: r.agent, points, summer, pct: Math.round((points / summer) * 100) };
+    })
+    .filter((a) => a.agent && a.points >= a.summer)
+    .sort((a, b) => b.pct - a.pct || a.agent.localeCompare(b.agent));
+}
+
+// Without replacement: a name that has been pulled is out of the pool, so the
+// second draw is made from what is left. Same rejection sampling as the weekly
+// draw, so the modulo cannot favour the first names in the list.
+function pickWinners(pool, n) {
+  const left = pool.slice();
+  const out = [];
+  while (out.length < n && left.length) out.push(left.splice(drawIndex(left.length), 1)[0]);
+  return out;
+}
+
+// The draw is armed by a `beatdraw_config` row ({draw_at, contest}). Until one
+// exists nothing can fire: a board left on a TV must never run a real draw on
+// its own, and the date is the floor's decision, not the code's.
+async function resolveBeatDraw(env) {
+  const server_now = new Date().toISOString();
+  const cfgRow = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('beatdraw_config').first();
+  if (!cfgRow) return { armed: false, server_now };
+  let cfg;
+  try { cfg = JSON.parse(cfgRow.v); } catch (e) { return { armed: false, server_now, reason: 'unreadable config' }; }
+  const at = Date.parse(cfg.draw_at || '');
+  if (!Number.isFinite(at)) return { armed: false, server_now, reason: 'config has no draw_at' };
+
+  const key = `beatdraw:${cfg.contest || 'main'}`;
+  const existing = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(key).first();
+  if (existing) return { ...JSON.parse(existing.v), server_now };
+
+  const left = Math.round((at - Date.now()) / 1000);
+  if (left > 0) return { armed: true, pending: true, draw_at: new Date(at).toISOString(), seconds_to_draw: left, server_now };
+
+  const pool = beatPool((await loadContestStandings(env)).rows);
+  // An empty pool is a failed read or a month nobody cleared their number, and
+  // either way a record written now would be final. Leave it unwritten.
+  if (!pool.length) return { armed: true, pending: true, draw_at: new Date(at).toISOString(), reason: 'no one is in the pool', server_now };
+
+  const winners = pickWinners(pool, BEAT_WINNERS).map((w, i) => ({ order: i + 1, ...w }));
+  const record = {
+    contest: cfg.contest || 'main', draw_at: new Date(at).toISOString(), step_seconds: BEAT_STEP_SECONDS,
+    decided_at: new Date().toISOString(), source: 'drawn', pool, winners,
+  };
+  // First writer wins: two screens landing on the same instant must not each
+  // draw. Whoever loses the race reads back the record that stuck.
+  await env.DB.prepare(
+    'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING'
+  ).bind(key, JSON.stringify(record), record.decided_at).run();
+  const stored = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(key).first();
+  return { ...JSON.parse(stored.v), server_now };
 }
 
 // ---------- AEP appointment counts ingest ----------

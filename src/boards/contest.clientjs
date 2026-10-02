@@ -9,33 +9,16 @@
    know: who sits on which team, and what each agent did over the summer. */
 
 window.PC_CONFIG = (function () {
-  const SEATS = 45, FLOOR_NUMBER = 180, UNLOCK_APPS = 200, UNLOCK_AVG = 62, GRAND = 1000;
+  const SEATS = 45, UNLOCK_APPS = 200, UNLOCK_AVG = 62, GRAND = 1000;
+  const FLOOR_NUMBER = window.PC_ROSTER.FLOOR_NUMBER;
 
-  const TEAMS = {
-    "Honey Badgers": ["Manar Ettayem","Nicole Bell-Royster","Armando Martinez","John Gregory","Mariyeisi Umpierre"],
-    "Barracudas":    ["Tianna Thompson","Basem Moussa","Hunter Cole","Brandon Lugo","Quinn Slaydon"],
-    "Vipers":        ["Savanna Holloway","Marilyn Johnson","Timothy Jackson","Andre Cintron","David Calhoun"],
-    "Piranhas":      ["ChenY'ere Franklin","Shani Fareed","Deon McClendon","Chelsea Hammers","Trinaka Edmond"],
-    "Scorpions":     ["Juana Bustos-Roblero","Sumesh Chakkalakkal","Yancy Harrier","Adam Menendez","Sophia Asencio"],
-    "Hornets":       ["Raymond Mccrea","George Corbin","Gwendolyn Ingram","Cortney Sanders","Andre Banfield"],
-    "Mambas":        ["Jesenia Morell","Damien Goode","Alexi Lebrun","Victor Cruz","Marcos Manzueta"],
-    "Cobras":        ["Nifda Colon","Rosalva Diaz","Luis Lopez","Avah Burns","Sumit Lal"],
-    "Wolverines":    ["Sherly Riley","Irelys Padierna","Shirley Davis","Kameron Smith","Jalen McClendon"],
-  };
-
-  // July + August average monthly points under September rules (Onyx pull,
-  // sum/2 rounded). The floor of 180 is applied in summerOf, not here, so the
-  // raw figure stays visible for anyone checking the math.
-  const SUMMER_RAW = {
-    "Savanna Holloway":1047,"Sherly Riley":974,"Tianna Thompson":864,"ChenY'ere Franklin":822,"Manar Ettayem":738,
-    "Juana Bustos-Roblero":637,"Sumesh Chakkalakkal":634,"Jesenia Morell":612,"Raymond Mccrea":562,"Damien Goode":554,
-    "Alexi Lebrun":498,"George Corbin":436,"Rosalva Diaz":410,"John Gregory":390,"Shani Fareed":380,"Nifda Colon":363,
-    "Marilyn Johnson":331,"Timothy Jackson":304,"Deon McClendon":292,"Avah Burns":270,"Sumit Lal":264,"Andre Banfield":256,
-    "Gwendolyn Ingram":245,"Cortney Sanders":234,"Irelys Padierna":226,"Andre Cintron":214,"Hunter Cole":204,
-    "Basem Moussa":188,"Nicole Bell-Royster":188,"Kameron Smith":186,"Victor Cruz":176,"Jalen McClendon":172,
-    "Brandon Lugo":164,"Chelsea Hammers":130,"Adam Menendez":108,"Sophia Asencio":60,"Quinn Slaydon":52,
-    "Mariyeisi Umpierre":50,"Armando Martinez":26,"Shirley Davis":8,
-  };
+  // The roster and each agent's summer number live in src/contest_roster.json,
+  // which the Worker injects ahead of this file, so the boards and the server-side
+  // draws read one copy. FLOOR_NUMBER is applied in summerOf, not stored per agent,
+  // so the raw figure stays visible for anyone checking the math.
+  const R = window.PC_ROSTER;
+  const TEAMS = R.TEAMS;
+  const SUMMER_RAW = R.SUMMER_RAW;
 
   const TEAM_OF = {};
   for (const [t, ms] of Object.entries(TEAMS)) for (const a of ms) TEAM_OF[a] = t;
