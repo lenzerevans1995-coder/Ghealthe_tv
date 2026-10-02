@@ -733,8 +733,10 @@ async function resolveBeatDraw(env) {
   const existing = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(key).first();
   if (existing) return { ...JSON.parse(existing.v), server_now };
 
-  const left = Math.round((at - Date.now()) / 1000);
-  if (left > 0) return { armed: true, pending: true, draw_at: new Date(at).toISOString(), seconds_to_draw: left, server_now };
+  // Compared in milliseconds, not rounded seconds: rounding let a draw run up to half a
+  // second before its time, and a draw must not be able to run early.
+  const leftMs = at - Date.now();
+  if (leftMs > 0) return { armed: true, pending: true, draw_at: new Date(at).toISOString(), seconds_to_draw: Math.ceil(leftMs / 1000), server_now };
 
   const pool = beatPool((await loadContestStandings(env)).rows);
   // An empty pool is a failed read or a month nobody cleared their number, and
