@@ -44,6 +44,7 @@ import CASH_DRAWS_BOARD from './boards/cash_draws.html';
 import CONTEST_FONTS from './boards/contest_fonts.css';
 import CONTEST_CONFIG from './boards/contest.clientjs';
 import BEAT_DRAW_BOARD from './boards/beat_draw.html';
+import LAST_HAT_BOARD from './boards/last_hat.html';
 import ROSTER from './contest_roster.json';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
@@ -134,6 +135,7 @@ async function route(request, env, url) {
   // people, and a reload would quietly reroll. First read at or after 4:00 PM ET
   // draws the hat and stores it; every read after that returns the same record.
   if (path === '/api/beatdraw') return json(await resolveBeatDraw(env));
+  if (path === '/api/lasthat') return json(await resolveLastHat(env));
 
   if (path === '/api/draw') {
     return json(await resolveDraw(env, url.searchParams.get('date')));
@@ -232,6 +234,8 @@ async function route(request, env, url) {
   // Beat Your Number: three names drawn from the agents who cleared their own
   // number, one every five seconds. /preview is the same page on a short loop.
   if (path === '/board/beatdraw' || path === '/board/beatdraw/preview') return html(BEAT_DRAW_BOARD);
+  // The Last Hat: one name for $500, drawn from a hat weighted by tickets.
+  if (path === '/board/lasthat' || path === '/board/lasthat/preview') return html(LAST_HAT_BOARD);
   if (path === '/board/aep') return html(AEP_TRACKER_BOARD);
   if (path === '/board/aep/feed.js') {
     const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('aep_tracker').first();
@@ -750,6 +754,67 @@ async function resolveBeatDraw(env) {
   };
   // First writer wins: two screens landing on the same instant must not each
   // draw. Whoever loses the race reads back the record that stuck.
+  await env.DB.prepare(
+    'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING'
+  ).bind(key, JSON.stringify(record), record.decided_at).run();
+  const stored = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(key).first();
+  return { ...JSON.parse(stored.v), server_now };
+}
+
+// ---------- The Last Hat ----------
+
+// Tickets, by the contest's own rules and matching contest.clientjs line for line: one per 50
+// points for the month, doubled for clearing your own summer number, tripled for clearing it by
+// 30%, and three more for writing 12 apps.
+function lastHatTickets(row) {
+  const floor = Number(ROSTER.FLOOR_NUMBER) || 180;
+  const summer = Math.max(floor, Number(ROSTER.SUMMER_RAW[row.agent]) || 0);
+  const points = Number(row.points) || 0;
+  let t = Math.floor(points / 50);
+  if (points >= 1.3 * summer) t *= 3; else if (points >= summer) t *= 2;
+  if ((Number(row.sthhc_apps) || 0) + (Number(row.hi_apps) || 0) >= 12) t += 3;
+  return { agent: row.agent, tickets: t, points, summer };
+}
+
+function lastHatHolders(rows) {
+  return (rows || []).filter((r) => r.agent).map(lastHatTickets).filter((h) => h.tickets > 0)
+    .sort((a, b) => b.tickets - a.tickets || a.agent.localeCompare(b.agent));
+}
+
+// Armed by a `lasthat_config` row, like the Beat Your Number draw and for the same reason: a
+// board left on a TV must never run a real draw on its own. One winner, picked uniformly from the
+// flat ticket list, so a name holding 18 tickets is 18 times as likely as one holding 1.
+async function resolveLastHat(env) {
+  const server_now = new Date().toISOString();
+  const cfgRow = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('lasthat_config').first();
+  if (!cfgRow) return { armed: false, server_now };
+  let cfg;
+  try { cfg = JSON.parse(cfgRow.v); } catch (e) { return { armed: false, server_now, reason: 'unreadable config' }; }
+  const at = Date.parse(cfg.draw_at || '');
+  if (!Number.isFinite(at)) return { armed: false, server_now, reason: 'config has no draw_at' };
+
+  const key = `lasthat:${cfg.contest || 'main'}`;
+  const existing = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(key).first();
+  if (existing) return { ...JSON.parse(existing.v), server_now };
+
+  // Milliseconds, not rounded seconds: a draw must not be able to run early.
+  const leftMs = at - Date.now();
+  if (leftMs > 0) return { armed: true, pending: true, draw_at: new Date(at).toISOString(), seconds_to_draw: Math.ceil(leftMs / 1000), server_now };
+
+  const holders = lastHatHolders((await loadContestStandings(env)).rows);
+  const total = holders.reduce((s, h) => s + h.tickets, 0);
+  if (!total) return { armed: true, pending: true, draw_at: new Date(at).toISOString(), reason: 'no tickets in the hat', server_now };
+
+  const flat = [];
+  holders.forEach((h) => { for (let i = 0; i < h.tickets; i++) flat.push(h); });
+  const idx = drawIndex(flat.length);
+  const w = flat[idx];
+  const record = {
+    contest: cfg.contest || 'main', draw_at: new Date(at).toISOString(),
+    decided_at: new Date().toISOString(), source: 'drawn', holders, tickets: total,
+    winner: { agent: w.agent, serial: String(idx + 1).padStart(3, '0'), tickets_held: w.tickets,
+              points: w.points, summer: w.summer, odds_pct: Math.round((w.tickets / total) * 1000) / 10 },
+  };
   await env.DB.prepare(
     'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING'
   ).bind(key, JSON.stringify(record), record.decided_at).run();
