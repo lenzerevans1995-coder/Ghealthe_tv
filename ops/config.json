@@ -1,0 +1,11 @@
+{
+  "worker": "https://ghealthe-tv-boards.lenzerevans1995.workers.dev",
+  "worker_profile_id": 507,
+  "aep": {
+    "window": { "from": "2026-10-15", "to": "2026-10-21", "label": "week 1" },
+    "goal": 40,
+    "aep_open": "2026-10-15",
+    "excluded_user_ids": [8, 1108, 3748, 1595, 1607]
+  },
+  "paperchase": { "from": "2026-09-01", "to": "2026-09-30" }
+}
