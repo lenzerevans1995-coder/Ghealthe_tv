@@ -42,11 +42,13 @@ def sql_scoreboard(today=None):
     pass a date to replay a past day."""
     if today is None:
         T = "(now() - INTERVAL '10 hours')::date"
+        M1 = "date_trunc('month', now() - INTERVAL '10 hours')::date"
         LB = "(date_trunc('month', now() - INTERVAL '10 hours') - INTERVAL '1 month')::date"
         TS = f"{T}::text"
     else:
         lookback = (today.replace(day=1) - dt.timedelta(days=1)).replace(day=1)  # first of last month
         T, LB, TS = f"DATE '{today}'", f"DATE '{lookback}'", f"'{today}'"
+        M1 = f"DATE '{today.replace(day=1)}'"
     return f"""WITH roster AS (SELECT user_id FROM user_worker_profile_rels WHERE worker_profile_id = {PROFILE}),
 pol AS (SELECT p.user_id, (p.submitted_timestamp - INTERVAL '10 hours')::date AS d, p.submitted_timestamp AS ts, p.policy_name, p.carrier_name, n.premium_amount AS prem, {PRODUCT} AS product FROM policies p JOIN roster r ON r.user_id = p.user_id LEFT JOIN no_platform_medicare_policies n ON n.id = p.policy_source_id AND p.policy_source = 'no_platform_medicare_policies' WHERE (p.submitted_timestamp - INTERVAL '10 hours')::date >= {LB} AND p.submitted_timestamp <= now())
 SELECT 'meta' AS k, 'today' AS a, {TS} AS b, NULL::text AS c, NULL::text AS d, NULL::text AS e, NULL::numeric AS n1, NULL::numeric AS n2, NULL::numeric AS n3, NULL::numeric AS n4
@@ -55,7 +57,8 @@ UNION ALL SELECT 'ad', pol.d::text, u.first_name || ' ' || u.last_name, to_char(
 UNION ALL SELECT 'calls', call_date_hst::text, NULL, NULL, NULL, NULL, COUNT(DISTINCT lead_interaction_id), NULL, NULL, NULL FROM telephonic_lead_interaction_analytics WHERE worker_profile_id = {PROFILE} AND is_rejected = false AND call_type <> 'COACHING' AND call_direction IN ('INBOUND','DIRECT_INBOUND') AND call_date_hst >= {LB} GROUP BY call_date_hst
 UNION ALL SELECT 'roster', NULL, NULL, NULL, NULL, NULL, user_id, NULL, NULL, NULL FROM user_worker_profile_rels WHERE worker_profile_id = {PROFILE}
 UNION ALL SELECT 'sale', to_char(s.ts AT TIME ZONE 'UTC' AT TIME ZONE 'America/New_York', 'YYYY-MM-DD HH24:MI'), u.first_name || ' ' || u.last_name, s.product, s.policy_name, s.carrier_name, s.prem, NULL, NULL, NULL FROM (SELECT *, row_number() OVER (ORDER BY ts DESC) AS rn FROM pol WHERE product IN ('core','sthhc','hi')) s JOIN users u ON u.id = s.user_id WHERE s.rn <= 40
-UNION ALL SELECT 'sthhc', to_char(s.ts AT TIME ZONE 'UTC' AT TIME ZONE 'America/New_York', 'HH24:MI'), u.first_name || ' ' || u.last_name, NULL, NULL, NULL, s.prem, NULL, NULL, NULL FROM pol s JOIN users u ON u.id = s.user_id WHERE s.product = 'sthhc' AND s.d = {T}"""
+UNION ALL SELECT 'sthhc', to_char(s.ts AT TIME ZONE 'UTC' AT TIME ZONE 'America/New_York', 'HH24:MI'), u.first_name || ' ' || u.last_name, NULL, NULL, NULL, s.prem, NULL, NULL, NULL FROM pol s JOIN users u ON u.id = s.user_id WHERE s.product = 'sthhc' AND s.d = {T}
+UNION ALL SELECT 'sth', NULL, u.first_name || ' ' || u.last_name, NULL, NULL, NULL, COUNT(*), SUM(s.prem), COUNT(s.prem), NULL FROM pol s JOIN users u ON u.id = s.user_id WHERE s.product = 'sthhc' AND s.d >= {M1} AND s.d <= {T} GROUP BY u.id, u.first_name, u.last_name"""
 
 
 def sql_aep():
@@ -228,6 +231,101 @@ def star_row(agents):
     return [{'pos': '★', 'who': top['name'], 'what': f"most policies — <b>{top['total']}</b>"}]
 
 
+WARNINGS = []
+MONTHS = [calendar.month_name[i] for i in range(1, 13)]
+
+
+def fnum(x):  # 6.0 -> "6", 6.24 -> "6.2"
+    t = f"{x:.1f}"
+    return t[:-2] if t.endswith('.0') else t
+
+
+def stale_months(obj, keep):
+    txt = json.dumps(obj, ensure_ascii=False)
+    return sorted({m for m in MONTHS if m not in keep and re.search(r'\b' + m + r'\b', txt)})
+
+
+def prev_month_stats(dp, today):
+    last = today.replace(day=1) - dt.timedelta(days=1)
+    inm = lambda d: (d.year, d.month) == (last.year, last.month)
+    tot = {p: sum(v for (d, pp), v in dp.items() if pp == p and inm(d)) for p in ('core', 'sthhc', 'hi')}
+    days = {d for (d, _p) in dp if inm(d)}
+    best = max([v for (d, pp), v in dp.items() if pp == 'sthhc' and inm(d)], default=0)
+    return last.strftime('%B'), tot, len(days), best
+
+
+def build_leaders_sthhc(rows, today, done, live):
+    """STHHC board for the month so far, straight from the data. Month start with no STHHC yet
+    keeps whatever the board already shows (it carries its own month label)."""
+    agents = []
+    for r in rows:
+        if r['k'] == 'sth':
+            n, tot, npr = int(float(r['n1'])), num(r['n2']) or 0.0, int(float(r['n3'] or 0))
+            agents.append({'who': r['b'], 'count': n, 'prem': tot, 'avg': tot / npr if npr else 0.0})
+    total_n = sum(a['count'] for a in agents)
+    if not total_n:
+        return live.get('leaders_sthhc')
+    agents.sort(key=lambda a: (-a['count'], -a['avg'], a['who']))
+    top = agents[:5]
+    month = today.strftime('%B')
+    prem_total = sum(a['prem'] for a in agents)
+    prem_n = sum(int(float(r['n3'] or 0)) for r in rows if r['k'] == 'sth')
+    floor_avg = prem_total / prem_n if prem_n else 0.0
+    tie = any(top[i]['count'] == top[i + 1]['count'] for i in range(len(top) - 1))
+    top_n = sum(a['count'] for a in top)
+    k = f"${prem_total / 1000:.1f}k" if prem_total >= 1000 else f"${prem_total:.0f}"
+    return {
+        'month_label': f"{month} · Month to Date", 'eyebrow': 'Short-Term Home Health — Top 5',
+        'title': f"{month}'s STHHC Leaders",
+        'rows': [{'pos': str(i + 1), 'who': a['who'], 'count': a['count'], 'avg': f"${a['avg']:.0f}"} for i, a in enumerate(top)],
+        'foot': 'Ranked by policies written.' + (' Ties broken by average monthly premium.' if tie else '') + f" Floor average: ${floor_avg:.2f}.",
+        'floor': [{'n': str(total_n), 'l': 'STHHC written', 'eyebrow': f"Floor — {month} MTD"},
+                  {'n': f"${floor_avg:.0f}", 'l': 'Avg monthly premium'}, {'n': k, 'l': 'Monthly premium written'}],
+        'push': {'headline': f"These {len(top)} wrote {top_n} of our {total_n}.",
+                 'body': f"{round(100 * top_n / total_n)}% of {month}'s STHHC so far came off {len(top)} desks in {done + 1} selling day{'s' if done else ''}. "
+                         "<b>Today everybody writes 2.</b> Not on the MA call — set the callback."}}
+
+
+def build_focus(live, ystd_sthhc, prev, prev_tot, prev_days, prev_best):
+    f = json.loads(json.dumps(live.get('focus'))) if live.get('focus') else None
+    if not f or not prev_days or not prev_tot['sthhc']:
+        return live.get('focus')
+    lead = f"We wrote <b>{ystd_sthhc}</b> yesterday" + (f" — {prev}'s best day" if ystd_sthhc and ystd_sthhc >= prev_best else '') + '.'
+    line = f"{lead} {prev} averaged <b>{fnum(prev_tot['sthhc'] / prev_days)} a day</b>. Do it again today."
+    for i, r in enumerate(f.get('rules', [])):
+        if 'yesterday' in r:
+            f['rules'][i] = line
+    return f
+
+
+def build_push(live, m, dp, today, done, total, prev, prev_tot, prev_days):
+    old = (live.get('mtd') or {}).get('push')
+    if not old or done < 1 or not prev_days or not all(prev_tot.values()):
+        return old
+    month = today.strftime('%B')
+    inm = lambda d: (d.year, d.month) == (today.year, today.month) and d < today
+    done_sthhc = sum(v for (d, pp), v in dp.items() if pp == 'sthhc' and inm(d))
+    per_day = done_sthhc / done
+    prev_avg = prev_tot['sthhc'] / prev_days
+    pace = {p: int(sum(v for (d, pp), v in dp.items() if pp == p and inm(d)) / done * total + 0.5) for p in ('core', 'hi', 'sthhc')}
+    behind = [n for n, p in (('Core', 'core'), ('HI', 'hi'), ('STHHC', 'sthhc')) if pace[p] < prev_tot[p]]
+    gap = (' All three are ahead.' if not behind else ' <b>STHHC is the one behind.</b>' if behind == ['STHHC']
+           else f" <b>Behind: {', '.join(behind)}.</b>")
+    rules = list(old.get('rules') or [])
+    if done < 3:  # a projection off one or two days says nothing; show the plain count against last month
+        first = (f"{month} is <b>{done}</b> selling day{'s' if done != 1 else ''} in \u2014 <b>{m['core']}</b> core, <b>{m['hi']}</b> HI and "
+                 f"<b>{m['sthhc']}</b> STHHC so far, against {prev}\u2019s {prev_tot['core']} / {prev_tot['hi']} / {prev_tot['sthhc']} for the whole month.")
+        rules = [first] + rules[1:]
+        return {'kicker': old.get('kicker'), 'headline': f"{fnum(per_day)} a day. {prev} ran {fnum(prev_avg)}.", 'rules': rules,
+                'pills': [{'v': fnum(per_day), 'k': 'Per day now'}, {'v': fnum(prev_avg), 'k': f"{prev} average"}]}
+    first = (f"After <b>{done}</b> selling day{'s' if done != 1 else ''}, {month} is pacing <b>{pace['core']}</b> core against {prev}’s {prev_tot['core']}, "
+             f"<b>{pace['hi']}</b> HI against {prev_tot['hi']}, and <b>{pace['sthhc']}</b> STHHC against {prev_tot['sthhc']}.{gap}")
+    rules = [first] + rules[1:]
+    return {'kicker': old.get('kicker'),
+            'headline': f"{fnum(per_day)} a day. {prev} ran {fnum(prev_avg)}.", 'rules': rules,
+            'pills': [{'v': fnum(per_day), 'k': 'Per day now'}, {'v': fnum(prev_avg), 'k': f"{prev} average"}]}
+
+
 PLAN_NUMBER = re.compile(r'^[A-Za-z]{2,5}\d{5,}$')  # e.g. a carrier policy number keyed over the plan name
 PLAN_FALLBACK = {'hi': 'Hospital Indemnity', 'sthhc': 'Short-Term Home Health Care'}
 
@@ -312,7 +410,14 @@ def build_scoreboard(rows, now, live):
     if done >= 1:  # month-end pace from COMPLETED days only
         mtd_blk['pace'] = {p: int(sum(v for (d, pp), v in dp.items() if pp == p and in_month(d) and d < today)
                                    / done * total + 0.5) for p in ('core', 'sthhc', 'hi')}
-    mtd_blk['push'] = (live.get('mtd') or {}).get('push')
+    prev, prev_tot, prev_days, prev_best = prev_month_stats(dp, today)
+    mtd_blk['push'] = build_push(live, m, dp, today, done, total, prev, prev_tot, prev_days)
+    focus = build_focus(live, y['sthhc'], prev, prev_tot, prev_days, prev_best)
+    leaders_sthhc = build_leaders_sthhc(rows, today, done, live)
+    for name, blk in (('focus', focus), ('push', mtd_blk['push']), ('leaders_sthhc', leaders_sthhc)):
+        bad = stale_months(blk, {month, prev})
+        if bad:
+            WARNINGS.append(f"stale month in {name}: {', '.join(bad)}")
 
     ticker = [{'agent': r['b'], 'bucket': r['c'].upper(), 'plan': plan_label(r['c'], r['d']), 'carrier': r['e'],
                'premium': num(r['n1']), 'at': r['a']} for r in rows if r['k'] == 'sale']
@@ -322,8 +427,8 @@ def build_scoreboard(rows, now, live):
         'generated_at': stamp(now), 'board_date': today.isoformat(), 'roster': roster,
         'month': {'label': month, 'selling_days_total': total, 'selling_days_done': done, 'selling_days_left': left,
                   'sub': f"{total} selling days in {month}<br>{done} down &middot; {left} to go, today included"},
-        'focus': live.get('focus'), 'today': today_blk, 'yesterday': yesterday_blk, 'mtd': mtd_blk,
-        'leaders_sthhc': live.get('leaders_sthhc'), 'sthhc_today': sthhc_today, 'ticker': ticker}
+        'focus': focus, 'today': today_blk, 'yesterday': yesterday_blk, 'mtd': mtd_blk,
+        'leaders_sthhc': leaders_sthhc, 'sthhc_today': sthhc_today, 'ticker': ticker}
 
 
 def scoreboard_summary(new, old):
@@ -404,6 +509,12 @@ def main():
         path = '/ingest/paperchase'
     else:
         sys.exit('unknown kind')
+    if kind == 'paperchase' and dt.date.fromisoformat(CFG['paperchase']['to']) < hst_today(now):
+        WARNINGS.append(f"Paper Chase window ended {CFG['paperchase']['to']} (ops/config.json)")
+    if kind == 'aep' and dt.date.fromisoformat(CFG['aep']['window']['to']) < hst_today(now):
+        WARNINGS.append(f"AEP window ended {CFG['aep']['window']['to']} (ops/config.json)")
+    if WARNINGS:
+        summary += ' | WARN: ' + '; '.join(WARNINGS)
     if '--out' in args:
         json.dump(snap, open(args[args.index('--out') + 1], 'w'), ensure_ascii=False, indent=1)
     if dry:
