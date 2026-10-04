@@ -49,6 +49,10 @@ the claude.ai Routines UI as fresh-session Routines if that session is ever
 retired. Crons are UTC: after the November DST change, shift the hour range from
 12-22 to 13-23 to keep the same ET window.
 
+The Routines no longer carry their recipe in the prompt: `ops/refresh.py` prints the SQL, reads
+the Onyx CSV export straight from its download link and builds/POSTs the JSON, so query results
+never enter the chat (see `ops/README.md`).
+
 ## Deploy (one time)
 
 Deploys need Cloudflare credentials. `wrangler login` is interactive, so in a Claude Code
