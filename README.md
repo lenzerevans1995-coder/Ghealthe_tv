@@ -142,7 +142,10 @@ that row.
 Apart from managers, who can sign in is whoever is on the last push. A Routine pushes
 `{generated_at, window, goals?, quote?, rows:[{npn, agent, core, combo, core_goal?, combo_goal?}]}`
 to `/ingest/agents` with the same bearer secret as the other pushes. Roster is profile 507
-`ENABLED` minus the standing exclusions, NPN from `agents.npn_number`. Counts are policies
+`ENABLED` minus the standing exclusions, and only users still active in Onyx
+(`user_organization_rel.is_active`). Onyx leaves a deactivated agent's profile enabled, so without
+that check 18 departed agents, such as Gaej Walker, appeared on the list and could sign in. NPN
+comes from `agents.npn_number`. Counts are policies
 submitted on an Eastern date from 10/15 to 12/07 (never in the future — a mistyped submitted date can't count early), classified with the scoreboard's CASE: Core is
 `core`, combo is `sthhc` + `hi`. Core goals come from each agent's AEP Game Plan (Jotform), kept by NPN in
 `src/agent_goals.json` — the latest submission wins, and agents without one get 140. STHHC + HI is 30
