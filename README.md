@@ -150,7 +150,10 @@ submitted on an Eastern date from 10/15 to 12/07 (never in the future — a mist
 `core`, combo is `sthhc` + `hi`. Core goals come from each agent's AEP Game Plan (Jotform), kept by NPN in
 `src/agent_goals.json` — the latest submission wins, and agents without one get 140. STHHC + HI is 30
 for everyone. A `core_goal`/`combo_goal` on a pushed row overrides both. Which plan an agent signed
-(Option A or B) shows only on the manager list, never on the agent's own page. A push without `quote` keeps the current quote. An empty
+(Option A, B or C) shows only on the manager list, never on the agent's own page. A manager can
+change any agent's Core goal, STHHC + HI goal and plan with the Edit button on the list. Edits are
+saved in kv as `goal:<npn>` with who made them and when, and take priority over the Game Plan file.
+Only a PIN-verified manager session from this site can save one. A push without `quote` keeps the current quote. An empty
 roster, a malformed row or a repeated NPN is refused, so a bad query never locks the floor out.
 
 Between pushes, sales arrive live from the Onyx webhook. Each delivery carries the agent's NPN, and

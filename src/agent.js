@@ -49,12 +49,57 @@ const DEFAULT_GOALS = { core: 140, combo: 30 };
 // Which plan an agent signed (Option A or B) is for managers only: it is
 // returned by /api/team and never by /api/me.
 const PLANS = GAME_PLANS.goals || {};
+const PLAN_CHOICES = new Set(['A', 'B', 'C']);
 
-function goalsFor(feed, r) {
+// A manager's edit from the team list wins over everything else; then the
+// Game Plan file; then the floor default. Edits live in kv as 'goal:<npn>'.
+function goalsFor(feed, r, edits) {
+  const e = edits?.get(r.npn) || {};
   return {
-    core: r.core_goal || PLANS[r.npn]?.core_goal || feed.goals?.core || DEFAULT_GOALS.core,
-    combo: r.combo_goal || feed.goals?.combo || DEFAULT_GOALS.combo,
+    core: e.core_goal || r.core_goal || PLANS[r.npn]?.core_goal || feed.goals?.core || DEFAULT_GOALS.core,
+    combo: e.combo_goal || r.combo_goal || feed.goals?.combo || DEFAULT_GOALS.combo,
   };
+}
+
+function planFor(npn, edits) {
+  const e = edits?.get(npn);
+  if (e && 'plan' in e) return e.plan || null; // an edit can also clear the plan
+  return PLANS[npn]?.plan || null;
+}
+
+async function loadGoalEdits(env, npn) {
+  const out = new Map();
+  const res = npn
+    ? await env.DB.prepare('SELECT k, v FROM kv WHERE k = ?').bind(`goal:${npn}`).all()
+    : await env.DB.prepare("SELECT k, v FROM kv WHERE k LIKE 'goal:%'").all();
+  for (const row of res.results || []) {
+    try { out.set(row.k.slice('goal:'.length), JSON.parse(row.v)); } catch (e) { /* skip a bad row */ }
+  }
+  return out;
+}
+
+async function handleGoalEdit(request, env, manager) {
+  // Same-origin only: the session cookie is Lax, and this refuses a form
+  // posted from anywhere else on top of that.
+  const origin = request.headers.get('origin');
+  if (origin && origin !== new URL(request.url).origin) return jsonNoStore({ error: 'bad_origin' }, 403);
+  let body;
+  try { body = await request.json(); } catch (e) { return jsonNoStore({ error: 'bad_json' }, 400); }
+  const npn = String(body.npn || '').replace(/\D/g, '');
+  const feed = await loadAgentFeed(env);
+  if (!npn || !feed?.rows?.some((r) => r.npn === npn)) return jsonNoStore({ error: 'unknown_agent' }, 404);
+  const goal = (v) => Number.isInteger(v) && v >= 1 && v <= 1000;
+  const core = Number(body.core_goal);
+  const combo = Number(body.combo_goal);
+  const plan = String(body.plan || '').toUpperCase();
+  if (!goal(core) || !goal(combo) || (plan && !PLAN_CHOICES.has(plan))) {
+    return jsonNoStore({ error: 'Goals must be whole numbers from 1 to 1000, and the plan A, B, C or none.' }, 400);
+  }
+  const rec = { core_goal: core, combo_goal: combo, plan: plan || null, by: manager.name, at: new Date().toISOString() };
+  await env.DB.prepare(
+    'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+  ).bind(`goal:${npn}`, JSON.stringify(rec), rec.at).run();
+  return jsonNoStore({ ok: true, npn, ...rec });
 }
 const DEFAULT_QUOTE = 'Success is the sum of small efforts, repeated day in and day out.';
 
@@ -67,7 +112,7 @@ const PAGE_HEADERS = {
   'referrer-policy': 'same-origin',
 };
 
-export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/api/team', '/me/logo.png', '/ingest/agents']);
+export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/api/team', '/api/team/goal', '/me/logo.png', '/ingest/agents']);
 
 // Managers sign in with their NPN like anyone else, but they are not on the
 // floor roster the Routine pushes, so they are listed here. A manager lands on
@@ -111,6 +156,12 @@ export async function handleAgentRoute(request, env, path, { checkBearer }) {
   if (path === '/team') {
     if (!manager) return redirect(self ? '/me' : '/');
     return new Response(TEAM_PAGE, { headers: PAGE_HEADERS });
+  }
+
+  if (path === '/api/team/goal') {
+    if (!manager) return jsonNoStore({ error: 'signed_out' }, 401);
+    if (request.method !== 'POST') return jsonNoStore({ error: 'method' }, 405);
+    return handleGoalEdit(request, env, manager);
   }
 
   if (path === '/api/team') {
@@ -272,7 +323,7 @@ async function findAgent(env, npn) {
   if (!r) return null;
   const live = await liveSales(env, feed, npn);
   const add = live.byNpn.get(npn) || { core: 0, combo: 0 };
-  const goal = goalsFor(feed, r);
+  const goal = goalsFor(feed, r, await loadGoalEdits(env, npn));
   return {
     name: r.agent,
     core: { sales: r.core + add.core, goal: goal.core },
@@ -345,13 +396,16 @@ function isoZ(value) {
 async function teamView(env, manager) {
   const feed = await loadAgentFeed(env);
   const live = await liveSales(env, feed, null);
+  const edits = await loadGoalEdits(env, null);
   const rows = (feed?.rows || []).map((r) => {
     const add = live.byNpn.get(r.npn) || { core: 0, combo: 0 };
-    const goal = goalsFor(feed, r);
+    const goal = goalsFor(feed, r, edits);
+    const edit = edits.get(r.npn);
     return {
       npn: r.npn,
       name: r.agent,
-      plan: PLANS[r.npn]?.plan || null,
+      plan: planFor(r.npn, edits),
+      edited: edit ? { by: edit.by, at: edit.at } : null,
       core: { sales: r.core + add.core, goal: goal.core },
       combo: { sales: r.combo + add.combo, goal: goal.combo },
     };

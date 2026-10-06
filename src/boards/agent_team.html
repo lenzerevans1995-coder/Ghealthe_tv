@@ -28,9 +28,12 @@ h1{font-size:44px;margin:8px 0 6px;line-height:1.05}
 .head button.on{color:#fff}
 .head button.on .arrow{opacity:1;color:#5cc5ef}
 .list{background:linear-gradient(145deg,#102b40e8,#0b2032e8);border:1px solid #ffffff16;border-radius:20px;overflow:hidden}
-.row{display:grid;grid-template-columns:44px 1.4fr 70px 1fr 1fr 24px;gap:16px;align-items:center;padding:14px 20px;border-top:1px solid #ffffff0d;color:inherit;text-decoration:none}
+.row{display:grid;grid-template-columns:44px 1.4fr 70px 1fr 1fr 64px;gap:16px;align-items:center;padding:14px 20px;border-top:1px solid #ffffff0d;color:inherit;text-decoration:none}
 .row:first-child{border-top:0}
-a.row:hover{background:#ffffff08}
+div.row[data-npn]{cursor:pointer}
+div.row[data-npn]:hover{background:#ffffff08}
+.name a{color:inherit;text-decoration:none}
+.name a:hover{text-decoration:underline}
 .head{font-size:10px;letter-spacing:.14em;color:#70a7ca;font-weight:900;background:#07182760}
 .rank{color:#7f9aaf;font-weight:800;font-size:14px}
 .name{font-weight:800;font-size:16px}
@@ -44,9 +47,27 @@ a.row:hover{background:#ffffff08}
 .plan b{display:inline-block;min-width:26px;padding:4px 8px;border-radius:8px;text-align:center;background:#ffffff10;color:#fff}
 .plan b.B{background:#7a5af533;color:#cbbcff}
 .plan b.A{background:#2489c833;color:#a9dcf7}
+.plan b.C{background:#d9822b33;color:#ffd2a6}
 .plan .none{color:#5a7d95}
+.edit{font:inherit;font-size:12px;font-weight:800;letter-spacing:.06em;padding:7px 10px;border-radius:8px;border:1px solid #ffffff22;background:#ffffff0a;color:#cfe3f1;cursor:pointer}
+.edit:hover{background:#2489c8;border-color:#2489c8;color:#fff}
+.edited{display:block;font-size:10px;color:#7f9aaf;font-weight:400;letter-spacing:0;margin-top:3px}
+.modal{position:fixed;inset:0;background:#020a12b3;display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.open{display:flex}
+.box{width:100%;max-width:380px;background:#0e2638;border:1px solid #ffffff22;border-radius:16px;padding:22px;box-shadow:0 24px 60px #0008}
+.box h2{margin:0 0 4px;font-size:20px}
+.box .who{color:#9fb5c7;font-size:14px;margin-bottom:18px}
+.box label{display:block;font-size:11px;letter-spacing:.12em;color:#70a7ca;font-weight:900;margin:12px 0 6px}
+.box input,.box select{width:100%;font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid #ffffff26;background:#071827;color:#fff;outline:none}
+.box input:focus,.box select:focus{border-color:#35a8e0}
+.box .err{color:#ffb4a8;font-size:13px;min-height:18px;margin-top:12px}
+.box .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.box .btns button{font:inherit;font-weight:800;font-size:14px;padding:10px 16px;border-radius:10px;border:1px solid #ffffff22;cursor:pointer}
+.box .cancel{background:transparent;color:#cfe3f1}
+.box .save{background:#2489c8;border-color:#2489c8;color:#fff}
+.box .save:disabled{opacity:.6;cursor:wait}
 .empty{padding:30px;text-align:center;color:#9fb5c7}
-@media(max-width:700px){.wrap{padding:16px}h1{font-size:32px}.row{grid-template-columns:30px 1fr 44px 1fr;gap:10px;padding:12px 14px}.row .metric.combo,.row .go,.head .h-combo,.head .h-go{display:none}}
+@media(max-width:700px){.wrap{padding:16px}h1{font-size:32px}.row{grid-template-columns:30px 1fr 40px 1fr 56px;gap:10px;padding:12px 14px}.row .metric.combo,.head .h-combo{display:none}}
 </style>
 </head>
 <body>
@@ -59,6 +80,25 @@ a.row:hover{background:#ffffff08}
     <input id="q" type="search" placeholder="Find an agent" autocomplete="off">
   </div>
   <div class="list" id="list"></div>
+</div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <form class="box" id="mForm" autocomplete="off">
+    <h2 id="mTitle">Edit goals</h2>
+    <div class="who" id="mWho"></div>
+    <label for="mCore">CORE GOAL</label>
+    <input id="mCore" type="number" min="1" max="1000" step="1" required>
+    <label for="mCombo">STHHC + HI GOAL</label>
+    <input id="mCombo" type="number" min="1" max="1000" step="1" required>
+    <label for="mPlan">PLAN</label>
+    <select id="mPlan">
+      <option value="A">Option A</option>
+      <option value="B">Option B</option>
+      <option value="C">Option C</option>
+      <option value="">None</option>
+    </select>
+    <div class="err" id="mErr"></div>
+    <div class="btns"><button type="button" class="cancel" id="mCancel">Cancel</button><button type="submit" class="save" id="mSave">Save</button></div>
+  </form>
 </div>
 <script>
 (function () {
@@ -97,7 +137,7 @@ a.row:hover{background:#ffffff08}
     var list = $('list');
     list.textContent = '';
     var head = el('div', 'row head');
-    [['', '', null], ['AGENT', '', 'name'], ['PLAN', '', 'plan'], ['CORE', '', 'core'], ['STHHC + HI', 'h-combo', 'combo'], ['', 'h-go', null]].forEach(function (c) {
+    [['', '', null], ['AGENT', '', 'name'], ['PLAN', '', 'plan'], ['CORE', '', 'core'], ['STHHC + HI', 'h-combo', 'combo'], ['', '', null]].forEach(function (c) {
       var cell = el('div', c[1]);
       if (c[2]) {
         var on = sortKey === c[2];
@@ -115,17 +155,28 @@ a.row:hover{background:#ffffff08}
     var shown = 0;
     rows.forEach(function (r, i) {
       if (q && r.name.toLowerCase().indexOf(q) < 0) return;
-      var a = el('a', 'row');
-      a.href = '/me?agent=' + encodeURIComponent(r.npn);
+      var a = el('div', 'row');
+      a.setAttribute('data-npn', r.npn);
       a.appendChild(el('div', 'rank', ranked ? String(i + 1) : ''));
-      a.appendChild(el('div', 'name', r.name));
+      var nm = el('div', 'name');
+      var link = el('a', null, r.name);
+      link.href = '/me?agent=' + encodeURIComponent(r.npn);
+      nm.appendChild(link);
+      if (r.edited) nm.appendChild(el('span', 'edited', 'Goals edited by ' + r.edited.by));
+      a.appendChild(nm);
       var plan = el('div', 'plan');
       if (r.plan) plan.appendChild(el('b', r.plan, r.plan));
-      else { plan.appendChild(el('span', 'none', '—')); plan.title = 'No Game Plan on file — goal shown is the default'; }
+      else { plan.appendChild(el('span', 'none', '-')); plan.title = 'No plan on file'; }
       a.appendChild(plan);
       a.appendChild(metric('core', r.core));
       a.appendChild(metric('combo', r.combo));
-      a.appendChild(el('div', 'go', '›'));
+      var cell = el('div');
+      var eb = el('button', 'edit', 'Edit');
+      eb.type = 'button';
+      eb.setAttribute('data-edit', r.npn);
+      eb.setAttribute('aria-label', 'Edit goals for ' + r.name);
+      cell.appendChild(eb);
+      a.appendChild(cell);
       list.appendChild(a);
       shown++;
     });
@@ -135,7 +186,7 @@ a.row:hover{background:#ffffff08}
     // Only speak up when something is wrong: numbers hours old, or none yet.
     var u = $('updated');
     if (!data.generated_at) u.textContent = 'Waiting for the first update';
-    else if (Date.now() - Date.parse(data.generated_at) > STALE_MS) u.textContent = 'These numbers are more than 3 hours old — the refresh may have stopped.';
+    else if (Date.now() - Date.parse(data.generated_at) > STALE_MS) u.textContent = 'These numbers are more than 3 hours old. The refresh may have stopped.';
     else u.textContent = '';
   }
 
@@ -147,10 +198,58 @@ a.row:hover{background:#ffffff08}
         return r.json();
       })
       .then(function (d) { if (d) { data = d; render(); } })
-      .catch(function () { $('updated').textContent = "Can't reach the server — retrying"; });
+      .catch(function () { $('updated').textContent = "Can't reach the server. Retrying."; });
   }
 
   $('q').addEventListener('input', render);
+  // Edit popup. Managers only: the server refuses anyone else.
+  var editing = null;
+  function openEdit(npn) {
+    var r = data && data.rows.filter(function (x) { return x.npn === npn; })[0];
+    if (!r) return;
+    editing = r;
+    $('mWho').textContent = r.name;
+    $('mCore').value = r.core.goal;
+    $('mCombo').value = r.combo.goal;
+    $('mPlan').value = r.plan || '';
+    $('mErr').textContent = '';
+    $('mSave').disabled = false;
+    $('modal').classList.add('open');
+    $('mCore').focus();
+  }
+  function closeEdit() { $('modal').classList.remove('open'); editing = null; }
+  $('mCancel').addEventListener('click', closeEdit);
+  $('modal').addEventListener('click', function (e) { if (e.target === this) closeEdit(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && editing) closeEdit(); });
+  $('mForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!editing) return;
+    var core = parseInt($('mCore').value, 10), combo = parseInt($('mCombo').value, 10);
+    if (!(core >= 1 && core <= 1000) || !(combo >= 1 && combo <= 1000)) {
+      $('mErr').textContent = 'Enter whole numbers from 1 to 1000.';
+      return;
+    }
+    $('mSave').disabled = true;
+    fetch('/api/team/goal', {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ npn: editing.npn, core_goal: core, combo_goal: combo, plan: $('mPlan').value })
+    }).then(function (r) {
+      if (r.status === 401) { location.href = '/'; return null; }
+      return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Save failed'); return j; });
+    }).then(function (j) { if (j) { closeEdit(); load(); } })
+      .catch(function (err) { $('mErr').textContent = /^[A-Z]/.test(err.message) && err.message.length > 12 ? err.message : 'Could not save. Try again.'; $('mSave').disabled = false; });
+  });
+
+  // A row opens that agent's dashboard; the Edit button opens the popup instead.
+  $('list').addEventListener('click', function (e) {
+    var eb = e.target.closest && e.target.closest('[data-edit]');
+    if (eb) { e.preventDefault(); openEdit(eb.getAttribute('data-edit')); return; }
+    if (e.target.closest && e.target.closest('a, .head')) return;
+    var row = e.target.closest && e.target.closest('div.row[data-npn]');
+    if (row) location.href = '/me?agent=' + encodeURIComponent(row.getAttribute('data-npn'));
+  });
+
   // Click a column heading to sort by it; click again to flip the direction.
   // Sales start best-first, names start A–Z.
   $('list').addEventListener('click', function (e) {
