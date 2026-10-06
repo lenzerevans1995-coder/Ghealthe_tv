@@ -37,6 +37,12 @@ const SESSION_DAYS = 30;
 const FAIL_LIMIT = 30;
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
 
+// The manager view also needs a PIN. Wrong PINs are counted per manager as well
+// as per IP, so a four-digit PIN can't be walked from many addresses at once.
+const PIN_FAIL_LIMIT = 10;
+const PIN_COOKIE = 'ghe_pin';
+const PIN_STEP_SECONDS = 5 * 60;
+
 const DEFAULT_GOALS = { core: 140, combo: 30 };
 
 // Each agent's Core goal comes from their AEP Game Plan (Jotform), by NPN.
@@ -66,7 +72,9 @@ export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', 
 // Managers sign in with their NPN like anyone else, but they are not on the
 // floor roster the Routine pushes, so they are listed here. A manager lands on
 // the team list and can open any agent's dashboard. Adding one is a line in
-// managers.json and a deploy.
+// managers.json and a deploy. A manager NPN alone opens nothing: the sign-in
+// asks for the admin PIN next, and only a session minted after the PIN carries
+// manager rights.
 const MANAGER_BY_NPN = new Map(MANAGERS.managers.map((m) => [String(m.npn), m]));
 
 export async function handleAgentRoute(request, env, path, { checkBearer }) {
@@ -82,19 +90,22 @@ export async function handleAgentRoute(request, env, path, { checkBearer }) {
   }
 
   if (path === '/logout') {
-    return new Response(null, { status: 302, headers: { location: '/', 'set-cookie': clearCookie() } });
+    return redirect('/', [clearCookie(), clearPinCookie()]);
   }
 
   if (path === '/login' && request.method === 'POST') return handleLogin(request, env);
 
-  const npn = await sessionNpn(request, env);
-  const manager = npn ? MANAGER_BY_NPN.get(npn) || null : null;
+  const session = await readSession(request, env);
+  const npn = session?.npn || null;
+  const manager = session?.admin ? MANAGER_BY_NPN.get(npn) || null : null;
   const self = npn && !manager ? await findAgent(env, npn) : null;
 
   if (path === '/' || path === '/login') {
     if (manager) return redirect('/team');
     if (self) return redirect('/me');
-    return loginPage(url(request).searchParams.get('e'));
+    const q = url(request).searchParams;
+    if (q.get('step') === 'pin' && (await pendingPinNpn(request, env))) return pinPage(q.get('e'));
+    return loginPage(q.get('e'));
   }
 
   if (path === '/team') {
@@ -136,18 +147,68 @@ async function handleLogin(request, env) {
   if (await lockedOut(env, ip)) return redirect('/?e=wait');
 
   let npn = '';
+  let pin = null;
   try {
     const form = await request.formData();
     npn = String(form.get('npn') || '').replace(/\D/g, '');
+    if (form.has('pin')) pin = String(form.get('pin') || '').trim();
   } catch (e) { /* not a form post: falls through as an unknown NPN */ }
 
-  if (npn && MANAGER_BY_NPN.has(npn)) return redirect('/team', await sessionCookie(env, npn));
+  // Second step for managers: the PIN, checked against the NPN the first step
+  // vouched for in a short-lived signed cookie.
+  if (pin !== null) {
+    const who = await pendingPinNpn(request, env);
+    if (!who) return redirect('/');
+    const npnKey = `pin:${who}`;
+    if (await lockedOut(env, npnKey, PIN_FAIL_LIMIT)) return redirect('/?step=pin&e=wait');
+    if (!(await pinMatches(env, pin))) {
+      await noteFailure(env, ip);
+      await noteFailure(env, npnKey);
+      return redirect('/?step=pin&e=pin');
+    }
+    return redirect('/team', [await sessionCookie(env, who, true), clearPinCookie()]);
+  }
+
+  if (npn && MANAGER_BY_NPN.has(npn)) return redirect('/?step=pin', await pinCookie(env, npn));
   const agent = npn ? await findAgent(env, npn) : null;
   if (!agent) {
     await noteFailure(env, ip);
     return redirect('/?e=nf');
   }
   return redirect('/me', await sessionCookie(env, npn));
+}
+
+function pinPage(errorCode) {
+  const messages = {
+    pin: "That PIN isn't right. Try again.",
+    wait: 'Too many wrong PINs. Wait a few minutes and try again.',
+  };
+  const msg = messages[errorCode] || '';
+  const form = `<form method="post" action="/login" autocomplete="off">
+    <label for="pin">ADMIN PIN</label>
+    <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" required autofocus placeholder="••••">
+    <button type="submit">OPEN MANAGER VIEW</button>
+  </form>
+  <p class="note"><a href="/" style="color:#8fb2c9">Not a manager? Start over</a></p>`;
+  const page = AGENT_LOGIN_PAGE
+    .replace(/<!--FORM-->[\s\S]*<!--\/FORM-->/, form)
+    .replace('Enter your NPN to see your AEP dashboard.', 'Enter the admin PIN for the manager view.')
+    .replace('<!--ERROR-->', msg ? `<p class="err" role="alert">${msg}</p>` : '');
+  return new Response(page, { headers: PAGE_HEADERS });
+}
+
+// The PIN is never in the code: the database holds a salted SHA-256 of it under
+// kv 'admin_pin'. No row means no manager can get in — closed, not open.
+async function pinMatches(env, pin) {
+  if (!/^\d{4,8}$/.test(pin)) return false;
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('admin_pin').first();
+  if (!row) return false;
+  let rec;
+  try { rec = JSON.parse(row.v); } catch (e) { return false; }
+  if (!rec?.salt || !rec?.sha256) return false;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${rec.salt}:${pin}`));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return constantTimeEqual(hex, String(rec.sha256).toLowerCase());
 }
 
 function loginPage(errorCode) {
@@ -162,19 +223,19 @@ function loginPage(errorCode) {
   return new Response(page, { headers: PAGE_HEADERS });
 }
 
-async function lockedOut(env, ip) {
-  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(`loginfail:${ip}`).first();
+async function lockedOut(env, key, limit = FAIL_LIMIT) {
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(`loginfail:${key}`).first();
   if (!row) return false;
   try {
     const { count, since } = JSON.parse(row.v);
-    return Date.now() - since < FAIL_WINDOW_MS && count >= FAIL_LIMIT;
+    return Date.now() - since < FAIL_WINDOW_MS && count >= limit;
   } catch (e) {
     return false;
   }
 }
 
-async function noteFailure(env, ip) {
-  const k = `loginfail:${ip}`;
+async function noteFailure(env, key) {
+  const k = `loginfail:${key}`;
   const now = Date.now();
   const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(k).first();
   let rec = { count: 0, since: now };
@@ -374,27 +435,52 @@ async function sign(env, msg) {
   return btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function sessionCookie(env, npn) {
+// An admin session is marked in the cookie (".a") and signed over a different
+// message, so an agent cookie can't be turned into one by editing it.
+async function sessionCookie(env, npn, admin = false) {
   const exp = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
-  const body = `${npn}.${exp}`;
-  const sig = await sign(env, body);
+  const sig = await sign(env, `${admin ? 'admin:' : ''}${npn}.${exp}`);
   if (!sig) throw new Error('agent sign-in is not configured');
-  return `${SESSION_COOKIE}=${body}.${sig}; Path=/; Max-Age=${SESSION_DAYS * 86400}; HttpOnly; Secure; SameSite=Lax`;
+  const value = `${npn}.${exp}${admin ? '.a' : ''}.${sig}`;
+  return `${SESSION_COOKIE}=${value}; Path=/; Max-Age=${SESSION_DAYS * 86400}; HttpOnly; Secure; SameSite=Lax`;
+}
+
+// Proof that the NPN step named a manager, good for five minutes, so the PIN
+// step knows whose PIN it is checking without trusting a form field.
+async function pinCookie(env, npn) {
+  const exp = Date.now() + PIN_STEP_SECONDS * 1000;
+  const sig = await sign(env, `pin:${npn}.${exp}`);
+  if (!sig) throw new Error('agent sign-in is not configured');
+  return `${PIN_COOKIE}=${npn}.${exp}.${sig}; Path=/; Max-Age=${PIN_STEP_SECONDS}; HttpOnly; Secure; SameSite=Strict`;
+}
+
+function clearPinCookie() {
+  return `${PIN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
+}
+
+async function pendingPinNpn(request, env) {
+  const m = /^(\d{5,12})\.(\d{10,16})\.([A-Za-z0-9_-]+)$/.exec(readCookie(request, PIN_COOKIE));
+  if (!m) return null;
+  const [, npn, exp, sig] = m;
+  if (Number(exp) < Date.now() || !MANAGER_BY_NPN.has(npn)) return null;
+  const want = await sign(env, `pin:${npn}.${exp}`);
+  return want && constantTimeEqual(want, sig) ? npn : null;
 }
 
 function clearCookie() {
   return `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 }
 
-async function sessionNpn(request, env) {
+async function readSession(request, env) {
   const raw = readCookie(request, SESSION_COOKIE);
-  const m = /^(\d{5,12})\.(\d{10,16})\.([A-Za-z0-9_-]+)$/.exec(raw);
+  const m = /^(\d{5,12})\.(\d{10,16})(\.a)?\.([A-Za-z0-9_-]+)$/.exec(raw);
   if (!m) return null;
-  const [, npn, exp, sig] = m;
+  const [, npn, exp, flag, sig] = m;
   if (Number(exp) < Date.now()) return null;
-  const want = await sign(env, `${npn}.${exp}`);
+  const admin = flag === '.a';
+  const want = await sign(env, `${admin ? 'admin:' : ''}${npn}.${exp}`);
   if (!want || !constantTimeEqual(want, sig)) return null;
-  return npn;
+  return { npn, admin };
 }
 
 function readCookie(request, name) {
@@ -419,8 +505,8 @@ function url(request) {
 }
 
 function redirect(location, setCookie) {
-  const headers = { location, 'cache-control': 'no-store' };
-  if (setCookie) headers['set-cookie'] = setCookie;
+  const headers = new Headers({ location, 'cache-control': 'no-store' });
+  for (const c of [].concat(setCookie || [])) headers.append('set-cookie', c);
   return new Response(null, { status: 303, headers });
 }
 
