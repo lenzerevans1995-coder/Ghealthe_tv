@@ -4,8 +4,10 @@
 //   GET  /             sign-in page, or straight to /me when already signed in
 //   POST /login        NPN in, signed session cookie out
 //   GET  /logout       clears the session
-//   GET  /me           the signed-in agent's dashboard
+//   GET  /me           the signed-in agent's dashboard (a manager adds ?agent=<npn>)
 //   GET  /api/me       that dashboard's numbers (the page polls this)
+//   GET  /team         managers only: every agent, each a link to their dashboard
+//   GET  /api/team     that list's numbers
 //   GET  /me/logo.png  the Get Health-e logo the pages carry
 //   POST /ingest/agents  roster + per-agent AEP counts (bearer secret, same as /ingest)
 //
@@ -16,6 +18,8 @@
 
 import AGENT_LOGIN_PAGE from './boards/agent_login.html';
 import AGENT_DASHBOARD_PAGE from './boards/agent_dashboard.html';
+import TEAM_PAGE from './boards/agent_team.html';
+import MANAGERS from './managers.json';
 import GHE_LOGO from '../assets/ghe-logo.png';
 
 const SESSION_COOKIE = 'ghe_agent';
@@ -38,7 +42,13 @@ const PAGE_HEADERS = {
   'referrer-policy': 'same-origin',
 };
 
-export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/me/logo.png', '/ingest/agents']);
+export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/api/team', '/me/logo.png', '/ingest/agents']);
+
+// Managers sign in with their NPN like anyone else, but they are not on the
+// floor roster the Routine pushes, so they are listed here. A manager lands on
+// the team list and can open any agent's dashboard. Adding one is a line in
+// managers.json and a deploy.
+const MANAGER_BY_NPN = new Map(MANAGERS.managers.map((m) => [String(m.npn), m]));
 
 export async function handleAgentRoute(request, env, path, { checkBearer }) {
   if (path === '/ingest/agents') {
@@ -59,21 +69,42 @@ export async function handleAgentRoute(request, env, path, { checkBearer }) {
   if (path === '/login' && request.method === 'POST') return handleLogin(request, env);
 
   const npn = await sessionNpn(request, env);
+  const manager = npn ? MANAGER_BY_NPN.get(npn) || null : null;
+  const self = npn && !manager ? await findAgent(env, npn) : null;
 
   if (path === '/' || path === '/login') {
-    if (npn && (await findAgent(env, npn))) return redirect('/me');
+    if (manager) return redirect('/team');
+    if (self) return redirect('/me');
     return loginPage(url(request).searchParams.get('e'));
   }
 
+  if (path === '/team') {
+    if (!manager) return redirect(self ? '/me' : '/');
+    return new Response(TEAM_PAGE, { headers: PAGE_HEADERS });
+  }
+
+  if (path === '/api/team') {
+    if (!manager) return jsonNoStore({ error: 'signed_out' }, 401);
+    return jsonNoStore(await teamView(env, manager));
+  }
+
   if (path === '/me') {
-    if (!npn || !(await findAgent(env, npn))) return redirect('/', clearCookie());
+    if (manager) return new Response(AGENT_DASHBOARD_PAGE, { headers: PAGE_HEADERS });
+    if (!self) return redirect('/', clearCookie());
     return new Response(AGENT_DASHBOARD_PAGE, { headers: PAGE_HEADERS });
   }
 
   if (path === '/api/me') {
-    const agent = npn ? await findAgent(env, npn) : null;
-    if (!agent) return jsonNoStore({ error: 'signed_out' }, 401);
-    return jsonNoStore(agent);
+    // An agent always gets their own numbers, whatever ?agent= says; only a
+    // manager can look at someone else's.
+    if (manager) {
+      const who = String(url(request).searchParams.get('agent') || '').replace(/\D/g, '');
+      const agent = who ? await findAgent(env, who) : null;
+      if (!agent) return jsonNoStore({ error: 'not_found', manager: true }, 404);
+      return jsonNoStore({ ...agent, viewer: { manager: true, name: manager.name } });
+    }
+    if (!self) return jsonNoStore({ error: 'signed_out' }, 401);
+    return jsonNoStore(self);
   }
 
   return new Response('Not found', { status: 404 });
@@ -91,6 +122,7 @@ async function handleLogin(request, env) {
     npn = String(form.get('npn') || '').replace(/\D/g, '');
   } catch (e) { /* not a form post: falls through as an unknown NPN */ }
 
+  if (npn && MANAGER_BY_NPN.has(npn)) return redirect('/team', await sessionCookie(env, npn));
   const agent = npn ? await findAgent(env, npn) : null;
   if (!agent) {
     await noteFailure(env, ip);
@@ -165,6 +197,22 @@ async function findAgent(env, npn) {
     window: feed.window || null,
     generated_at: feed.generated_at || null,
     server_now: new Date().toISOString(),
+  };
+}
+
+async function teamView(env, manager) {
+  const feed = await loadAgentFeed(env);
+  const rows = (feed?.rows || []).map((r) => ({
+    npn: r.npn,
+    name: r.agent,
+    core: { sales: r.core, goal: r.core_goal || feed.goals?.core || DEFAULT_GOALS.core },
+    combo: { sales: r.combo, goal: r.combo_goal || feed.goals?.combo || DEFAULT_GOALS.combo },
+  }));
+  return {
+    viewer: { manager: true, name: manager.name },
+    window: feed?.window || null,
+    generated_at: feed?.generated_at || null,
+    rows,
   };
 }
 

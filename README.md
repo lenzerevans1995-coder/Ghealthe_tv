@@ -125,11 +125,17 @@ for 30 days, holding the NPN plus an HMAC keyed off the Worker's `BOARD_KEY` (or
 `AGENT_SESSION_SECRET` if set). Rotating either signs everyone out. The agent pages sit outside the
 board key, and the board key does not open them.
 
-Who can sign in is whoever is on the last push. A Routine pushes
+Managers sign in the same way but land on `/team`: every agent, sortable by Core or
+STHHC + HI and searchable, each linking to that agent's dashboard (`/me?agent=<npn>`) exactly as the
+agent sees it. Managers aren't on the floor roster, so they are listed in `src/managers.json`;
+adding one means adding a line there and deploying. An agent who puts `?agent=` in the URL still
+gets their own numbers, because only a manager's session can view another agent.
+
+Apart from managers, who can sign in is whoever is on the last push. A Routine pushes
 `{generated_at, window, goals?, quote?, rows:[{npn, agent, core, combo, core_goal?, combo_goal?}]}`
 to `/ingest/agents` with the same bearer secret as the other pushes. Roster is profile 507
 `ENABLED` minus the standing exclusions, NPN from `agents.npn_number`. Counts are policies
-submitted on an Eastern date from 10/15 to 12/07, classified with the scoreboard's CASE: Core is
+submitted on an Eastern date from 10/15 to 12/07 (never in the future — a mistyped submitted date can't count early), classified with the scoreboard's CASE: Core is
 `core`, combo is `sthhc` + `hi`. Goals default to 140 Core and 30 combo; a per-agent
 `core_goal`/`combo_goal` overrides them. A push without `quote` keeps the current quote. An empty
 roster, a malformed row or a repeated NPN is refused, so a bad query never locks the floor out.

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team | AEP Dashboards</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#eef7ff;min-height:100vh;background:#071827;
+  background-image:radial-gradient(circle at 80% 0,#123e64 0,transparent 34%),linear-gradient(135deg,#061521,#0a2236 55%,#071827)}
+.wrap{max-width:1200px;margin:auto;padding:24px 34px 40px}
+.nav{height:74px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff18;gap:12px}
+.logo{width:220px;max-width:50vw;max-height:58px;object-fit:contain;filter:drop-shadow(0 6px 18px #0006)}
+.navright{display:flex;gap:14px;align-items:center;font-size:13px;color:#9fb5c7}
+.navright a{color:#8fb2c9;text-decoration:none;font-size:12px}
+.navright a:hover{color:#fff}
+.eyebrow{font-size:12px;letter-spacing:.2em;color:#56c58b;font-weight:900;margin-top:40px}
+h1{font-size:44px;margin:8px 0 6px;line-height:1.05}
+.sub{color:#9fb5c7;font-size:15px;margin:0}
+.updated{margin-top:8px;font-size:12px;color:#7f9aaf}
+.updated.stale{color:#f0b35a}
+.tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:26px 0 14px}
+.tools input{flex:1;min-width:200px;font-size:15px;padding:11px 14px;border-radius:10px;border:1px solid #ffffff26;background:#07182799;color:#fff;outline:none}
+.tools input:focus{border-color:#35a8e0}
+.sort{display:flex;gap:6px}
+.sort button{font-size:12px;font-weight:800;letter-spacing:.06em;padding:10px 12px;border-radius:10px;border:1px solid #ffffff20;background:#ffffff0a;color:#cfe3f1;cursor:pointer}
+.sort button.on{background:#2489c8;border-color:#2489c8;color:#fff}
+.list{background:linear-gradient(145deg,#102b40e8,#0b2032e8);border:1px solid #ffffff16;border-radius:20px;overflow:hidden}
+.row{display:grid;grid-template-columns:44px 1.4fr 1fr 1fr 24px;gap:16px;align-items:center;padding:14px 20px;border-top:1px solid #ffffff0d;color:inherit;text-decoration:none}
+.row:first-child{border-top:0}
+a.row:hover{background:#ffffff08}
+.head{font-size:10px;letter-spacing:.14em;color:#70a7ca;font-weight:900;background:#07182760}
+.rank{color:#7f9aaf;font-weight:800;font-size:14px}
+.name{font-weight:800;font-size:16px}
+.metric{font-size:13px;color:#9fb5c7}
+.metric b{color:#fff;font-size:17px;margin-right:3px}
+.bar{height:6px;background:#ffffff12;border-radius:6px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#2489c8,#5cc5ef);border-radius:6px}
+.bar.combo i{background:linear-gradient(90deg,#299e66,#62d99c)}
+.go{color:#5a7d95;font-size:18px}
+.empty{padding:30px;text-align:center;color:#9fb5c7}
+@media(max-width:700px){.wrap{padding:16px}h1{font-size:32px}.row{grid-template-columns:30px 1fr 1fr;gap:10px;padding:12px 14px}.row .metric.combo,.row .go,.head .h-combo,.head .h-go{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><div class="navright"><span id="who"></span><a href="/logout">Sign out</a></div></nav>
+  <div class="eyebrow">MANAGER VIEW</div>
+  <h1>The floor's AEP dashboards</h1>
+  <p class="sub">Open any agent to see their dashboard exactly as they see it.</p>
+  <div class="updated" id="updated">Loading…</div>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Find an agent" autocomplete="off">
+    <div class="sort" id="sort">
+      <button data-k="core" class="on">CORE</button>
+      <button data-k="combo">STHHC + HI</button>
+      <button data-k="name">NAME</button>
+    </div>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+<script>
+(function () {
+  var POLL_MS = 60 * 1000, STALE_MS = 3 * 60 * 60 * 1000;
+  var $ = function (id) { return document.getElementById(id); };
+  var data = null, sortKey = 'core', timer = null;
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function metric(cls, m) {
+    var box = el('div', 'metric ' + cls);
+    box.appendChild(el('b', null, String(m.sales)));
+    box.appendChild(document.createTextNode('/ ' + m.goal));
+    var bar = el('div', 'bar' + (cls === 'combo' ? ' combo' : ''));
+    var i = el('i');
+    i.style.width = Math.min(100, m.goal ? Math.round(m.sales / m.goal * 100) : 0) + '%';
+    bar.appendChild(i);
+    box.appendChild(bar);
+    return box;
+  }
+
+  function render() {
+    if (!data) return;
+    var q = $('q').value.trim().toLowerCase();
+    var rows = data.rows.slice().sort(function (a, b) {
+      if (sortKey === 'name') return a.name.localeCompare(b.name);
+      return (b[sortKey].sales - a[sortKey].sales) || a.name.localeCompare(b.name);
+    });
+    var list = $('list');
+    list.textContent = '';
+    var head = el('div', 'row head');
+    ['', 'AGENT', 'CORE', 'STHHC + HI', ''].forEach(function (t, i) {
+      head.appendChild(el('div', ['', '', '', 'h-combo', 'h-go'][i], t));
+    });
+    list.appendChild(head);
+    var shown = 0;
+    rows.forEach(function (r, i) {
+      if (q && r.name.toLowerCase().indexOf(q) < 0) return;
+      var a = el('a', 'row');
+      a.href = '/me?agent=' + encodeURIComponent(r.npn);
+      a.appendChild(el('div', 'rank', sortKey === 'name' ? '' : String(i + 1)));
+      a.appendChild(el('div', 'name', r.name));
+      a.appendChild(metric('core', r.core));
+      a.appendChild(metric('combo', r.combo));
+      a.appendChild(el('div', 'go', '›'));
+      list.appendChild(a);
+      shown++;
+    });
+    if (!shown) list.appendChild(el('div', 'empty', data.rows.length ? 'No agent matches that search.' : 'No roster has been pushed yet.'));
+
+    $('who').textContent = data.viewer ? data.viewer.name : '';
+    var u = $('updated');
+    if (data.generated_at) {
+      u.textContent = data.rows.length + ' agents · numbers as of ' +
+        new Date(data.generated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
+      u.classList.toggle('stale', Date.now() - Date.parse(data.generated_at) > STALE_MS);
+    } else {
+      u.textContent = 'Waiting for the first update';
+    }
+  }
+
+  function load() {
+    fetch('/api/team', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401) { location.href = '/'; return null; }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) { if (d) { data = d; render(); } })
+      .catch(function () { $('updated').textContent = "Can't reach the server — retrying"; $('updated').classList.add('stale'); });
+  }
+
+  $('q').addEventListener('input', render);
+  $('sort').addEventListener('click', function (e) {
+    var k = e.target && e.target.getAttribute('data-k');
+    if (!k) return;
+    sortKey = k;
+    Array.prototype.forEach.call(this.children, function (b) { b.classList.toggle('on', b === e.target); });
+    render();
+  });
+  function start() { if (!timer) timer = setInterval(load, POLL_MS); }
+  function stop() { clearInterval(timer); timer = null; }
+  document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else { load(); start(); } });
+  load();
+  start();
+})();
+</script>
+</body>
+</html>
