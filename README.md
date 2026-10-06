@@ -15,6 +15,7 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 | `/board/draw` | **Weekly Draw** — the Friday $50 raffle. Counts down to 4:00 PM ET, closes the hat at 3:59, runs the draw on its own and leaves the winner up. Tickets are `FLOOR(points_week / 50)` read straight from the contest board's feed, so the drum and the standings can never disagree. Nobody presses anything |
 | `/board/draw/preview` | The same board on a 10-second clock, looping countdown → draw → winner, for checking it before Friday |
 | `/board/teampoints`, `/board/teams`, `/board/races`, `/board/draws` | The four contest boards — team points, every seat by team, the five individual races, and the cash draws. All read the Paper Chase feed and repaint over the socket |
+| `/`, `/me` | **Agent sign-in and dashboard** — agents sign in with their NPN at `ghe-board.com` and see their own AEP Core and STHHC + HI progress; numbers are pushed to `/ingest/agents`. See below |
 | `/board/aep` | **AEP appointment tracker** — enrollment appointments booked per agent for a set window (week 1 is 10/15–10/21, goal 40 each), ranked with ties, a floor total, agents with one or more booked, and days until AEP opens. Feed is `/board/aep/feed.js`; counts are pushed to `/ingest/aep` |
 | `/board/beatdraw`, `/board/beatdraw/preview` | **Beat Your Number draw** — pulls three names from the agents who cleared their own summer number, one every five seconds, each posted as it lands and taken out of the pool, then a celebration board with just the three names. `/preview` loops it on a short clock with the live pool; `?seed=abc` pins a preview's winners, `?at=7.2` freezes it on a moment, `?countdown=3` shortens its countdown |
 | `/board/lasthat`, `/board/lasthat/preview` | **The Last Hat** — one $500 winner drawn from a hat weighted by tickets (one per 50 points, ×2 over your summer number, ×3 at 130%, +3 for 12 apps). The hat as a grid with each holder's tickets, a five-second spotlight spin, the winner posted, then a celebration. Armed by a `lasthat_config` row, result stored as `lasthat:<contest>`; same preview options as the Beat Your Number board |
@@ -107,6 +108,31 @@ failed query leaves the last real counts on screen instead of blanking them.
 
 The window, the goal and the AEP open date travel in the push, so the board has none of them
 written in. Moving to week 2 means changing the window in the Routine's query and payload.
+
+## Agent sign-in and dashboards
+
+`https://ghe-board.com/` is the agents' front door. An agent types their NPN and lands on `/me`,
+their own AEP dashboard: Core sales and STHHC + HI sales against goal, the daily pace needed over
+the selling days left, and the road from Oct 15 to Dec 7. The page polls `/api/me` once a minute
+while it is on screen. The TVs are unchanged; they keep their keyed `/board/*` URLs, on this
+domain or on workers.dev.
+
+There is no password, by design. An NPN is public, so this identifies an agent rather than proving
+who is typing. That is acceptable because the page holds only the agent's own counts and goals,
+never customer data. Unknown NPNs all get the same message, and 30 failed tries from one IP in
+10 minutes lock that IP out for the rest of the window. The session is an HttpOnly cookie, good
+for 30 days, holding the NPN plus an HMAC keyed off the Worker's `BOARD_KEY` (or
+`AGENT_SESSION_SECRET` if set). Rotating either signs everyone out. The agent pages sit outside the
+board key, and the board key does not open them.
+
+Who can sign in is whoever is on the last push. A Routine pushes
+`{generated_at, window, goals?, quote?, rows:[{npn, agent, core, combo, core_goal?, combo_goal?}]}`
+to `/ingest/agents` with the same bearer secret as the other pushes. Roster is profile 507
+`ENABLED` minus the standing exclusions, NPN from `agents.npn_number`. Counts are policies
+submitted on an Eastern date from 10/15 to 12/07, classified with the scoreboard's CASE: Core is
+`core`, combo is `sthhc` + `hi`. Goals default to 140 Core and 30 combo; a per-agent
+`core_goal`/`combo_goal` overrides them. A push without `quote` keeps the current quote. An empty
+roster, a malformed row or a repeated NPN is refused, so a bad query never locks the floor out.
 
 ## Beat Your Number draw
 

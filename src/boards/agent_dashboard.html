@@ -1,0 +1,138 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AEP Dashboard | Get Health-e</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#071827;color:#eef7ff;min-height:100vh;background-image:radial-gradient(circle at 80% 0,#123e64 0,transparent 34%),linear-gradient(135deg,#061521,#0a2236 55%,#071827)}.wrap{max-width:1400px;margin:auto;padding:24px 34px 36px}.nav{height:74px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff18}.logo{width:235px;max-height:58px;object-fit:contain;filter:drop-shadow(0 6px 18px #0006)}.navright{display:flex;gap:14px;align-items:center}.chip{padding:10px 15px;border:1px solid #ffffff20;background:#ffffff0a;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.08em}.avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#2185c5;font-weight:900}.hero{display:flex;justify-content:space-between;align-items:end;padding:50px 0 28px}.eyebrow{font-size:12px;letter-spacing:.2em;color:#56c58b;font-weight:900}.hero h1{font-size:54px;margin:9px 0 8px;line-height:1}.hero h1 span{color:#5ab5ed}.hero p{margin:0;color:#9fb5c7;font-size:17px}.countdown{text-align:right}.countdown strong{font-size:58px;line-height:.9;color:#fff}.countdown div{font-size:12px;letter-spacing:.16em;color:#7f9aaf;font-weight:900;margin-top:8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}.card{background:linear-gradient(145deg,#102b40e8,#0b2032e8);border:1px solid #ffffff16;border-radius:24px;padding:26px;box-shadow:0 22px 55px #0004;position:relative;overflow:hidden}.card:after{content:"";position:absolute;width:180px;height:180px;border-radius:50%;background:#258bc51a;right:-70px;top:-70px}.cardhead{display:flex;justify-content:space-between;align-items:center}.label{font-size:12px;letter-spacing:.16em;color:#70a7ca;font-weight:900}.target{font-size:12px;color:#9bb0c0;background:#ffffff0c;border:1px solid #ffffff16;padding:9px 12px;border-radius:10px}.target b{color:#fff;font-size:18px;margin-left:5px}.mainstat{display:flex;align-items:center;gap:34px;padding:25px 0}.ring{--p:0;width:190px;height:190px;border-radius:50%;background:conic-gradient(#35a8e0 calc(var(--p)*1%),#ffffff12 0);display:grid;place-items:center;box-shadow:0 0 45px #35a8e01c}.ring.combo{background:conic-gradient(#52c88a calc(var(--p)*1%),#ffffff12 0)}.ringin{width:145px;height:145px;border-radius:50%;background:#0c2234;display:grid;place-content:center;text-align:center}.ringin b{font-size:44px}.ringin span{font-size:10px;letter-spacing:.15em;color:#809aad;font-weight:900}.sales span{display:block;font-size:11px;letter-spacing:.15em;color:#809aad;font-weight:900}.sales b{font-size:70px;line-height:1.05}.sales small{color:#829bac;font-size:16px}.bar{height:10px;background:#ffffff12;border-radius:10px;overflow:hidden}.bar i{height:100%;display:block;width:0;background:linear-gradient(90deg,#2489c8,#5cc5ef);border-radius:10px;transition:.5s}.comboBar i{background:linear-gradient(90deg,#299e66,#62d99c)}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.stat{background:#07182780;border:1px solid #ffffff0d;border-radius:14px;padding:15px}.stat span{display:block;font-size:10px;color:#7691a5;text-transform:uppercase;letter-spacing:.1em;font-weight:800}.stat b{display:block;font-size:22px;margin-top:5px}.lower{display:grid;grid-template-columns:1.35fr .65fr;gap:22px;margin-top:22px}.journey,.quote{min-height:235px}.road{margin-top:55px}.track{height:8px;background:#ffffff14;border-radius:20px;position:relative}.fill{height:100%;width:0;background:linear-gradient(90deg,#278ecb,#50c98b);border-radius:20px}.marker{position:absolute;top:50%;transform:translate(-50%,-50%);width:20px;height:20px;border:5px solid #0d2639;background:#58c88d;border-radius:50%;left:0}.roadlabels{display:flex;justify-content:space-between;margin-top:14px;font-size:11px;color:#7791a5;font-weight:900;letter-spacing:.08em}.quote{background:linear-gradient(145deg,#163b5b,#0b293e)}.qmark{font:100px Georgia;color:#4cb1e3;line-height:.65;opacity:.55}.quote blockquote{font:italic 24px/1.35 Georgia;margin:14px 0 0}.quote small{display:block;margin-top:22px;color:#63cc95;font-weight:900;letter-spacing:.14em}.adminlink{color:#8fb2c9;text-decoration:none;font-size:12px}.adminlink:hover{color:#fff}@media(max-width:850px){.wrap{padding:18px}.hero{align-items:start}.hero h1{font-size:38px}.countdown strong{font-size:42px}.grid,.lower{grid-template-columns:1fr}.mainstat{gap:20px}.ring{width:155px;height:155px}.ringin{width:118px;height:118px}.sales b{font-size:55px}.logo{width:185px}}@media(max-width:520px){.hero{display:block}.countdown{text-align:left;margin-top:28px}.mainstat{flex-direction:column;align-items:flex-start}.stats{grid-template-columns:1fr}.navright .chip{display:none}}
+
+/* Light / dark theme */
+.theme-toggle{width:42px;height:42px;border:1px solid #ffffff20;background:#ffffff0a;color:#eef7ff;border-radius:50%;display:grid;place-items:center;cursor:pointer;font-size:19px;padding:0;transition:.2s}.theme-toggle:hover{transform:translateY(-1px);background:#ffffff14}
+body.light{background:#f3f7fa;color:#10283a;background-image:radial-gradient(circle at 80% 0,#d9eefb 0,transparent 34%),linear-gradient(135deg,#f7fbfd,#eef5f9 55%,#f5f9fb)}
+body.light .nav,body.light nav{border-bottom-color:#16364d18}
+body.light .logo{filter:drop-shadow(0 5px 14px #31556e18)}
+body.light .chip{background:#fff;border-color:#18394e18;color:#24465d}
+body.light .theme-toggle{background:#fff;border-color:#18394e20;color:#173a52;box-shadow:0 5px 16px #1d4d6b12}
+body.light .hero h1{color:#10283a}body.light .hero h1 span{color:#1682bd}body.light .hero p{color:#627d90}
+body.light .countdown strong{color:#10283a}body.light .countdown div{color:#698599}
+body.light .card,body.light .panel{background:linear-gradient(145deg,#ffffff,#f8fbfd);border-color:#173c5618;box-shadow:0 18px 45px #17415d14;color:#10283a}
+body.light .card:after{background:#258bc50d}body.light .label{color:#337da7}body.light .target{color:#668294;background:#edf5f9;border-color:#173c5615}body.light .target b{color:#10283a}
+body.light .ring{background:conic-gradient(#238fc9 calc(var(--p)*1%),#dce8ee 0);box-shadow:0 0 35px #238fc918}body.light .ring.combo{background:conic-gradient(#36ad72 calc(var(--p)*1%),#dce8ee 0)}body.light .ringin{background:#fff}body.light .ringin span,body.light .sales span,body.light .sales small{color:#6c8799}
+body.light .bar,body.light .track{background:#dce7ed}body.light .stat{background:#f2f7fa;border-color:#173c560d}body.light .stat span,body.light .roadlabels{color:#6d889a}
+body.light .quote{background:linear-gradient(145deg,#e8f5fc,#f7fbfd)}body.light .quote blockquote{color:#17394f}body.light .marker{border-color:#f7fbfd}
+body.light a{color:#217cae}body.light label{color:#58778b}body.light input,body.light textarea{background:#fff;color:#10283a;border-color:#173c5625}body.light .note{color:#668395}
+/* Additions for the live version */
+.updated{margin-top:10px;font-size:12px;color:#7f9aaf;letter-spacing:.04em}
+.updated.stale{color:#f0b35a}
+.preaep{display:none;margin-top:12px;font-size:13px;font-weight:800;letter-spacing:.06em;color:#56c58b}
+.preaep.show{display:block}
+body.light .updated{color:#698599}
+</style></head><body><div class="wrap"><nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><div class="navright"><button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch theme" title="Switch light/dark mode">☀</button><div class="chip">2026 AEP PERFORMANCE</div><div class="avatar" id="avatar">··</div><a class="adminlink" href="/logout">Sign out</a></div></nav><section class="hero"><div><div class="eyebrow">AGENT PERFORMANCE CENTER</div><h1><i id="greet" style="font-style:normal">Welcome</i>, <span id="firstName">…</span></h1><p>Your goals. Your pace. Your finish line.</p><div class="preaep" id="preAep">AEP OPENS OCTOBER 15 — YOUR COUNTS START THAT MORNING</div><div class="updated" id="updated">Loading your numbers…</div></div><div class="countdown"><strong id="daysLeft">—</strong><div>SELLING DAYS REMAINING</div></div></section><section class="grid"><article class="card"><div class="cardhead"><div class="label">CORE SALES</div><div class="target">GOAL <b id="coreGoal">—</b></div></div><div class="mainstat"><div class="ring" id="coreRing"><div class="ringin"><b id="corePct">0%</b><span>TO GOAL</span></div></div><div class="sales"><span>CURRENT SALES</span><b id="coreSales">0</b><small> / <span id="coreGoal2" style="display:inline">—</span></small></div></div><div class="bar"><i id="coreBar"></i></div><div class="stats"><div class="stat"><span>Remaining</span><b id="coreRemain">—</b></div><div class="stat"><span>Daily Pace Needed</span><b id="corePace">—</b></div><div class="stat"><span>Status</span><b id="coreStatus">Not Started</b></div></div></article><article class="card"><div class="cardhead"><div class="label">STHHC + HI COMBO</div><div class="target">GOAL <b id="comboGoal">—</b></div></div><div class="mainstat"><div class="ring combo" id="comboRing"><div class="ringin"><b id="comboPct">0%</b><span>TO GOAL</span></div></div><div class="sales"><span>CURRENT SALES</span><b id="comboSales">0</b><small> / <span id="comboGoal2" style="display:inline">—</span></small></div></div><div class="bar comboBar"><i id="comboBar"></i></div><div class="stats"><div class="stat"><span>Remaining</span><b id="comboRemain">—</b></div><div class="stat"><span>Daily Pace Needed</span><b id="comboPace">—</b></div><div class="stat"><span>Status</span><b id="comboStatus">Not Started</b></div></div></article></section><section class="lower"><article class="card journey"><div class="label">THE ROAD TO DECEMBER 7</div><h2>AEP Journey</h2><div class="road"><div class="track"><div class="fill" id="roadFill"></div><div class="marker" id="currentDot"></div></div><div class="roadlabels"><span>OCT 15 · START</span><span id="journeyPct">0% COMPLETE</span><span>DEC 7 · FINISH</span></div></div></article><article class="card quote"><div class="label">QUOTE OF THE WEEK</div><div class="qmark">“</div><blockquote id="quoteText"></blockquote><small>WEEKLY MINDSET</small></article></section></div>
+<script>
+(function () {
+  // Theme: remembered per device, defaulting to the system setting.
+  var b = document.body, t = document.getElementById('themeToggle');
+  var saved = null;
+  try { saved = localStorage.getItem('gheTheme'); } catch (e) {}
+  var pref = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  function apply(x) {
+    b.classList.toggle('light', x === 'light');
+    t.textContent = x === 'light' ? '☾' : '☀';
+    t.title = x === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+    t.setAttribute('aria-label', t.title);
+  }
+  apply(pref);
+  t.addEventListener('click', function () {
+    var x = b.classList.contains('light') ? 'dark' : 'light';
+    try { localStorage.setItem('gheTheme', x); } catch (e) {}
+    apply(x);
+  });
+})();
+
+(function () {
+  // AEP selling days: Mon–Sat from Oct 15 to Dec 7, Thanksgiving off, plus the
+  // final Sunday. Today counts as remaining.
+  var SELLING = ["2026-10-15","2026-10-16","2026-10-17","2026-10-19","2026-10-20","2026-10-21","2026-10-22","2026-10-23","2026-10-24","2026-10-26","2026-10-27","2026-10-28","2026-10-29","2026-10-30","2026-11-02","2026-11-03","2026-11-04","2026-11-05","2026-11-06","2026-11-07","2026-11-09","2026-11-10","2026-11-11","2026-11-12","2026-11-13","2026-11-14","2026-11-16","2026-11-17","2026-11-18","2026-11-19","2026-11-20","2026-11-21","2026-11-23","2026-11-24","2026-11-25","2026-11-27","2026-11-28","2026-11-30","2026-12-01","2026-12-02","2026-12-03","2026-12-04","2026-12-05","2026-12-06","2026-12-07"];
+  var POLL_MS = 60 * 1000;
+  var STALE_MS = 3 * 60 * 60 * 1000;
+  var $ = function (id) { return document.getElementById(id); };
+  var timer = null;
+
+  // Dates and greetings run on Eastern time, whatever the device is set to.
+  function etParts(d) {
+    var f = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' });
+    var p = {};
+    f.formatToParts(d).forEach(function (x) { p[x.type] = x.value; });
+    return { date: p.year + '-' + p.month + '-' + p.day, hour: Number(p.hour) };
+  }
+  function clock(iso) {
+    return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  }
+
+  function set(prefix, sales, goal, remainDays, jp, started) {
+    var p = goal ? Math.min(100, Math.round(sales / goal * 100)) : 0;
+    var rem = Math.max(0, goal - sales);
+    var pace = remainDays ? Math.ceil(rem / remainDays * 100) / 100 : (rem ? '—' : 0);
+    $(prefix + 'Goal').textContent = goal;
+    $(prefix + 'Goal2').textContent = goal;
+    $(prefix + 'Sales').textContent = sales;
+    $(prefix + 'Pct').textContent = p + '%';
+    $(prefix + 'Remain').textContent = rem;
+    $(prefix + 'Pace').textContent = pace;
+    $(prefix + 'Bar').style.width = p + '%';
+    $(prefix + 'Ring').style.setProperty('--p', p);
+    $(prefix + 'Status').textContent = p >= 100 ? 'Goal Crushed' : (!started || sales === 0) ? 'Not Started' : p >= jp ? 'On Pace' : 'Needs Push';
+  }
+
+  function render(d) {
+    var now = etParts(new Date());
+    var remainDays = SELLING.filter(function (x) { return x >= now.date; }).length;
+    var done = SELLING.filter(function (x) { return x < now.date; }).length;
+    var jp = Math.min(100, Math.round(done / SELLING.length * 100));
+    var started = now.date >= SELLING[0];
+
+    var parts = String(d.name || '').trim().split(/\s+/);
+    var first = parts[0] || 'there';
+    $('firstName').textContent = first + '.';
+    $('avatar').textContent = ((parts[0] || '')[0] || '') + ((parts.length > 1 ? parts[parts.length - 1] : '')[0] || '');
+    $('greet').textContent = now.hour < 12 ? 'Good morning' : now.hour < 17 ? 'Good afternoon' : 'Good evening';
+    document.title = d.name + ' | AEP Dashboard';
+
+    $('daysLeft').textContent = remainDays;
+    $('roadFill').style.width = jp + '%';
+    $('currentDot').style.left = jp + '%';
+    $('journeyPct').textContent = jp + '% COMPLETE';
+    $('quoteText').textContent = d.quote || '';
+    $('preAep').classList.toggle('show', !started);
+
+    set('core', d.core.sales, d.core.goal, remainDays, jp, started);
+    set('combo', d.combo.sales, d.combo.goal, remainDays, jp, started);
+
+    var u = $('updated');
+    if (d.generated_at) {
+      u.textContent = 'Numbers as of ' + clock(d.generated_at) + ' ET · refreshes on its own';
+      u.classList.toggle('stale', Date.now() - Date.parse(d.generated_at) > STALE_MS);
+    } else {
+      u.textContent = 'Waiting for the first update';
+    }
+  }
+
+  function load() {
+    fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401) { location.href = '/'; return null; }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) { if (d) render(d); })
+      .catch(function () {
+        $('updated').textContent = "Can't reach the server — retrying";
+        $('updated').classList.add('stale');
+      });
+  }
+
+  // Poll while the tab is in view; catch up the moment it comes back.
+  function start() { if (!timer) timer = setInterval(load, POLL_MS); }
+  function stop() { clearInterval(timer); timer = null; }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stop(); else { load(); start(); }
+  });
+  load();
+  start();
+})();
+</script></body></html>

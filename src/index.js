@@ -27,6 +27,8 @@
 //   GET  /board/aep/feed.js       that board's counts
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
 //   GET  /healthz                 liveness probe (no auth)
+//   GET  /, /login, /me, /api/me  agent sign-in (NPN) and the per-agent AEP dashboard — see agent.js
+//   POST /ingest/agents           agent roster + AEP counts for those dashboards (bearer secret)
 
 import { DISABLED_BOARDS, renderConsole, renderDaily, renderLive, renderLeadersSthhc, renderMtd, renderRotation } from './boards.js';
 import { STATIC_BOARDS } from './static_boards.js';
@@ -49,6 +51,7 @@ import ROSTER from './contest_roster.json';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
+import { AGENT_PATHS, handleAgentRoute } from './agent.js';
 
 // Snapshots arrive every 10 min (six staggered hourly Routines); the badge
 // threshold tolerates one missed cycle plus generation time so it only shows
@@ -85,6 +88,11 @@ async function route(request, env, url) {
   if (path === '/ingest/paperchase' && request.method === 'POST') return handlePaperChaseIngest(request, env);
   if (path === '/ingest/aep' && request.method === 'POST') return handleAepIngest(request, env);
   if (path === '/webhooks/onyx' && request.method === 'POST') return handleWebhook(request, env);
+
+  // Agents sign in with their NPN and see their own dashboard. These pages sit
+  // outside the board key on purpose: agents never get the key, and the key
+  // never gets them into each other's dashboards.
+  if (AGENT_PATHS.has(path)) return handleAgentRoute(request, env, path, { checkBearer: bearerDenied });
 
   // Key in the path, not the query: /k/<key> survives link shorteners and chat
   // apps that drop query strings, so one link can be handed to the whole floor.
@@ -268,10 +276,6 @@ async function route(request, env, url) {
     return new Response('Unknown board', { status: 404 });
   }
 
-  if (path === '/') {
-    return new Response('ghealthe-tv-boards. Boards live under /board/*.', { status: 200 });
-  }
-
   return new Response('Not found', { status: 404 });
 }
 
@@ -427,6 +431,15 @@ function timingSafeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
   return diff === 0;
+}
+
+// The Routine pushes all carry the same bearer secret. Returns the refusal, or
+// null when the request may proceed.
+function bearerDenied(request, env) {
+  if (!env.INGEST_SECRET) return new Response('ingest not configured', { status: 503 });
+  const auth = request.headers.get('authorization') || '';
+  if (!timingSafeEqual(auth, `Bearer ${env.INGEST_SECRET}`)) return new Response('unauthorized', { status: 401 });
+  return null;
 }
 
 // ---------- snapshot ----------
