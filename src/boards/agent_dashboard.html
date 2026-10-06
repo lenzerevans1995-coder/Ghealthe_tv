@@ -117,7 +117,7 @@ body.light .mgrbar a{color:#1f8a57}
 
     var u = $('updated');
     if (d.generated_at) {
-      u.textContent = 'Numbers as of ' + clock(d.generated_at) + ' ET · refreshes on its own';
+      u.textContent = 'Numbers as of ' + clock(d.as_of || d.generated_at) + ' ET · refreshes on its own';
       u.classList.toggle('stale', Date.now() - Date.parse(d.generated_at) > STALE_MS);
     } else {
       u.textContent = 'Waiting for the first update';

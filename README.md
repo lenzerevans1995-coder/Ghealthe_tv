@@ -136,9 +136,19 @@ Apart from managers, who can sign in is whoever is on the last push. A Routine p
 to `/ingest/agents` with the same bearer secret as the other pushes. Roster is profile 507
 `ENABLED` minus the standing exclusions, NPN from `agents.npn_number`. Counts are policies
 submitted on an Eastern date from 10/15 to 12/07 (never in the future — a mistyped submitted date can't count early), classified with the scoreboard's CASE: Core is
-`core`, combo is `sthhc` + `hi`. Goals default to 140 Core and 30 combo; a per-agent
-`core_goal`/`combo_goal` overrides them. A push without `quote` keeps the current quote. An empty
+`core`, combo is `sthhc` + `hi`. Core goals come from each agent's AEP Game Plan (Jotform), kept by NPN in
+`src/agent_goals.json` — the latest submission wins, and agents without one get 140. STHHC + HI is 30
+for everyone. A `core_goal`/`combo_goal` on a pushed row overrides both. Which plan an agent signed
+(Option A or B) shows only on the manager list, never on the agent's own page. A push without `quote` keeps the current quote. An empty
 roster, a malformed row or a repeated NPN is refused, so a bad query never locks the floor out.
+
+Between pushes, sales arrive live from the Onyx webhook. Each delivery carries the agent's NPN, and
+the Worker records it in `agent_dash_events`. A dashboard adds the deliveries for policies
+*submitted* after the last push, within the window and never in the future, so a sale shows up
+within about a minute (the page's poll). An edit to an older policy arrives late but is already in
+the push, so it doesn't count twice; repeated deliveries for one policy replace each other. Each
+push deletes the deliveries it now includes, so a missed or duplicated delivery is corrected within
+the hour.
 
 ## Beat Your Number draw
 

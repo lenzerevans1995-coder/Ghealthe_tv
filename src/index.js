@@ -51,7 +51,7 @@ import ROSTER from './contest_roster.json';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
-import { AGENT_PATHS, handleAgentRoute } from './agent.js';
+import { AGENT_PATHS, handleAgentRoute, recordAgentSale } from './agent.js';
 
 // Snapshots arrive every 10 min (six staggered hourly Routines); the badge
 // threshold tolerates one missed cycle plus generation time so it only shows
@@ -935,6 +935,17 @@ async function handleWebhook(request, env) {
   // display name. Recorded separately so a missing field degrades that board
   // alone, and never the counts.
   await recordContestEvent(env, { event, policy, product, policyId });
+
+  // The agent dashboards count this sale against the NPN on the delivery.
+  // Best-effort: a failure here must not make Onyx retry a delivery the boards
+  // already have, and the hourly push catches the sale regardless.
+  try {
+    await recordAgentSale(env, {
+      policyId, product,
+      npn: event.agent?.npn_number ?? policy.agent?.npn_number,
+      submittedAt: policy.submitted_timestamp ?? event.timestamp ?? null,
+    });
+  } catch (e) { /* dashboards fall back to the hourly push */ }
 
   // The standings just moved; tell every open board rather than making them
   // wait out a poll.

@@ -11,6 +11,12 @@
 //   GET  /me/logo.png  the Get Health-e logo the pages carry
 //   POST /ingest/agents  roster + per-agent AEP counts (bearer secret, same as /ingest)
 //
+// Between pushes, sales move the dashboards straight off the Onyx webhook: each
+// delivery names the agent's NPN, so it is recorded against that NPN and added
+// on top of the last push (see liveSales). The hourly push stays the source of
+// truth and clears what it has absorbed, so a missed or duplicated delivery
+// heals within the hour instead of compounding.
+//
 // Sign-in is by NPN alone, by design: the page shows an agent's own sales
 // counts and goals, nothing about any customer. An NPN is a public number, so
 // this identifies an agent rather than proving who is at the keyboard — the
@@ -20,6 +26,7 @@ import AGENT_LOGIN_PAGE from './boards/agent_login.html';
 import AGENT_DASHBOARD_PAGE from './boards/agent_dashboard.html';
 import TEAM_PAGE from './boards/agent_team.html';
 import MANAGERS from './managers.json';
+import GAME_PLANS from './agent_goals.json';
 import GHE_LOGO from '../assets/ghe-logo.png';
 
 const SESSION_COOKIE = 'ghe_agent';
@@ -31,6 +38,18 @@ const FAIL_LIMIT = 30;
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
 
 const DEFAULT_GOALS = { core: 140, combo: 30 };
+
+// Each agent's Core goal comes from their AEP Game Plan (Jotform), by NPN.
+// Which plan an agent signed (Option A or B) is for managers only: it is
+// returned by /api/team and never by /api/me.
+const PLANS = GAME_PLANS.goals || {};
+
+function goalsFor(feed, r) {
+  return {
+    core: r.core_goal || PLANS[r.npn]?.core_goal || feed.goals?.core || DEFAULT_GOALS.core,
+    combo: r.combo_goal || feed.goals?.combo || DEFAULT_GOALS.combo,
+  };
+}
 const DEFAULT_QUOTE = 'Success is the sum of small efforts, repeated day in and day out.';
 
 const PAGE_HEADERS = {
@@ -189,25 +208,92 @@ async function findAgent(env, npn) {
   if (!feed || !Array.isArray(feed.rows)) return null;
   const r = feed.rows.find((x) => x.npn === npn);
   if (!r) return null;
+  const live = await liveSales(env, feed, npn);
+  const add = live.byNpn.get(npn) || { core: 0, combo: 0 };
+  const goal = goalsFor(feed, r);
   return {
     name: r.agent,
-    core: { sales: r.core, goal: r.core_goal || feed.goals?.core || DEFAULT_GOALS.core },
-    combo: { sales: r.combo, goal: r.combo_goal || feed.goals?.combo || DEFAULT_GOALS.combo },
+    core: { sales: r.core + add.core, goal: goal.core },
+    combo: { sales: r.combo + add.combo, goal: goal.combo },
     quote: feed.quote || DEFAULT_QUOTE,
     window: feed.window || null,
     generated_at: feed.generated_at || null,
+    as_of: add.core + add.combo > 0 ? live.newest : feed.generated_at || null,
     server_now: new Date().toISOString(),
   };
 }
 
+// Sales the webhook has delivered since the last push, per NPN. Only policies
+// *written* after the push count: anything submitted before it is already in
+// the pushed numbers, and an edit to an old policy arrives now but belongs to
+// then. Same window and same no-future-dates rule as the Routine's query.
+async function liveSales(env, feed, npn) {
+  const out = { byNpn: new Map(), newest: null };
+  if (!feed?.generated_at) return out;
+  const sql = 'SELECT npn, product, submitted_at, ts FROM agent_dash_events WHERE submitted_at > ?' + (npn ? ' AND npn = ?' : '');
+  let rows;
+  try {
+    const stmt = env.DB.prepare(sql);
+    rows = (await (npn ? stmt.bind(isoZ(feed.generated_at), npn) : stmt.bind(isoZ(feed.generated_at))).all()).results || [];
+  } catch (e) {
+    return out; // table not there yet: the pushed numbers alone are still right
+  }
+  const from = feed.window?.from || '2026-10-15';
+  const to = feed.window?.to || '2026-12-07';
+  const now = Date.now();
+  for (const e of rows) {
+    const t = Date.parse(e.submitted_at);
+    const day = etDate(e.submitted_at);
+    if (!day || day < from || day > to || t > now) continue;
+    const cur = out.byNpn.get(e.npn) || { core: 0, combo: 0 };
+    if (e.product === 'core') cur.core += 1;
+    else if (e.product === 'sthhc' || e.product === 'hi') cur.combo += 1;
+    else continue;
+    out.byNpn.set(e.npn, cur);
+    if (!out.newest || e.ts > out.newest) out.newest = e.ts;
+  }
+  return out;
+}
+
+// Called from the Onyx webhook for every verified delivery. Upserts by policy,
+// so an update replaces the earlier record rather than adding a second sale.
+export async function recordAgentSale(env, { policyId, product, npn, submittedAt }) {
+  const n = String(npn ?? '').replace(/\D/g, '');
+  if (!n || policyId == null || !submittedAt) return;
+  await env.DB.prepare(
+    'INSERT INTO agent_dash_events (policy_id, ts, submitted_at, product, npn) VALUES (?, ?, ?, ?, ?) ' +
+    'ON CONFLICT(policy_id) DO UPDATE SET ts = excluded.ts, submitted_at = excluded.submitted_at, product = excluded.product, npn = excluded.npn'
+  ).bind(policyId, new Date().toISOString(), isoZ(submittedAt), product, n).run();
+}
+
+function etDate(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+// Normalise to the one ISO form (UTC, milliseconds, Z) so string comparisons in
+// SQL line up between pushed and delivered timestamps.
+function isoZ(value) {
+  const s = String(value);
+  const d = new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? s : `${s}Z`);
+  return isNaN(d) ? s : d.toISOString();
+}
+
 async function teamView(env, manager) {
   const feed = await loadAgentFeed(env);
-  const rows = (feed?.rows || []).map((r) => ({
-    npn: r.npn,
-    name: r.agent,
-    core: { sales: r.core, goal: r.core_goal || feed.goals?.core || DEFAULT_GOALS.core },
-    combo: { sales: r.combo, goal: r.combo_goal || feed.goals?.combo || DEFAULT_GOALS.combo },
-  }));
+  const live = await liveSales(env, feed, null);
+  const rows = (feed?.rows || []).map((r) => {
+    const add = live.byNpn.get(r.npn) || { core: 0, combo: 0 };
+    const goal = goalsFor(feed, r);
+    return {
+      npn: r.npn,
+      name: r.agent,
+      plan: PLANS[r.npn]?.plan || null,
+      core: { sales: r.core + add.core, goal: goal.core },
+      combo: { sales: r.combo + add.combo, goal: goal.combo },
+    };
+  });
   return {
     viewer: { manager: true, name: manager.name },
     window: feed?.window || null,
@@ -258,6 +344,12 @@ async function handleAgentIngest(request, env, checkBearer) {
   await env.DB.prepare(
     'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
   ).bind('agent_dash', JSON.stringify(feed), new Date().toISOString()).run();
+  // Sales written before this push are in its numbers now; anything left past
+  // two days is stale either way.
+  try {
+    await env.DB.prepare('DELETE FROM agent_dash_events WHERE submitted_at <= ? OR ts < ?')
+      .bind(isoZ(feed.generated_at), new Date(Date.now() - 2 * 86400000).toISOString()).run();
+  } catch (e) { /* table not created yet: nothing to prune */ }
   return jsonNoStore({ ok: true, rows: rows.length });
 }
 
