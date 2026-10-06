@@ -125,8 +125,8 @@ for 30 days, holding the NPN plus an HMAC keyed off the Worker's `BOARD_KEY` (or
 `AGENT_SESSION_SECRET` if set). Rotating either signs everyone out. The agent pages sit outside the
 board key, and the board key does not open them.
 
-Managers sign in the same way but land on `/team`: every agent, sortable by Core or
-STHHC + HI and searchable, each linking to that agent's dashboard (`/me?agent=<npn>`) exactly as the
+Managers sign in the same way but land on `/team`: every agent, sortable by clicking the Agent, Core or
+STHHC + HI column headings, and searchable, each linking to that agent's dashboard (`/me?agent=<npn>`) exactly as the
 agent sees it. Managers aren't on the floor roster, so they are listed in `src/managers.json`;
 adding one means adding a line there and deploying. An agent who puts `?agent=` in the URL still
 gets their own numbers, because only a manager's session can view another agent.
