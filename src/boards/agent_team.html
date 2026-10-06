@@ -12,13 +12,15 @@ body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#eef7ff;min-height:10
 .nav{height:74px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff18;gap:12px}
 .logo{width:220px;max-width:50vw;max-height:58px;object-fit:contain;filter:drop-shadow(0 6px 18px #0006)}
 .navright{display:flex;gap:14px;align-items:center;font-size:13px;color:#9fb5c7}
-.navright a{color:#8fb2c9;text-decoration:none;font-size:12px}
-.navright a:hover{color:#fff}
-.eyebrow{font-size:12px;letter-spacing:.2em;color:#56c58b;font-weight:900;margin-top:40px}
-h1{font-size:44px;margin:8px 0 6px;line-height:1.05}
+.user{display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2489c8,#35a8e0);color:#fff;font-weight:900;font-size:15px;letter-spacing:.02em;box-shadow:0 4px 14px #2489c840}
+.avatar:empty{display:none}
+.uname{color:#eef7ff;font-weight:700;font-size:14px}
+.logout{display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;border:1px solid #ffffff26;background:#ffffff0a;color:#cfe3f1;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:.04em;transition:.15s}
+.logout:hover{background:#c0392b;border-color:#c0392b;color:#fff}
 .updated{margin-top:8px;font-size:12px;color:#f0b35a}
 .updated:empty{display:none}
-.tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:26px 0 14px}
+.tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:28px 0 14px}
 .tools input{flex:1;min-width:200px;font-size:15px;padding:11px 14px;border-radius:10px;border:1px solid #ffffff26;background:#07182799;color:#fff;outline:none}
 .tools input:focus{border-color:#35a8e0}
 .head button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font:inherit;letter-spacing:inherit;color:inherit}
@@ -67,14 +69,12 @@ div.row[data-npn]:hover{background:#ffffff08}
 .box .save{background:#2489c8;border-color:#2489c8;color:#fff}
 .box .save:disabled{opacity:.6;cursor:wait}
 .empty{padding:30px;text-align:center;color:#9fb5c7}
-@media(max-width:700px){.wrap{padding:16px}h1{font-size:32px}.row{grid-template-columns:30px 1fr 40px 1fr 56px;gap:10px;padding:12px 14px}.row .metric.combo,.head .h-combo{display:none}}
+@media(max-width:700px){.wrap{padding:16px}.uname{display:none}.row{grid-template-columns:30px 1fr 40px 1fr 56px;gap:10px;padding:12px 14px}.row .metric.combo,.head .h-combo{display:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><div class="navright"><span id="who"></span><a href="/logout">Sign out</a></div></nav>
-  <div class="eyebrow">MANAGER VIEW</div>
-  <h1>The floor's AEP dashboards</h1>
+  <nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><div class="navright"><div class="user"><span class="avatar" id="avatar" aria-hidden="true"></span><span class="uname" id="who"></span></div><a class="logout" href="/logout">Sign out</a></div></nav>
   <div class="updated" id="updated"></div>
   <div class="tools">
     <input id="q" type="search" placeholder="Find an agent" autocomplete="off">
@@ -182,7 +182,10 @@ div.row[data-npn]:hover{background:#ffffff08}
     });
     if (!shown) list.appendChild(el('div', 'empty', data.rows.length ? 'No agent matches that search.' : 'No roster has been pushed yet.'));
 
-    $('who').textContent = data.viewer ? data.viewer.name : '';
+    var vname = data.viewer ? data.viewer.name : '';
+    $('who').textContent = vname;
+    var parts = vname.trim().split(/\s+/);
+    $('avatar').textContent = parts[0] ? (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() : '';
     // Only speak up when something is wrong: numbers hours old, or none yet.
     var u = $('updated');
     if (!data.generated_at) u.textContent = 'Waiting for the first update';
