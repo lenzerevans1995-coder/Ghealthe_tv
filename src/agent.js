@@ -161,7 +161,7 @@ async function handleLogin(request, env) {
     if (!who) return redirect('/');
     const npnKey = `pin:${who}`;
     if (await lockedOut(env, npnKey, PIN_FAIL_LIMIT)) return redirect('/?step=pin&e=wait');
-    if (!(await pinMatches(env, pin))) {
+    if (!(await pinMatches(env, who, pin))) {
       await noteFailure(env, ip);
       await noteFailure(env, npnKey);
       return redirect('/?step=pin&e=pin');
@@ -197,11 +197,12 @@ function pinPage(errorCode) {
   return new Response(page, { headers: PAGE_HEADERS });
 }
 
-// The PIN is never in the code: the database holds a salted SHA-256 of it under
-// kv 'admin_pin'. No row means no manager can get in — closed, not open.
-async function pinMatches(env, pin) {
+// Each manager has their own PIN. It is never in the code: the database holds
+// a salted SHA-256 of it under kv 'admin_pin:<npn>'. No row means that manager
+// can't get in — closed, not open.
+async function pinMatches(env, npn, pin) {
   if (!/^\d{4,8}$/.test(pin)) return false;
-  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('admin_pin').first();
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(`admin_pin:${npn}`).first();
   if (!row) return false;
   let rec;
   try { rec = JSON.parse(row.v); } catch (e) { return false; }

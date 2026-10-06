@@ -134,10 +134,10 @@ gets their own numbers, because only a manager's session can view another agent.
 The manager view is behind an admin PIN as well as the NPN. A manager NPN leads to a PIN step, kept
 in a signed five-minute cookie, and only a session issued after the right PIN carries manager
 rights. That session is marked in the cookie and signed differently, so an agent cookie can't be
-edited into one. The PIN is not in the code: kv `admin_pin` holds `{salt, sha256}` of
-`<salt>:<pin>`, and without that row nobody gets in. Wrong PINs count toward the per-IP limit and
-toward a limit of 10 per manager in 10 minutes. To change the PIN, write a new salt and hash to
-that row.
+edited into one. Each manager has their own PIN, and it is not in the code: kv `admin_pin:<npn>` holds
+`{salt, sha256}` of `<salt>:<pin>`, and a manager without that row can't get in. Wrong PINs count toward the per-IP limit and
+toward a limit of 10 per manager in 10 minutes. To change a PIN, write a new salt and
+hash to that manager's row.
 
 Apart from managers, who can sign in is whoever is on the last push. A Routine pushes
 `{generated_at, window, goals?, quote?, rows:[{npn, agent, core, combo, core_goal?, combo_goal?}]}`

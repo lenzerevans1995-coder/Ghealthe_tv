@@ -1,5 +1,12 @@
 {
   "managers": [
-    { "npn": "18765989", "name": "Lenzer Evans" }
+    {
+      "npn": "18765989",
+      "name": "Lenzer Evans"
+    },
+    {
+      "npn": "19653777",
+      "name": "Ernesto Garcia"
+    }
   ]
 }
