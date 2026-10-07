@@ -899,6 +899,9 @@ async function handleAepIngest(request, env) {
     generated_at: generatedAt, day, day_start_total: dayStartTotal, total,
     window: body.window || null, goal: Number(body.goal) || 40,
     aep_open: body.aep_open || '2026-10-15', rows,
+    // How many of the window's appointments already existed seven days ago,
+    // for the board's "up from N a week ago". Optional: the line drops it if absent.
+    week_ago_total: Number.isInteger(body.week_ago_total) && body.week_ago_total >= 0 ? body.week_ago_total : null,
   };
   await env.DB.prepare(
     'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'

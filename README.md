@@ -97,26 +97,27 @@ own refresh. TVs are assumed 16:9 landscape.
 
 ## AEP appointment tracker
 
-`/board/aep` counts **enrollment appointments** per agent that *start* inside a window — not
-appointments booked inside it. Most of what shows up for 10/15–10/21 was booked weeks or months
-ago for those dates, so the count only ever grows until the window passes.
+`/board/aep` is the **AEP Enrollment Pipeline, Top 10** board: the ten agents with the most
+enrollment appointments that *start* inside the window (week 1 is 10/15 to 10/21, goal 40 each),
+ranked with ties, then the next names "just outside", plus a rail with days until AEP opens (or days
+left in the week once it does), the floor total and how many agents have any booked. It follows the
+design in `src/boards/aep_tracker.html`, uses the site's embedded fonts, and repaints on the socket
+or a two-minute poll.
 
 An agent's count is the pipeline appointments with `appointment_type = 'ENROLLMENT'` whose start
 falls on an Eastern-time date in the window, excluding any whose task is cancelled, attributed to
 `COALESCE(appointments.user_id, tasks.assigned_to_user_id, tasks.created_by_user_id)` and never to
-the system user (-1). The roster is worker profile 507, `ENABLED`, minus the standing exclusions
-(8, 1108, 3748, 1595, 1607), the same cohort as the MTD sales report, so an agent with nothing booked
-still appears as a zero and the "of N" is the real floor. It reproduces the hand-built board it
-replaced for 28 of 29 agents; the exception is one extra appointment in Onyx for Jalen McClendon.
+the system user (-1). The roster is every user active in Onyx who is on worker profile 507 in any
+status but archived, minus the standing exclusions (8, 1108, 3748, 1595, 1607). Onyx switched some
+top bookers off profile 507 on 10/7, and requiring the profile to be enabled would drop them and their
+appointments from the board.
 
-A Routine runs the query and POSTs `{generated_at, window, goal, aep_open, rows:[{agent, booked}]}`
-to `/ingest/aep` with the same bearer secret as the other pushes. The Worker stores it as the
-`aep_tracker` row, remembers the first push of each Eastern day so the board can say "up from N
-this morning", and tells open boards over the socket. An empty or malformed roster is refused, so a
-failed query leaves the last real counts on screen instead of blanking them.
-
-The window, the goal and the AEP open date travel in the push, so the board has none of them
-written in. Moving to week 2 means changing the window in the Routine's query and payload.
+Two Routines (:20 and :50, weekdays) run the query and POST
+`{generated_at, window, goal, aep_open, week_ago_total, rows:[{agent, booked}]}` to `/ingest/aep`
+with the same bearer secret as the other pushes. `week_ago_total` is how many of the window's
+appointments already existed seven days earlier (by `appointments.created_at`). It is optional: the
+board leaves out the "up from N a week ago" line when it is missing. An empty or malformed roster is
+refused, so a failed query leaves the last real counts on screen.
 
 ## Agent sign-in and dashboards
 

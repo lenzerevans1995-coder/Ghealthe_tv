@@ -1,8 +1,10 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>AEP Appointment Tracker</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AEP Enrollment Pipeline — Top 10</title>
 <link rel="stylesheet" href="/board/contest-fonts.css">
 <style>
-
 :root{
   --ink:#04223A; --ink2:#08304F; --line:#12496F;
   --blue:#015A9C; --green:#0B9444; --gold:#F6B301;
@@ -11,273 +13,263 @@
   --prose:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:var(--ink)}
-#wrap{position:fixed;inset:0;background:var(--ink);overflow:hidden}
-#stage{width:1920px;height:1080px;position:fixed;top:50%;left:50%;transform-origin:center center;
-  background:var(--ink);color:var(--paper);font-family:var(--prose);display:flex;flex-direction:column}
+html,body{height:100vh;width:100vw;overflow:hidden;background:var(--ink);color:var(--paper)}
+body{display:flex;flex-direction:column;font-family:var(--prose)}
 
 .hdr{
   flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
-  padding:23.76px 49.92px;
-  background:var(--ink2);border-bottom:4.86px solid var(--gold);
+  padding:clamp(14px,2.2vh,30px) clamp(20px,2.6vw,54px);
+  background:var(--ink2);border-bottom:clamp(3px,.45vh,6px) solid var(--gold);
 }
 .hdr h1{
   font-family:var(--cond);font-weight:800;letter-spacing:.015em;
-  font-size:54px;line-height:1;text-transform:uppercase;
+  font-size:clamp(30px,5.0vh,62px);line-height:1;text-transform:uppercase;
 }
 .hdr h1 .hl{color:var(--gold)}
 .hdr .meta{text-align:right;font-family:var(--cond);font-weight:600;color:var(--mute);
-  font-size:22.14px;line-height:1.25;text-transform:uppercase;letter-spacing:.05em}
+  font-size:clamp(14px,2.05vh,25px);line-height:1.25;text-transform:uppercase;letter-spacing:.05em}
 .hdr .meta b{color:var(--paper);font-weight:700}
 
 .main{flex:1 1 auto;display:flex;min-height:0}
 
 .board{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;
-  padding:16.2px 42.24px 10.8px}
+  padding:clamp(10px,1.5vh,22px) clamp(18px,2.2vw,46px) clamp(6px,1.0vh,14px)}
 
 .collbl{display:flex;align-items:flex-end;justify-content:space-between;
   font-family:var(--cond);font-weight:700;color:var(--mute);text-transform:uppercase;
-  letter-spacing:.11em;font-size:17.82px;
-  padding:0 11.52px 7.56px;border-bottom:1px solid var(--line)}
+  letter-spacing:.11em;font-size:clamp(11px,1.65vh,19px);
+  padding:0 clamp(6px,.6vw,14px) clamp(4px,.7vh,9px);border-bottom:1px solid var(--line)}
 
 .rows{flex:1 1 auto;display:flex;flex-direction:column;justify-content:space-evenly;min-height:0}
 
 .row{position:relative;display:flex;align-items:center;
-  padding:5.94px 11.52px;
+  padding:clamp(3px,.55vh,9px) clamp(6px,.6vw,14px);
   border-bottom:1px solid rgba(18,73,111,.55);overflow:hidden}
-.bar{position:absolute;left:0;top:3.24px;bottom:3.24px;
+.bar{position:absolute;left:0;top:clamp(2px,.3vh,5px);bottom:clamp(2px,.3vh,5px);
   background:var(--blue);opacity:.30;border-radius:0 4px 4px 0;z-index:0}
 .row.one .bar{background:var(--gold);opacity:.26}
 .row>*:not(.bar){position:relative;z-index:1}
 
-.rk{flex:0 0 80.64px;font-family:var(--cond);font-weight:800;
-  color:var(--mute);font-size:39.96px;line-height:1}
+.rk{flex:0 0 clamp(44px,4.2vw,86px);font-family:var(--cond);font-weight:800;
+  color:var(--mute);font-size:clamp(22px,3.7vh,46px);line-height:1}
 .row.one .rk{color:var(--gold)}
 .nm{flex:1 1 auto;font-family:var(--cond);font-weight:700;letter-spacing:.005em;
-  font-size:43.2px;line-height:1.05;white-space:nowrap;
+  font-size:clamp(24px,4.0vh,50px);line-height:1.05;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
-.row.one .nm{font-weight:800;font-size:54px}
-.ct{flex:0 0 192px;text-align:right;font-family:var(--cond);font-weight:800;
-  font-size:49.68px;line-height:1}
+.row.one .nm{font-weight:800;font-size:clamp(26px,4.5vh,58px)}
+.ct{flex:0 0 clamp(110px,10vw,210px);text-align:right;font-family:var(--cond);font-weight:800;
+  font-size:clamp(28px,4.6vh,58px);line-height:1}
 .ct .of{color:var(--mute);font-weight:700;font-size:.55em;letter-spacing:.02em}
-.row.one .ct{color:var(--gold);font-size:79.92px}
+.row.one .ct{color:var(--gold);font-size:clamp(34px,6.2vh,80px)}
 .row.one .ct .of{color:rgba(246,179,1,.62)}
 
-.tail{flex:0 0 auto;padding:10.8px 11.52px 0;
-  font-family:var(--prose);color:var(--mute);font-size:17.82px;line-height:1.35}
+.tail{flex:0 0 auto;padding:clamp(6px,1.0vh,14px) clamp(6px,.6vw,14px) 0;
+  font-family:var(--prose);color:var(--mute);font-size:clamp(11px,1.65vh,19px);line-height:1.35}
 .tail b{color:var(--paper);font-weight:700}
 
-.rail{flex:0 0 480px;background:var(--blue);
-  display:flex;flex-direction:column;justify-content:center;gap:25.92px;
-  padding:25.92px 34.56px;text-align:center}
+.rail{flex:0 0 clamp(300px,25vw,480px);background:var(--blue);
+  display:flex;flex-direction:column;justify-content:center;gap:clamp(12px,2.4vh,34px);
+  padding:clamp(16px,2.4vh,38px) clamp(16px,1.8vw,36px);text-align:center}
 .rail .lbl{font-family:var(--cond);font-weight:700;text-transform:uppercase;
-  letter-spacing:.13em;font-size:19.98px;color:rgba(242,247,251,.78);
+  letter-spacing:.13em;font-size:clamp(12px,1.85vh,22px);color:rgba(242,247,251,.78);
   line-height:1.2}
 .big{font-family:var(--cond);font-weight:800;color:var(--gold);
-  font-size:189px;line-height:.86;
+  font-size:clamp(90px,17.5vh,210px);line-height:.86;
   animation:breathe 2.6s ease-in-out infinite}
 @keyframes breathe{0%,100%{opacity:1}50%{opacity:.82}}
 @media (prefers-reduced-motion: reduce){.big{animation:none}}
-.sub{font-family:var(--cond);font-weight:800;font-size:64.8px;line-height:1}
-.rule{height:1px;background:rgba(242,247,251,.26);margin:0 36px}
+.sub{font-family:var(--cond);font-weight:800;font-size:clamp(34px,6.0vh,76px);line-height:1}
+.rule{height:1px;background:rgba(242,247,251,.26);margin:0 clamp(10px,2vw,36px)}
 
 .ask{flex:0 0 auto;background:var(--green);
-  padding:22.68px 49.92px;
-  display:flex;align-items:center;justify-content:space-between;gap:38.4px}
+  padding:clamp(12px,2.1vh,30px) clamp(20px,2.6vw,54px);
+  display:flex;align-items:center;justify-content:space-between;gap:clamp(16px,2vw,40px)}
 .ask .big-ask{font-family:var(--cond);font-weight:800;text-transform:uppercase;
-  letter-spacing:.012em;font-size:50.76px;line-height:1.02}
+  letter-spacing:.012em;font-size:clamp(28px,4.7vh,58px);line-height:1.02}
 .ask .why{font-family:var(--prose);font-weight:600;text-align:right;
-  font-size:21.6px;line-height:1.3;color:rgba(255,255,255,.93);flex:0 0 auto}
+  font-size:clamp(13px,2.0vh,24px);line-height:1.3;color:rgba(255,255,255,.93);flex:0 0 auto}
 .ask .why b{font-weight:700;color:#fff}
 
-</style></head><body>
-<div id="wrap"><div id="stage">
+.row.empty .nm{color:var(--mute);font-weight:600}
+.stale{color:var(--gold)}
+</style>
+</head>
+<body>
 
   <div class="hdr">
-    <h1 id="title">AEP Enrollment Pipeline — <span class="hl">Top 10</span></h1>
-    <div class="meta" id="meta">&nbsp;</div>
+    <h1>AEP Enrollment Pipeline — <span class="hl">Top 10</span></h1>
+    <div class="meta">
+      Enrollment appts booked for <span id="wkLabel">week 1</span><br>
+      <b id="win">10/15 – 10/21</b> &nbsp;·&nbsp; goal <b id="goal">40 per agent</b> &nbsp;·&nbsp; as of <b id="asof">—</b>
+    </div>
   </div>
 
   <div class="main">
     <div class="board">
-      <div class="collbl"><span>Agent</span><span id="colHead">Booked / goal</span></div>
+      <div class="collbl"><span>Agent</span><span id="colLbl">Week 1 booked / goal</span></div>
       <div class="rows" id="rows"></div>
       <div class="tail" id="tail"></div>
     </div>
 
     <div class="rail">
       <div>
-        <div class="lbl" id="openLbl">Days until AEP opens</div>
-        <div class="big" id="openBig">—</div>
+        <div class="lbl" id="daysLbl">Days until AEP opens</div>
+        <div class="big" id="days">—</div>
       </div>
       <div class="rule"></div>
       <div>
-        <div class="lbl" id="floorLbl">Booked · floor</div>
-        <div class="sub" id="floorVal">—</div>
+        <div class="lbl" id="floorLbl">Week 1 booked · floor</div>
+        <div class="sub" id="floor">—</div>
       </div>
       <div>
-        <div class="lbl">Agents with 1+ booked</div>
-        <div class="sub" id="withVal">—</div>
+        <div class="lbl">Agents on the board</div>
+        <div class="sub" id="onBoard">—</div>
       </div>
     </div>
   </div>
 
   <div class="ask">
-    <div class="big-ask" id="askBig">&nbsp;</div>
-    <div class="why" id="askWhy">&nbsp;</div>
+    <div class="big-ask" id="askText">40 enrollment appointments each, booked 10/15 – 10/21.</div>
+    <div class="why" id="why"></div>
   </div>
 
-</div></div>
-<script src="/board/aep/feed.js"></script>
 <script>
-const $ = (s) => document.querySelector(s);
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const QS = new URLSearchParams(location.search);
-const OVERSCAN = Math.max(0, Math.min(10, Number(QS.get('overscan')) || 0));
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var WORDS = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen','Twenty'];
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
 
-/* Drawn at 1920x1080 and scaled by one transform, like the contest boards, so
-   type and boxes shrink together instead of reflowing at different rates. */
-function fit() {
-  const s = Math.min(innerWidth / 1920, innerHeight / 1080) * (1 - OVERSCAN / 100);
-  $('#stage').style.transform = `translate(-50%,-50%) scale(${s})`;
-}
-addEventListener('resize', fit); setInterval(fit, 2000); fit();
-
-const TOP_ROWS = 10;       // most rows the board will give a ranking
-const TAIL_NAMES = 26;     // names the footer will list before saying "+N more"
-const plural = (n, one, many) => n + ' ' + (n === 1 ? one : (many || one + 's'));
-
-// "2026-10-15" -> "10/15", with no timezone arithmetic to get it wrong
-const md = (iso) => { const p = String(iso).split('-'); return Number(p[1]) + '/' + Number(p[2]); };
-const etFmt = (d, o) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', ...o }).format(d);
-const etDay = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York',
-  year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-const dayNum = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5;
-
-/* Rank the way a leaderboard is read: ties share a rank and the next rank skips
-   (1, 2, 3, 3, 5). Whole tie groups are kept together — a group that would run
-   past the last row goes to the footer instead, so nobody is shown above a
-   teammate they are level with just because the alphabet put them first. */
-function layout(rows) {
-  const live = rows.filter((r) => r.booked > 0)
-    .sort((a, b) => b.booked - a.booked || a.agent.localeCompare(b.agent));
-  const groups = [];
-  live.forEach((r, i) => {
-    const g = groups[groups.length - 1];
-    if (g && g.n === r.booked) g.agents.push(r.agent);
-    else groups.push({ n: r.booked, rank: i + 1, agents: [r.agent] });
-  });
-  const shown = []; let used = 0, k = 0;
-  for (; k < groups.length; k++) {
-    if (used + groups[k].agents.length > TOP_ROWS) break;
-    shown.push(groups[k]); used += groups[k].agents.length;
+  // Dates on Eastern time, whatever the TV's clock is set to.
+  function etDate(d) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
   }
-  const tail = groups.slice(k);
-  // Degenerate start of the window: one tie group already bigger than the board.
-  if (!shown.length && tail.length) {
-    const g = tail.shift();
-    shown.push({ n: g.n, rank: g.rank, agents: g.agents.slice(0, TOP_ROWS) });
-    if (g.agents.length > TOP_ROWS) tail.unshift({ n: g.n, rank: g.rank, agents: g.agents.slice(TOP_ROWS) });
+  function md(iso) { var p = iso.split('-'); return (+p[1]) + '/' + (+p[2]); }
+  function daysBetween(a, b) { return Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000); }
+  function asOf(iso) {
+    var d = new Date(iso);
+    var day = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' });
+    var dt = d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'America/New_York' });
+    var tm = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+    return day + ' ' + dt + ', ' + tm;
   }
-  return { shown, tail };
-}
 
-function render() {
-  const f = window.AEP_TRACKER;
-  if (!f || !Array.isArray(f.rows) || !f.rows.length) {
-    $('#rows').innerHTML = '<div class="row"><div class="nm">Waiting for the first update…</div></div>';
-    return;
-  }
-  const goal = Number(f.goal) || 40;
-  const win = f.window || {};
-  const label = (win.label || 'week 1');
-  const range = win.from && win.to ? md(win.from) + ' – ' + md(win.to) : '';
-  const rows = f.rows.map((r) => ({ agent: String(r.agent), booked: Number(r.booked) || 0 }));
-  const total = rows.reduce((s, r) => s + r.booked, 0);
-  const withAny = rows.filter((r) => r.booked > 0).length;
-  const none = rows.length - withAny;
+  function render() {
+    var f = window.AEP_TRACKER;
+    if (!f || !Array.isArray(f.rows)) return;
+    var goal = f.goal || 40;
+    var w = f.window || { from: '2026-10-15', to: '2026-10-21', label: 'week 1' };
+    var label = w.label || 'week 1';
+    var Label = label.charAt(0).toUpperCase() + label.slice(1);
+    var range = md(w.from) + ' – ' + md(w.to);
+    $('wkLabel').textContent = label;
+    $('win').textContent = range;
+    $('goal').textContent = goal + ' per agent';
+    $('colLbl').textContent = Label + ' booked / goal';
+    $('floorLbl').textContent = Label + ' booked · floor';
+    $('askText').textContent = goal + ' enrollment appointments each, booked ' + range + '.';
+    $('asof').textContent = f.generated_at ? asOf(f.generated_at) : '—';
+    $('asof').classList.toggle('stale', f.generated_at && Date.now() - Date.parse(f.generated_at) > 3 * 3600 * 1000);
 
-  const when = f.generated_at ? new Date(f.generated_at) : null;
-  const asOf = when && !isNaN(when)
-    ? etFmt(when, { weekday: 'short', month: 'numeric', day: 'numeric' }) + ', ' +
-      etFmt(when, { hour: 'numeric', minute: '2-digit' })
-    : '—';
-  $('#meta').innerHTML = `Enrollment appts booked for ${esc(label)}<br>` +
-    (range ? `<b>${esc(range)}</b> &nbsp;·&nbsp; ` : '') +
-    `goal <b>${goal} per agent</b> &nbsp;·&nbsp; as of <b>${esc(asOf)}</b>`;
-  $('#colHead').textContent = `${label.charAt(0).toUpperCase() + label.slice(1)} booked / goal`;
-  $('#floorLbl').textContent = `${label.charAt(0).toUpperCase() + label.slice(1)} booked · floor`;
+    // Rank with ties sharing a place (1, 1, 3), best first, then by name.
+    var rows = f.rows.slice().sort(function (a, b) { return (b.booked - a.booked) || a.agent.localeCompare(b.agent); });
+    var rank = 0, prev = null;
+    rows.forEach(function (r, i) { if (r.booked !== prev) { rank = i + 1; prev = r.booked; } r.rank = rank; });
+    var top = rows.slice(0, 10);
+    var max = top.length ? Math.max(1, top[0].booked) : 1;
+    var box = $('rows');
+    box.textContent = '';
+    top.forEach(function (r) {
+      var row = el('div', 'row' + (r.rank === 1 && r.booked > 0 ? ' one' : '') + (r.booked === 0 ? ' empty' : ''));
+      var bar = el('div', 'bar'); bar.style.width = Math.round(r.booked / max * 100) + '%';
+      row.appendChild(bar);
+      row.appendChild(el('div', 'rk', String(r.rank)));
+      row.appendChild(el('div', 'nm', r.agent));
+      var ct = el('div', 'ct', String(r.booked));
+      ct.appendChild(el('span', 'of', '/' + goal));
+      row.appendChild(ct);
+      box.appendChild(row);
+    });
 
-  const { shown, tail } = layout(rows);
-  const top = shown.length ? shown[0].n : 1;
-  $('#rows').innerHTML = shown.map((g) => g.agents.map((a) =>
-    `<div class="row${g.rank === 1 ? ' one' : ''}"><div class="bar" style="width:${(g.n / top * 100).toFixed(1)}%"></div>` +
-    `<div class="rk">${g.rank}</div><div class="nm">${esc(a)}</div>` +
-    `<div class="ct">${g.n}<span class="of">/${goal}</span></div></div>`).join('')).join('');
-
-  let left = TAIL_NAMES;
-  const parts = [];
-  tail.forEach((g, i) => {
-    if (left <= 0) return;
-    const names = g.agents.slice(0, left);
-    left -= names.length;
-    const more = g.agents.length - names.length;
-    parts.push(`<b>${i === 0 ? 'Also at' : 'At'} ${g.n}:</b> ${names.map(esc).join(' · ')}` +
-               (more ? ` · +${more} more` : ''));
-  });
-  $('#tail').innerHTML = parts.join(' &nbsp;&nbsp;|&nbsp;&nbsp; ');
-
-  // Days to go, counted on the Eastern calendar. Once it opens the number has
-  // nothing left to count down, so the panel says so instead of showing 0 or -3.
-  const open = f.aep_open || '2026-10-15';
-  const days = dayNum(open) - dayNum(etDay(new Date()));
-  if (days > 0) { $('#openLbl').textContent = 'Days until AEP opens'; $('#openBig').textContent = days; }
-  else          { $('#openLbl').textContent = 'AEP is'; $('#openBig').textContent = 'OPEN'; }
-
-  $('#floorVal').textContent = total;
-  $('#withVal').textContent = `${withAny} of ${rows.length}`;
-
-  $('#askBig').textContent = `${goal} enrollment appointments each` + (range ? `, booked ${range}.` : '.');
-  const up = Number.isFinite(f.day_start_total) && total > f.day_start_total
-    ? ` — up from <b>${f.day_start_total}</b> this morning` : '';
-  const noneLine = none === 0 ? 'Every agent has at least one booked.'
-    : `<b>${plural(none, 'agent')}</b> ${none === 1 ? 'has' : 'have'} none booked yet.`;
-  $('#askWhy').innerHTML = `Floor has <b>${total}</b> on the calendar for ${esc(label)}${up}.<br>${noneLine}`;
-}
-
-render();
-
-/* A socket pushes the moment a refresh lands; a slow poll runs underneath so a
-   TV whose socket died quietly is never badly stale. */
-let pulling = false;
-async function pull() {
-  if (pulling) return;
-  pulling = true;
-  try {
-    const r = await fetch('/board/aep/feed.js?t=' + Date.now(), { credentials: 'same-origin' });
-    if (r.ok) {
-      const t = await r.text();
-      window.AEP_TRACKER = JSON.parse(t.slice(t.indexOf('=') + 1).trim().replace(/;$/, ''));
-      render();
+    var rest = rows.slice(10).filter(function (r) { return r.booked > 0; }).slice(0, 11);
+    var tail = $('tail');
+    tail.textContent = '';
+    if (rest.length) {
+      tail.appendChild(el('b', null, 'Just outside:'));
+      tail.appendChild(document.createTextNode(' ' + rest.map(function (r) { return r.agent + ' ' + r.booked; }).join(' · ')));
     }
-  } catch (e) { /* keep the last good paint up */ }
-  finally { pulling = false; }
-}
-setInterval(pull, 120000);
-// "days until" changes at midnight ET, not on a data push
-setInterval(render, 60000);
 
-let ws = null, backoff = 1000;
-function connect() {
-  try {
-    ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/board/live-ws' + location.search);
-  } catch (e) { return retry(); }
-  ws.onopen = () => { backoff = 1000; pull(); };
-  ws.onmessage = (ev) => { let m = {}; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m.type === 'aep') pull(); };
-  ws.onclose = retry;
-  ws.onerror = () => { try { ws.close(); } catch (e) {} };
-}
-function retry() { ws = null; setTimeout(connect, backoff + Math.random() * 1000); backoff = Math.min(backoff * 2, 30000); }
-connect();
+    var total = f.total != null ? f.total : rows.reduce(function (s, r) { return s + r.booked; }, 0);
+    $('floor').textContent = total;
+    $('onBoard').textContent = rows.filter(function (r) { return r.booked > 0; }).length + ' of ' + rows.length;
+
+    // Rail and closing line follow the calendar: before AEP opens, the countdown;
+    // during the week, days left in it.
+    var today = etDate(new Date());
+    var open = f.aep_open || w.from;
+    var n, sentence;
+    if (today < open) {
+      n = daysBetween(today, open);
+      $('daysLbl').textContent = 'Days until AEP opens';
+      sentence = (WORDS[n] || n) + ' selling day' + (n === 1 ? '' : 's') + ' left to fill the week.';
+    } else if (today <= w.to) {
+      n = daysBetween(today, w.to) + 1;
+      $('daysLbl').textContent = 'Days left in ' + label;
+      sentence = (WORDS[n] || n) + ' day' + (n === 1 ? '' : 's') + ' left in ' + label + '.';
+    } else {
+      n = 0;
+      $('daysLbl').textContent = Label + ' is done';
+      sentence = Label + ' is in the books.';
+    }
+    $('days').textContent = n;
+
+    var why = $('why');
+    why.textContent = '';
+    why.appendChild(el('b', null, String(total)));
+    why.appendChild(document.createTextNode(' on the calendar for ' + label));
+    if (f.week_ago_total != null) {
+      why.appendChild(document.createTextNode(' — up from '));
+      why.appendChild(el('b', null, String(f.week_ago_total)));
+      why.appendChild(document.createTextNode(' a week ago.'));
+    } else {
+      why.appendChild(document.createTextNode('.'));
+    }
+    why.appendChild(el('br'));
+    why.appendChild(document.createTextNode(sentence));
+  }
+
+  /* A socket pushes the moment a refresh lands; a slow poll runs underneath so a
+     TV whose socket died quietly is never badly stale. */
+  var pulling = false;
+  function pull() {
+    if (pulling) return;
+    pulling = true;
+    fetch('/board/aep/feed.js?t=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (t) {
+        if (t) { window.AEP_TRACKER = JSON.parse(t.slice(t.indexOf('=') + 1).trim().replace(/;$/, '')); render(); }
+      })
+      .catch(function () { /* keep the last good paint up */ })
+      .then(function () { pulling = false; });
+  }
+  setInterval(pull, 120000);
+  // The countdown changes at midnight ET, not on a data push.
+  setInterval(render, 60000);
+
+  var ws = null, backoff = 1000;
+  function connect() {
+    try {
+      ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/board/live-ws' + location.search);
+    } catch (e) { return retry(); }
+    ws.onopen = function () { backoff = 1000; pull(); };
+    ws.onmessage = function (ev) { var m = {}; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m.type === 'aep') pull(); };
+    ws.onclose = retry;
+    ws.onerror = function () { try { ws.close(); } catch (e) {} };
+  }
+  function retry() { ws = null; setTimeout(connect, backoff + Math.random() * 1000); backoff = Math.min(backoff * 2, 30000); }
+
+  pull();
+  connect();
+})();
 </script>
-</body></html>
+</body>
+</html>
