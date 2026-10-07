@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TV Boards | Get Health-e</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#eef7ff;min-height:100vh;background:#071827;
+  background-image:radial-gradient(circle at 80% 0,#123e64 0,transparent 34%),linear-gradient(135deg,#061521,#0a2236 55%,#071827)}
+.wrap{max-width:1000px;margin:auto;padding:24px 34px 48px}
+.nav{height:74px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff18;gap:12px}
+.logo{width:220px;max-width:50vw;max-height:58px;object-fit:contain;filter:drop-shadow(0 6px 18px #0006)}
+.signin{display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;border:1px solid #ffffff26;background:#ffffff0a;color:#cfe3f1;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:.04em}
+.signin:hover{background:#2489c8;border-color:#2489c8;color:#fff}
+h1{font-size:30px;margin:32px 0 6px}
+.sub{color:#9fb5c7;font-size:14px;margin:0 0 8px}
+h2{font-size:12px;letter-spacing:.16em;color:#70a7ca;font-weight:900;margin:30px 0 10px}
+.list{background:linear-gradient(145deg,#102b40e8,#0b2032e8);border:1px solid #ffffff16;border-radius:16px;overflow:hidden}
+.row{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px 18px;border-top:1px solid #ffffff0d}
+.row:first-child{border-top:0}
+.name{font-weight:800;font-size:16px}
+.desc{color:#9fb5c7;font-size:13px;margin-top:3px}
+.url{color:#7f9aaf;font-size:12px;margin-top:5px;font-family:Consolas,Menlo,monospace;word-break:break-all}
+.btns{display:flex;gap:8px}
+.btns a,.btns button{font:inherit;font-size:12px;font-weight:800;letter-spacing:.04em;padding:8px 12px;border-radius:8px;border:1px solid #ffffff22;background:#ffffff0a;color:#cfe3f1;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btns a:hover,.btns button:hover{background:#2489c8;border-color:#2489c8;color:#fff}
+.btns button.done{background:#299e66;border-color:#299e66;color:#fff}
+@media(max-width:640px){.wrap{padding:16px}.row{grid-template-columns:1fr}.btns{justify-content:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><a class="signin" href="/">Agent sign in</a></nav>
+  <h1>TV Boards</h1>
+  <p class="sub">Open a board or copy its link into PosterBooking. No key or sign in is needed.</p>
+
+  <h2>DAILY</h2>
+  <div class="list">
+    <div class="row" data-path="/board/live"><div><div class="name">Live Board</div><div class="desc">Today's running totals and leaders</div></div></div>
+    <div class="row" data-path="/board/sales"><div><div class="name">Live Sales</div><div class="desc">The latest sale, big, plus today's tally</div></div></div>
+    <div class="row" data-path="/board/daily"><div><div class="name">Yesterday</div><div class="desc">Yesterday's results</div></div></div>
+    <div class="row" data-path="/board/mtd"><div><div class="name">Month to Date</div><div class="desc">Month totals and pace</div></div></div>
+    <div class="row" data-path="/board/leaders/sthhc"><div><div class="name">STHHC Leaders</div><div class="desc">Top 5 and floor totals</div></div></div>
+    <div class="row" data-path="/board/run15"><div><div class="name">Run to 15</div><div class="desc">STHHC daily goal gauge</div></div></div>
+    <div class="row" data-path="/board/rotation"><div><div class="name">Rotation</div><div class="desc">Cycles Live, Yesterday, Month to Date and STHHC Leaders</div></div></div>
+  </div>
+
+  <h2>AEP</h2>
+  <div class="list">
+    <div class="row" data-path="/board/aep"><div><div class="name">AEP Appointment Tracker</div><div class="desc">Enrollment appointments booked, by agent</div></div></div>
+  </div>
+
+  <h2>CONTEST</h2>
+  <div class="list">
+    <div class="row" data-path="/board/teampoints"><div><div class="name">Team Points</div><div class="desc">Team standings</div></div></div>
+    <div class="row" data-path="/board/teams"><div><div class="name">Team Breakdown</div><div class="desc">Every agent by team</div></div></div>
+    <div class="row" data-path="/board/races"><div><div class="name">Individual Races</div><div class="desc">Agent races to their number</div></div></div>
+    <div class="row" data-path="/board/draws"><div><div class="name">Cash Draws</div><div class="desc">Draw eligibility and tickets</div></div></div>
+    <div class="row" data-path="/board/paperchase"><div><div class="name">The Paper Chase</div><div class="desc">Contest standings</div></div></div>
+  </div>
+
+  <h2>DRAWS</h2>
+  <div class="list">
+    <div class="row" data-path="/board/draw"><div><div class="name">Weekly Draw</div><div class="desc">Counts down and draws at 4:00 PM ET</div></div></div>
+    <div class="row" data-path="/board/beatdraw"><div><div class="name">Beat Your Number Draw</div><div class="desc">Three winners, drawn live</div></div></div>
+    <div class="row" data-path="/board/lasthat"><div><div class="name">The Last Hat</div><div class="desc">One winner from a ticket weighted hat</div></div></div>
+  </div>
+
+  <h2>FLYERS</h2>
+  <div class="list">
+    <div class="row" data-path="/board/month-open"><div><div class="name">Month Open</div><div class="desc">Start of month flyer</div></div></div>
+    <div class="row" data-path="/board/early-out"><div><div class="name">Early Out</div><div class="desc">Early out points counter</div></div></div>
+  </div>
+</div>
+<script>
+(function () {
+  // Each row gets its full link and two buttons. Built here so the links show
+  // whichever address the page was opened on.
+  var rows = document.querySelectorAll('.row[data-path]');
+  Array.prototype.forEach.call(rows, function (row) {
+    var full = location.origin + row.getAttribute('data-path');
+    var info = row.firstElementChild;
+    var u = document.createElement('div');
+    u.className = 'url';
+    u.textContent = full;
+    info.appendChild(u);
+    var btns = document.createElement('div');
+    btns.className = 'btns';
+    var open = document.createElement('a');
+    open.href = full;
+    open.target = '_blank';
+    open.rel = 'noopener';
+    open.textContent = 'Open';
+    var copy = document.createElement('button');
+    copy.type = 'button';
+    copy.textContent = 'Copy link';
+    copy.addEventListener('click', function () {
+      function done() { copy.textContent = 'Copied'; copy.classList.add('done'); setTimeout(function () { copy.textContent = 'Copy link'; copy.classList.remove('done'); }, 1500); }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(full).then(done, function () { window.prompt('Copy this link', full); });
+      else window.prompt('Copy this link', full);
+    });
+    btns.appendChild(open);
+    btns.appendChild(copy);
+    row.appendChild(btns);
+  });
+})();
+</script>
+</body>
+</html>

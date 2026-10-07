@@ -27,6 +27,7 @@
 //   GET  /board/aep/feed.js       that board's counts
 //   POST /webhooks/onyx           Onyx POLICY_CREATED/POLICY_UPDATED (HMAC verified)
 //   GET  /healthz                 liveness probe (no auth)
+//   GET  /tv                      links to every TV board (no key; the boards themselves are open too)
 //   GET  /, /login, /me, /api/me  agent sign-in (NPN) and the per-agent AEP dashboard — see agent.js
 //   POST /ingest/agents           agent roster + AEP counts for those dashboards (bearer secret)
 
@@ -47,6 +48,7 @@ import CONTEST_FONTS from './boards/contest_fonts.css';
 import CONTEST_CONFIG from './boards/contest.clientjs';
 import BEAT_DRAW_BOARD from './boards/beat_draw.html';
 import LAST_HAT_BOARD from './boards/last_hat.html';
+import TV_LINKS_PAGE from './boards/tv_links.html';
 import ROSTER from './contest_roster.json';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
@@ -74,6 +76,8 @@ export default {
     }
   },
 };
+
+const OPEN_PATHS = new Set(['/api/stats', '/api/draw', '/api/beatdraw', '/api/lasthat', '/assets/contest-flyer-aug11.jpg']);
 
 async function route(request, env, url) {
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -107,11 +111,19 @@ async function route(request, env, url) {
     return new Response(null, { status: 302, headers: { location: dest, 'set-cookie': keyCookie(env) } });
   }
 
-  // Everything below is a read; gate on the board key, from ?key= or from
+  // The TV boards are open: a screen loads its URL with no key, so the same
+  // link works on any TV. That covers every /board/* page, the feeds and fonts
+  // they load, their live socket, and the draw results they read. They show
+  // the floor's own names and counts, never customer data. The desk console
+  // and the diagnostics endpoints stay behind the key.
+  const openRead = path.startsWith('/board/') || OPEN_PATHS.has(path);
+  if (path === '/tv') return html(TV_LINKS_PAGE);
+
+  // Everything else below is a read; gate on the board key, from ?key= or from
   // the cookie a previous keyed visit left behind. Say what arrived
   // (length only, never the expected key) so a truncated copy-paste is
   // obvious from the error page itself.
-  if (!checkBoardKey(request, url, env)) {
+  if (!openRead && !checkBoardKey(request, url, env)) {
     const got = url.searchParams.get('key') || '';
     const detail = got
       ? `a key of ${got.length} characters arrived, which doesn't match`
