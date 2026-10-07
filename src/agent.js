@@ -351,16 +351,18 @@ async function liveSales(env, feed, npn) {
   } catch (e) {
     return out; // table not there yet: the pushed numbers alone are still right
   }
+  // Core counts from AEP open; STHHC + HI started counting earlier, on 10/1.
   const from = feed.window?.from || '2026-10-15';
+  const comboFrom = feed.window?.combo_from || '2026-10-01';
   const to = feed.window?.to || '2026-12-07';
   const now = Date.now();
   for (const e of rows) {
     const t = Date.parse(e.submitted_at);
     const day = etDate(e.submitted_at);
-    if (!day || day < from || day > to || t > now) continue;
+    if (!day || day > to || t > now) continue;
     const cur = out.byNpn.get(e.npn) || { core: 0, combo: 0 };
-    if (e.product === 'core') cur.core += 1;
-    else if (e.product === 'sthhc' || e.product === 'hi') cur.combo += 1;
+    if (e.product === 'core' && day >= from) cur.core += 1;
+    else if ((e.product === 'sthhc' || e.product === 'hi') && day >= comboFrom) cur.combo += 1;
     else continue;
     out.byNpn.set(e.npn, cur);
     if (!out.newest || e.ts > out.newest) out.newest = e.ts;
@@ -447,7 +449,7 @@ async function handleAgentIngest(request, env, checkBearer) {
   }
   const feed = {
     generated_at: body.generated_at || new Date().toISOString(),
-    window: body.window || { from: '2026-10-15', to: '2026-12-07' },
+    window: { from: '2026-10-15', to: '2026-12-07', combo_from: '2026-10-01', ...(body.window || {}) },
     goals: body.goals || DEFAULT_GOALS,
     quote: typeof body.quote === 'string' && body.quote.trim() ? body.quote.trim().slice(0, 300) : null,
     rows,

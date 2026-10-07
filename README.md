@@ -155,7 +155,7 @@ to `/ingest/agents` with the same bearer secret as the other pushes. Roster is p
 (`user_organization_rel.is_active`). Onyx leaves a deactivated agent's profile enabled, so without
 that check 18 departed agents, such as Gaej Walker, appeared on the list and could sign in. NPN
 comes from `agents.npn_number`. Counts are policies
-submitted on an Eastern date from 10/15 to 12/07 (never in the future — a mistyped submitted date can't count early), classified with the scoreboard's CASE: Core is
+submitted on an Eastern date through 12/07, Core from 10/15 and STHHC + HI from 10/1 (`window.combo_from`), (never in the future — a mistyped submitted date can't count early), classified with the scoreboard's CASE: Core is
 `core`, combo is `sthhc` + `hi`. Core goals come from each agent's AEP Game Plan (Jotform), kept by NPN in
 `src/agent_goals.json` — the latest submission wins, and agents without one get 140. STHHC + HI is 30
 for everyone. A `core_goal`/`combo_goal` on a pushed row overrides both. Which plan an agent signed
