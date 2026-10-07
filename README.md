@@ -7,10 +7,12 @@ and Onyx policy webhooks nudging today's counts in real time. Full design in `PL
 
 ## Routes
 
-The TV boards are open: every `/board/*` page, its feeds, fonts and live socket, plus `/api/stats`
-and the draw results, load with no key. `https://ghe-board.com/tv` lists them all with copyable
-links for PosterBooking. They show floor names and counts only, no customer data. Old keyed URLs
-still work. The desk console (`/console`), `/unlock` and the diagnostics endpoints
+Only the AEP appointment tracker (`/board/aep`) is switched on. Every other `/board/*` page answers
+404, and its refresh Routines (the six scoreboard snapshots and the Paper Chase push) are paused, not
+deleted. The code is all still here: to turn a board back on, add its paths to `ACTIVE_BOARD_PATHS`
+in `src/index.js` and resume its Routine. The AEP board, its feed, fonts and live socket load with no
+key, and `https://ghe-board.com/tv` links to it. The agent dashboards (`/`, `/me`, `/team`) and their
+Routine are unaffected. The desk console (`/console`), `/unlock` and the diagnostics endpoints
 (`/api/webhook-status`, `/api/hub-status`) still need the board key.
 
 

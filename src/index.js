@@ -77,7 +77,10 @@ export default {
   },
 };
 
-const OPEN_PATHS = new Set(['/api/stats', '/api/draw', '/api/beatdraw', '/api/lasthat', '/assets/contest-flyer-aug11.jpg']);
+// Only the AEP appointment tracker is still on. Every other board is switched
+// off (404) and its refresh Routines paused; the code stays so a board can be
+// turned back on by adding its paths here.
+const ACTIVE_BOARD_PATHS = new Set(['/board/aep', '/board/aep/feed.js', '/board/live-ws', '/board/contest-fonts.css']);
 
 async function route(request, env, url) {
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -111,12 +114,14 @@ async function route(request, env, url) {
     return new Response(null, { status: 302, headers: { location: dest, 'set-cookie': keyCookie(env) } });
   }
 
-  // The TV boards are open: a screen loads its URL with no key, so the same
-  // link works on any TV. That covers every /board/* page, the feeds and fonts
-  // they load, their live socket, and the draw results they read. They show
-  // the floor's own names and counts, never customer data. The desk console
-  // and the diagnostics endpoints stay behind the key.
-  const openRead = path.startsWith('/board/') || OPEN_PATHS.has(path);
+  // The TV boards that are on are open: a screen loads its URL with no key, so
+  // the same link works on any TV. That covers the board page, its feed, fonts
+  // and live socket. They show the floor's own names and counts, never customer
+  // data. The desk console and the diagnostics endpoints stay behind the key.
+  if (path.startsWith('/board/') && !ACTIVE_BOARD_PATHS.has(path)) {
+    return new Response('This board is switched off.', { status: 404 });
+  }
+  const openRead = path.startsWith('/board/');
   if (path === '/tv') return html(TV_LINKS_PAGE);
 
   // Everything else below is a read; gate on the board key, from ?key= or from
