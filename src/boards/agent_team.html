@@ -27,6 +27,16 @@ body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#eef7ff;min-height:10
 .tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:28px 0 14px}
 .tools input{flex:1;min-width:200px;font-size:15px;padding:11px 14px;border-radius:10px;border:1px solid #ffffff26;background:#07182799;color:#fff;outline:none}
 .tools input:focus{border-color:#35a8e0}
+.teampick{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.14em;color:#70a7ca;font-weight:900}
+.teampick select{font:inherit;font-size:15px;font-weight:700;letter-spacing:0;color:#fff;padding:10px 12px;border-radius:10px;border:1px solid #ffffff26;background:#071827;min-width:200px;cursor:pointer}
+.teampick select:focus{border-color:#35a8e0;outline:none}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 14px}
+.tile{background:linear-gradient(145deg,#102b40e8,#0b2032e8);border:1px solid #ffffff16;border-radius:14px;padding:14px 16px}
+.tile .k{font-size:10px;letter-spacing:.14em;color:#70a7ca;font-weight:900}
+.tile .v{font-size:26px;font-weight:800;margin-top:6px}
+.tile .v small{font-size:14px;color:#9fb5c7;font-weight:700}
+.tile .s{font-size:12px;color:#9fb5c7;margin-top:4px}
+.tile .bar{margin-top:8px}
 .head button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font:inherit;letter-spacing:inherit;color:inherit}
 .head button:hover{color:#fff}
 .head button:focus-visible{outline:2px solid #35a8e0;outline-offset:3px;border-radius:4px}
@@ -73,7 +83,7 @@ div.row[data-npn]:hover{background:#ffffff08}
 .box .save{background:#2489c8;border-color:#2489c8;color:#fff}
 .box .save:disabled{opacity:.6;cursor:wait}
 .empty{padding:30px;text-align:center;color:#9fb5c7}
-@media(max-width:700px){.wrap{padding:16px}.uname{display:none}.menu{margin-left:8px}.menu a{padding:8px 8px;font-size:12px}.logo{width:120px}.row{grid-template-columns:30px 1fr 40px 1fr 56px;gap:10px;padding:12px 14px}.row .metric.combo,.head .h-combo{display:none}}
+@media(max-width:700px){.wrap{padding:16px}.uname{display:none}.summary{grid-template-columns:1fr 1fr}.teampick select{min-width:0}.menu{margin-left:8px}.menu a{padding:8px 8px;font-size:12px}.logo{width:120px}.row{grid-template-columns:30px 1fr 40px 1fr 56px;gap:10px;padding:12px 14px}.row .metric.combo,.head .h-combo{display:none}}
 </style>
 </head>
 <body>
@@ -81,8 +91,10 @@ div.row[data-npn]:hover{background:#ffffff08}
   <nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><div class="menu"><a class="on" href="/team">Agent Dashboards</a><a href="/team/draft">Coaching Draft</a></div><div class="navright"><div class="user"><span class="avatar" id="avatar" aria-hidden="true"></span><span class="uname" id="who"></span></div><a class="logout" href="/logout">Sign out</a></div></nav>
   <div class="updated" id="updated"></div>
   <div class="tools">
+    <label class="teampick"><span>TEAM</span><select id="team" aria-label="Team"><option value="all">All agents</option></select></label>
     <input id="q" type="search" placeholder="Find an agent" autocomplete="off">
   </div>
+  <div class="summary" id="summary"></div>
   <div class="list" id="list"></div>
 </div>
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
@@ -93,6 +105,8 @@ div.row[data-npn]:hover{background:#ffffff08}
     <input id="mCore" type="number" min="1" max="1000" step="1" required>
     <label for="mCombo">STHHC + HI GOAL</label>
     <input id="mCombo" type="number" min="1" max="1000" step="1" required>
+    <label for="mTeam">TEAM</label>
+    <select id="mTeam"></select>
     <label for="mPlan">PLAN</label>
     <select id="mPlan">
       <option value="A">Option A</option>
@@ -109,6 +123,58 @@ div.row[data-npn]:hover{background:#ffffff08}
   var POLL_MS = 60 * 1000, STALE_MS = 3 * 60 * 60 * 1000;
   var $ = function (id) { return document.getElementById(id); };
   var data = null, sortKey = 'core', sortDir = -1, timer = null;
+  var team = null; // 'all', a leader's name, or '__none'; set from the viewer on first load
+
+  function teamOptions() {
+    var sel = $('team'), leaders = (data && data.leaders) || [];
+    var want = ['all'].concat(leaders, ['__none']).join('|');
+    if (sel.getAttribute('data-opts') !== want) {
+      sel.textContent = '';
+      sel.appendChild(new Option('All agents', 'all'));
+      leaders.forEach(function (n) { sel.appendChild(new Option(n, n)); });
+      sel.appendChild(new Option('No team', '__none'));
+      sel.setAttribute('data-opts', want);
+    }
+    // A manager lands on their own team; everyone else on the whole floor.
+    if (team === null) team = leaders.indexOf(data.viewer && data.viewer.name) >= 0 ? data.viewer.name : 'all';
+    sel.value = team;
+  }
+  function inTeam(r) {
+    if (team === 'all') return true;
+    if (team === '__none') return !r.leader;
+    return r.leader === team;
+  }
+  function tile(k, sales, goal, isCombo) {
+    var t = el('div', 'tile');
+    t.appendChild(el('div', 'k', k));
+    var v = el('div', 'v', String(sales));
+    if (goal != null) v.appendChild(el('small', null, ' / ' + goal));
+    t.appendChild(v);
+    if (goal != null) {
+      var pct = goal ? Math.round(sales / goal * 100) : 0;
+      t.appendChild(el('div', 's', pct + '% to goal'));
+      var bar = el('div', 'bar' + (isCombo ? ' combo' : '')), i = el('i');
+      i.style.width = Math.min(100, pct) + '%';
+      bar.appendChild(i);
+      t.appendChild(bar);
+    }
+    return t;
+  }
+  function summary(rows) {
+    var box = $('summary');
+    box.textContent = '';
+    var sum = function (k, f) { return rows.reduce(function (s, r) { return s + r[k][f]; }, 0); };
+    var withSale = rows.filter(function (r) { return r.core.sales + r.combo.sales > 0; }).length;
+    var agents = tile(team === 'all' ? 'AGENTS ON THE FLOOR' : 'AGENTS ON THE TEAM', rows.length, null);
+    agents.appendChild(el('div', 's', withSale + ' with a sale'));
+    box.appendChild(agents);
+    box.appendChild(tile('CORE', sum('core', 'sales'), sum('core', 'goal'), false));
+    box.appendChild(tile('STHHC + HI', sum('combo', 'sales'), sum('combo', 'goal'), true));
+    var hit = rows.filter(function (r) { return r.core.sales >= r.core.goal; }).length;
+    var t = tile('AT CORE GOAL', hit, null);
+    t.appendChild(el('div', 's', 'of ' + rows.length + ' agents'));
+    box.appendChild(t);
+  }
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -130,8 +196,11 @@ div.row[data-npn]:hover{background:#ffffff08}
 
   function render() {
     if (!data) return;
+    teamOptions();
     var q = $('q').value.trim().toLowerCase();
-    var rows = data.rows.slice().sort(function (a, b) {
+    var teamRows = data.rows.filter(inTeam);
+    summary(teamRows);
+    var rows = teamRows.slice().sort(function (a, b) {
       if (sortKey === 'name') return sortDir * a.name.localeCompare(b.name);
       if (sortKey === 'plan') return sortDir * (a.plan || 'Z').localeCompare(b.plan || 'Z') || a.name.localeCompare(b.name);
       return sortDir * (a[sortKey].sales - b[sortKey].sales) || a.name.localeCompare(b.name);
@@ -184,7 +253,7 @@ div.row[data-npn]:hover{background:#ffffff08}
       list.appendChild(a);
       shown++;
     });
-    if (!shown) list.appendChild(el('div', 'empty', data.rows.length ? 'No agent matches that search.' : 'No roster has been pushed yet.'));
+    if (!shown) list.appendChild(el('div', 'empty', !data.rows.length ? 'No roster has been pushed yet.' : teamRows.length ? 'No agent matches that search.' : 'No agents on this team yet.'));
 
     var vname = data.viewer ? data.viewer.name : '';
     $('who').textContent = vname;
@@ -209,6 +278,7 @@ div.row[data-npn]:hover{background:#ffffff08}
   }
 
   $('q').addEventListener('input', render);
+  $('team').addEventListener('change', function () { team = this.value; render(); });
   // Edit popup. Managers only: the server refuses anyone else.
   var editing = null;
   function openEdit(npn) {
@@ -219,6 +289,11 @@ div.row[data-npn]:hover{background:#ffffff08}
     $('mCore').value = r.core.goal;
     $('mCombo').value = r.combo.goal;
     $('mPlan').value = r.plan || '';
+    var mt = $('mTeam');
+    mt.textContent = '';
+    (data.leaders || []).forEach(function (n) { mt.appendChild(new Option(n, n)); });
+    mt.appendChild(new Option('No team', ''));
+    mt.value = r.leader || '';
     $('mErr').textContent = '';
     $('mSave').disabled = false;
     $('modal').classList.add('open');
@@ -240,7 +315,7 @@ div.row[data-npn]:hover{background:#ffffff08}
     fetch('/api/team/goal', {
       method: 'POST', credentials: 'same-origin', cache: 'no-store',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ npn: editing.npn, core_goal: core, combo_goal: combo, plan: $('mPlan').value })
+      body: JSON.stringify({ npn: editing.npn, core_goal: core, combo_goal: combo, plan: $('mPlan').value, leader: $('mTeam').value })
     }).then(function (r) {
       if (r.status === 401) { location.href = '/'; return null; }
       return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Save failed'); return j; });

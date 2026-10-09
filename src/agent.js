@@ -63,6 +63,16 @@ function goalsFor(feed, r, edits) {
   };
 }
 
+// Teams: each agent's leader, from their Game Plan unless a manager reassigns
+// them. Managers only, like the plan: /api/me never carries it.
+const FILE_LEADERS = [...new Set(Object.values(PLANS).map((p) => p.leader).filter(Boolean))].sort();
+
+function leaderFor(npn, edits) {
+  const e = edits?.get(npn);
+  if (e && 'leader' in e) return e.leader || null;
+  return PLANS[npn]?.leader || null;
+}
+
 function planFor(npn, edits) {
   const e = edits?.get(npn);
   if (e && 'plan' in e) return e.plan || null; // an edit can also clear the plan
@@ -98,6 +108,15 @@ async function handleGoalEdit(request, env, manager) {
     return jsonNoStore({ error: 'Goals must be whole numbers from 1 to 1000, and the plan A, B, C or none.' }, 400);
   }
   const rec = { core_goal: core, combo_goal: combo, plan: plan || null, by: manager.name, at: new Date().toISOString() };
+  // The team is only touched when the popup sends it, and only to a known leader.
+  if ('leader' in body) {
+    const leader = String(body.leader || '').trim();
+    if (leader && !FILE_LEADERS.includes(leader)) return jsonNoStore({ error: 'Pick a team from the list.' }, 400);
+    rec.leader = leader || null;
+  } else {
+    const prev = (await loadGoalEdits(env, npn)).get(npn);
+    if (prev && 'leader' in prev) rec.leader = prev.leader;
+  }
   await env.DB.prepare(
     'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
   ).bind(`goal:${npn}`, JSON.stringify(rec), rec.at).run();
@@ -415,6 +434,7 @@ async function teamView(env, manager) {
       npn: r.npn,
       name: r.agent,
       plan: planFor(r.npn, edits),
+      leader: leaderFor(r.npn, edits),
       edited: edit ? { by: edit.by, at: edit.at } : null,
       core: { sales: r.core + add.core, goal: goal.core },
       combo: { sales: r.combo + add.combo, goal: goal.combo },
@@ -422,6 +442,7 @@ async function teamView(env, manager) {
   });
   return {
     viewer: { manager: true, name: manager.name },
+    leaders: FILE_LEADERS,
     window: feed?.window || null,
     generated_at: feed?.generated_at || null,
     rows,

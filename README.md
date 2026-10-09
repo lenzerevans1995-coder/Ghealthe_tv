@@ -163,7 +163,14 @@ for everyone. A `core_goal`/`combo_goal` on a pushed row overrides both. Which p
 (Option A, B or C) shows only on the manager list, never on the agent's own page. A manager can
 change any agent's Core goal, STHHC + HI goal and plan with the Edit button on the list. Edits are
 saved in kv as `goal:<npn>` with who made them and when, and take priority over the Game Plan file.
-Only a PIN-verified manager session from this site can save one. A push without `quote` keeps the current quote. An empty
+Only a PIN-verified manager session from this site can save one.
+
+The manager list also has a **Team** dropdown: all agents, each team leader, or "No team". A
+manager lands on their own team (others start on all agents), and the strip above the list totals
+the chosen team: agents and how many have a sale, Core and STHHC + HI against the summed goals, and
+how many are at Core goal. Teams come from the "Leader" on each agent's Game Plan (stored as `leader`
+in `src/agent_goals.json`). The Edit popup can move an agent to another team, saved with the goal
+edit in kv `goal:<npn>`. Teams, like plans, appear only in `/api/team`, never on an agent's page. A push without `quote` keeps the current quote. An empty
 roster, a malformed row or a repeated NPN is refused, so a bad query never locks the floor out.
 
 Between pushes, sales arrive live from the Onyx webhook. Each delivery carries the agent's NPN, and
