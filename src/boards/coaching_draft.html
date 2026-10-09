@@ -163,6 +163,8 @@
   <button class="mbtn e" id="bE">Ernesto Garcia</button>
   <button class="ghost" id="undo">Undo last</button>
   <button class="ghost" id="reset">Reset</button>
+  <button class="mbtn" id="saveTeams" style="background:#0b6e8c">Save as teams</button>
+  <div id="saveMsg" style="width:100%;font-size:13px;color:var(--muted);min-height:16px"></div>
 </div>
 
 <div class="cols">
@@ -354,6 +356,22 @@ F.foot.innerHTML = [
   "Morell and Goode carry 260 and 184 ancillary policies; whoever lands both inherits most of the product-mix work. Manar Ettayem is excluded from the mentor rotation — her 37.4% rests on the keying at issue in the 8/31/2026 ancillary/MA-plan-name decision.",
   "Picks are held in this browser only. Undo steps back one pick; Reset clears the board."
 ].map(t=>`<p style="margin-bottom:7px">${t}</p>`).join("");
+
+// Save the picks to the site, so the manager list's Team view follows this draft.
+document.getElementById("saveTeams").addEventListener("click",()=>{
+  const msg=document.getElementById("saveMsg");
+  if(!picks.length){ msg.textContent="There are no picks to save yet."; return; }
+  const R=picks.filter(p=>p.mgr==="R").length, E=picks.filter(p=>p.mgr==="E").length;
+  if(!confirm(`Save these ${picks.length} picks as the teams (Ramon ${R}, Ernesto ${E})? This replaces any teams saved before.`)) return;
+  msg.textContent="Saving...";
+  fetch("/api/team/draft",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},
+    body:JSON.stringify({picks})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j})))
+    .then(({ok,j})=>{ msg.textContent = ok
+      ? `Saved ${j.saved} picks as the teams. The Team view on Agent Dashboards now follows this draft.`
+      : (j.error||"Could not save. Try again."); })
+    .catch(()=>{ msg.textContent="Could not save. Try again."; });
+});
 
 load(); render();
 </script>

@@ -165,13 +165,16 @@ change any agent's Core goal, STHHC + HI goal and plan with the Edit button on t
 saved in kv as `goal:<npn>` with who made them and when, and take priority over the Game Plan file.
 Only a PIN-verified manager session from this site can save one.
 
-The manager list also has a **Team** dropdown: all agents, each team leader, or "No team". A
-manager lands on their own team (others start on all agents), and the strip above the list totals
-the chosen team: agents and how many have a sale, Core and STHHC + HI against the summed goals, and
-how many are at Core goal. Teams come from the "Leader" on each agent's Game Plan (stored as `leader`
-in `src/agent_goals.json`). The Edit popup can move an agent to another team, saved with the goal
-edit in kv `goal:<npn>`. Teams, like plans, appear only in `/api/team`, never on an agent's page. A push without `quote` keeps the current quote. An empty
-roster, a malformed row or a repeated NPN is refused, so a bad query never locks the floor out.
+The manager list also has a **Team** dropdown: all agents, Ramon Betanzo, Ernesto Garcia, the
+mentor rotation, or "No team". A manager lands on their own team (others start on all agents), and
+the strip above the list totals the chosen team: agents and how many have a sale, Core and
+STHHC + HI against the summed goals, and how many are at Core goal. Teams come from the coaching
+draft at `/team/draft`. Its **Save as teams** button posts the picks (saved only in the browser that
+ran the draft) to `/api/team/draft`, managers only, stored in kv `draft_teams`, and each save
+replaces the last. The draft's mentors (Riley, Cruz, Holloway, Chakkalakkal, and Gregory as
+alternate) form the "Mentor rotation" group. The Edit popup can still move any agent, saved in kv
+`goal:<npn>`, and that wins over the draft. Teams, like plans, appear only in `/api/team`, never on
+an agent's page.
 
 Between pushes, sales arrive live from the Onyx webhook. Each delivery carries the agent's NPN, and
 the Worker records it in `agent_dash_events`. A dashboard adds the deliveries for policies

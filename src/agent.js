@@ -63,14 +63,58 @@ function goalsFor(feed, r, edits) {
   };
 }
 
-// Teams: each agent's leader, from their Game Plan unless a manager reassigns
-// them. Managers only, like the plan: /api/me never carries it.
-const FILE_LEADERS = [...new Set(Object.values(PLANS).map((p) => p.leader).filter(Boolean))].sort();
+// Teams come from the coaching draft: each pick puts an agent on Ramon's or
+// Ernesto's team, and the draft's mentor rotation is a group of its own. A
+// manager can still move anyone with the Edit popup, and that wins. Managers
+// only, like the plan: /api/me never carries it.
+const DRAFT_MANAGERS = { R: 'Ramon Betanzo', E: 'Ernesto Garcia' };
+const MENTOR_GROUP = 'Mentor rotation';
+const TEAM_CHOICES = ['Ernesto Garcia', 'Ramon Betanzo', MENTOR_GROUP];
+// The draft board names agents by Onyx user id; the dashboards key on NPN.
+const DRAFT_ID_TO_NPN = {
+  5254: '19170366', 5431: '9740503', 1600: '17846169', 4614: '20181878', 1613: '21285275',
+  1590: '19779209', 1587: '19669405', 1605: '21062659', 1609: '19912986', 5525: '19969369',
+  1655: '21784009', 1584: '20595382', 1653: '19900038', 1654: '22099391',
+};
+// Sherly Riley, Victor Cruz, Savanna Holloway, Sumesh Chakkalakkal, John Gregory (alternate)
+const MENTOR_NPNS = new Set(['16867129', '17380953', '20798795', '19305522', '9948585']);
 
-function leaderFor(npn, edits) {
+async function loadDraft(env) {
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('draft_teams').first();
+  if (!row) return null;
+  try { return JSON.parse(row.v); } catch (e) { return null; }
+}
+
+function leaderFor(npn, edits, draft) {
   const e = edits?.get(npn);
   if (e && 'leader' in e) return e.leader || null;
-  return PLANS[npn]?.leader || null;
+  const pick = draft?.picks?.find((p) => p.npn === npn);
+  if (pick) return pick.leader;
+  if (MENTOR_NPNS.has(npn)) return MENTOR_GROUP;
+  return null;
+}
+
+// The draft page posts its picks here; the last save is the teams.
+async function handleDraftSave(request, env, manager) {
+  const origin = request.headers.get('origin');
+  if (origin && origin !== new URL(request.url).origin) return jsonNoStore({ error: 'bad_origin' }, 403);
+  let body;
+  try { body = await request.json(); } catch (e) { return jsonNoStore({ error: 'bad_json' }, 400); }
+  const seen = new Set();
+  const picks = [];
+  for (const p of Array.isArray(body.picks) ? body.picks : []) {
+    const npn = DRAFT_ID_TO_NPN[Number(p?.id)];
+    const leader = DRAFT_MANAGERS[p?.mgr];
+    if (!npn || !leader || seen.has(npn)) return jsonNoStore({ error: 'Those picks are not from this draft.' }, 400);
+    seen.add(npn);
+    picks.push({ npn, leader });
+  }
+  if (!picks.length) return jsonNoStore({ error: 'There are no picks to save yet.' }, 400);
+  const rec = { picks, by: manager.name, at: new Date().toISOString() };
+  await env.DB.prepare(
+    'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+  ).bind('draft_teams', JSON.stringify(rec), rec.at).run();
+  return jsonNoStore({ ok: true, saved: picks.length, by: rec.by, at: rec.at });
 }
 
 function planFor(npn, edits) {
@@ -111,7 +155,7 @@ async function handleGoalEdit(request, env, manager) {
   // The team is only touched when the popup sends it, and only to a known leader.
   if ('leader' in body) {
     const leader = String(body.leader || '').trim();
-    if (leader && !FILE_LEADERS.includes(leader)) return jsonNoStore({ error: 'Pick a team from the list.' }, 400);
+    if (leader && !TEAM_CHOICES.includes(leader)) return jsonNoStore({ error: 'Pick a team from the list.' }, 400);
     rec.leader = leader || null;
   } else {
     const prev = (await loadGoalEdits(env, npn)).get(npn);
@@ -133,7 +177,7 @@ const PAGE_HEADERS = {
   'referrer-policy': 'same-origin',
 };
 
-export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/team/draft', '/api/team', '/api/team/goal', '/me/logo.png', '/ingest/agents']);
+export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/team/draft', '/api/team', '/api/team/goal', '/api/team/draft', '/me/logo.png', '/ingest/agents']);
 
 // Managers sign in with their NPN like anyone else, but they are not on the
 // floor roster the Routine pushes, so they are listed here. A manager lands on
@@ -183,6 +227,12 @@ export async function handleAgentRoute(request, env, path, { checkBearer }) {
   if (path === '/team/draft') {
     if (!manager) return redirect(self ? '/me' : '/');
     return new Response(DRAFT_PAGE, { headers: PAGE_HEADERS });
+  }
+
+  if (path === '/api/team/draft') {
+    if (!manager) return jsonNoStore({ error: 'signed_out' }, 401);
+    if (request.method !== 'POST') return jsonNoStore({ error: 'method' }, 405);
+    return handleDraftSave(request, env, manager);
   }
 
   if (path === '/api/team/goal') {
@@ -426,6 +476,7 @@ async function teamView(env, manager) {
   const feed = await loadAgentFeed(env);
   const live = await liveSales(env, feed, null);
   const edits = await loadGoalEdits(env, null);
+  const draft = await loadDraft(env);
   const rows = (feed?.rows || []).map((r) => {
     const add = live.byNpn.get(r.npn) || { core: 0, combo: 0 };
     const goal = goalsFor(feed, r, edits);
@@ -434,7 +485,7 @@ async function teamView(env, manager) {
       npn: r.npn,
       name: r.agent,
       plan: planFor(r.npn, edits),
-      leader: leaderFor(r.npn, edits),
+      leader: leaderFor(r.npn, edits, draft),
       edited: edit ? { by: edit.by, at: edit.at } : null,
       core: { sales: r.core + add.core, goal: goal.core },
       combo: { sales: r.combo + add.combo, goal: goal.combo },
@@ -442,7 +493,8 @@ async function teamView(env, manager) {
   });
   return {
     viewer: { manager: true, name: manager.name },
-    leaders: FILE_LEADERS,
+    leaders: TEAM_CHOICES,
+    draft: draft ? { by: draft.by, at: draft.at, picks: draft.picks.length } : null,
     window: feed?.window || null,
     generated_at: feed?.generated_at || null,
     rows,
