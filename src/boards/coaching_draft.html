@@ -163,7 +163,6 @@
   <button class="mbtn e" id="bE">Ernesto Garcia</button>
   <button class="ghost" id="undo">Undo last</button>
   <button class="ghost" id="reset">Reset</button>
-  <button class="mbtn" id="saveTeams" style="background:#0b6e8c">Save as teams</button>
   <div id="saveMsg" style="width:100%;font-size:13px;color:var(--muted);min-height:16px"></div>
 </div>
 
@@ -236,10 +235,35 @@ const F={}; ["sel","bR","bE","undo","reset","cnt","status","nR","nE","sR","sE","
  "foot","pop","pNum","pWho","pStat","pMgr"].forEach(k=>F[k]=document.getElementById(k));
 
 let picks=[];                                    // [{id, mgr:'R'|'E'}]
+let version=0, saving=false;
 const byId=id=>AGENTS.find(a=>a[1]===id);
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(picks))}catch(e){}};
-const load=()=>{try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);
-  if(Array.isArray(p))picks=p.filter(x=>x&&byId(x.id)&&(x.mgr==="R"||x.mgr==="E"))}}catch(e){}};
+const clean=p=>Array.isArray(p)?p.filter(x=>x&&byId(x.id)&&(x.mgr==="R"||x.mgr==="E")):[];
+// Picks live on the site: every manager's screen shares one draft, and the
+// teams on the Agent Dashboards list follow it.
+const status=t=>{document.getElementById("saveMsg").textContent=t};
+function stamp(j){ return j.by ? `Saved to the site · last change by ${j.by}, ${new Date(j.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York"})} ET` : "Saved to the site"; }
+function adopt(j){ picks=clean(j.picks); version=j.version||0; render(); status(stamp(j)); }
+function push(prev){
+  saving=true; status("Saving...");
+  return fetch("/api/team/draft",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},
+      body:JSON.stringify({picks,version})})
+    .then(r=>r.json().then(j=>({code:r.status,j})))
+    .then(({code,j})=>{
+      if(code===409){ adopt(j); status("The draft changed on another screen. This board now shows the latest picks."); return false; }
+      if(code===401){ location.href="/"; return false; }
+      if(code!==200){ picks=prev; render(); status(j.error||"Could not save. Try again."); return false; }
+      version=j.version; status(stamp(j)); return true;
+    })
+    .catch(()=>{ picks=prev; render(); status("Could not reach the site. That pick was not saved."); return false; })
+    .finally(()=>{ saving=false; });
+}
+function pull(){
+  if(saving) return Promise.resolve();
+  return fetch("/api/team/draft",{credentials:"same-origin",cache:"no-store"})
+    .then(r=>{ if(r.status===401){ location.href="/"; return null; } return r.ok?r.json():null; })
+    .then(j=>{ if(j && !saving && j.version!==version) adopt(j); return j; })
+    .catch(()=>null);
+}
 
 const taken=()=>new Set(picks.map(p=>p.id));
 const team=m=>picks.filter(p=>p.mgr===m).map(p=>byId(p.id));
@@ -317,7 +341,7 @@ function render(){
     cell("Ancillary book", R.length?sum(R,8):null, E.length?sum(E,8):null,
          Math.abs(sum(R,8)-sum(E,8)), null, v=>v==null?"—":i0(v));
 
-  fillSelect(); save();
+  fillSelect();
 }
 
 function pop(a,mgr){
@@ -332,8 +356,10 @@ function pop(a,mgr){
 
 function draft(mgr){
   const id=Number(F.sel.value); const a=byId(id);
-  if(!a || taken().has(id) || team(mgr).length>=7) return;
+  if(!a || taken().has(id) || team(mgr).length>=7 || saving) return;
+  const prev=picks.slice();
   picks.push({id,mgr}); render(); pop(a,mgr);
+  push(prev).then(ok=>{ if(!ok) F.pop.classList.remove("on"); });
 }
 
 F.bR.addEventListener("click",()=>draft("R"));
@@ -343,8 +369,8 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Escape") F.pop.classList.remove("on");
   if(F.pop.classList.contains("on")&&(e.key===" "||e.key==="Enter")){e.preventDefault();F.pop.classList.remove("on")}
 });
-F.undo.addEventListener("click",()=>{ if(picks.length){picks.pop();render()} });
-F.reset.addEventListener("click",()=>{ if(confirm("Clear all picks and start the draft over?")){picks=[];render()} });
+F.undo.addEventListener("click",()=>{ if(picks.length && !saving){const prev=picks.slice();picks.pop();render();push(prev)} });
+F.reset.addEventListener("click",()=>{ if(!saving && confirm("Clear all picks and start the draft over for everyone?")){const prev=picks.slice();picks=[];render();push(prev)} });
 
 F.mrow.innerHTML = MENTORS.map(m=>
   `<div class="m${m[4]?" alt":""}"><div class="mn">${m[0]}${m[4]?'<span class="tag">alternate</span>':""}</div>
@@ -354,26 +380,25 @@ F.foot.innerHTML = [
   "Floor rank is position among all 30 ranked WP 507 agents, 1 being the lowest conversion on the floor. Davis and Lebrun were removed from the pool on 10/8; Jackson, M. Johnson and Mccrea were passed over for Goode and D. McClendon.",
   "Franklin and Morell hold large pre-AEP appointment books, so part of their low conversion is time spent booking October rather than closing. Calhoun, Harrier and Manzueta started on the phones in August — ramp cases, not remediation cases.",
   "Morell and Goode carry 260 and 184 ancillary policies; whoever lands both inherits most of the product-mix work. Manar Ettayem is excluded from the mentor rotation — her 37.4% rests on the keying at issue in the 8/31/2026 ancillary/MA-plan-name decision.",
-  "Picks are held in this browser only. Undo steps back one pick; Reset clears the board."
+  "Picks are saved to the site, so every manager sees the same draft and the Team view on Agent Dashboards follows it. Undo steps back one pick; Reset clears the board for everyone."
 ].map(t=>`<p style="margin-bottom:7px">${t}</p>`).join("");
 
-// Save the picks to the site, so the manager list's Team view follows this draft.
-document.getElementById("saveTeams").addEventListener("click",()=>{
-  const msg=document.getElementById("saveMsg");
-  if(!picks.length){ msg.textContent="There are no picks to save yet."; return; }
-  const R=picks.filter(p=>p.mgr==="R").length, E=picks.filter(p=>p.mgr==="E").length;
-  if(!confirm(`Save these ${picks.length} picks as the teams (Ramon ${R}, Ernesto ${E})? This replaces any teams saved before.`)) return;
-  msg.textContent="Saving...";
-  fetch("/api/team/draft",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},
-    body:JSON.stringify({picks})})
-    .then(r=>r.json().then(j=>({ok:r.ok,j})))
-    .then(({ok,j})=>{ msg.textContent = ok
-      ? `Saved ${j.saved} picks as the teams. The Team view on Agent Dashboards now follows this draft.`
-      : (j.error||"Could not save. Try again."); })
-    .catch(()=>{ msg.textContent="Could not save. Try again."; });
+// First load: take the site's draft. If the site has none yet but this browser
+// still holds picks from before the draft moved to the site, offer to upload them.
+render(); status("Loading the draft...");
+pull().then(j=>{
+  if(!j) { status("Could not reach the site. Reload to try again."); return; }
+  if(!(j.picks||[]).length){
+    let local=[];
+    try{ local=clean(JSON.parse(localStorage.getItem(KEY)||"[]")); }catch(e){}
+    if(local.length && confirm(`This browser has ${local.length} picks saved from earlier. Upload them so every manager sees this draft?`)){
+      const prev=picks.slice(); picks=local; render(); push(prev);
+    } else { adopt(j); }
+  } else { status(stamp(j)); }
 });
-
-load(); render();
+// Stay in step with other screens.
+setInterval(pull, 5000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) pull(); });
 </script>
 </body>
 </html>

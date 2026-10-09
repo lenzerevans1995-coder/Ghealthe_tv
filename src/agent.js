@@ -94,27 +94,47 @@ function leaderFor(npn, edits, draft) {
   return null;
 }
 
-// The draft page posts its picks here; the last save is the teams.
-async function handleDraftSave(request, env, manager) {
+// The draft lives here, not in one browser: every manager's screen reads and
+// writes the same picks, and the teams follow them. Each save carries the
+// version it was based on; a stale one is refused with the current draft, so
+// two screens picking at once can't silently overwrite each other.
+function draftView(d) {
+  return {
+    picks: (d?.picks || []).map((p) => ({ id: p.id, mgr: p.mgr })),
+    version: d?.version || 0,
+    by: d?.by || null,
+    at: d?.at || null,
+  };
+}
+
+async function handleDraft(request, env, manager) {
+  if (request.method === 'GET') return jsonNoStore(draftView(await loadDraft(env)));
+  if (request.method !== 'POST') return jsonNoStore({ error: 'method' }, 405);
   const origin = request.headers.get('origin');
   if (origin && origin !== new URL(request.url).origin) return jsonNoStore({ error: 'bad_origin' }, 403);
   let body;
   try { body = await request.json(); } catch (e) { return jsonNoStore({ error: 'bad_json' }, 400); }
   const seen = new Set();
   const picks = [];
+  const perTeam = { R: 0, E: 0 };
   for (const p of Array.isArray(body.picks) ? body.picks : []) {
-    const npn = DRAFT_ID_TO_NPN[Number(p?.id)];
+    const id = Number(p?.id);
+    const npn = DRAFT_ID_TO_NPN[id];
     const leader = DRAFT_MANAGERS[p?.mgr];
-    if (!npn || !leader || seen.has(npn)) return jsonNoStore({ error: 'Those picks are not from this draft.' }, 400);
-    seen.add(npn);
-    picks.push({ npn, leader });
+    if (!npn || !leader || seen.has(id) || ++perTeam[p.mgr] > 7) {
+      return jsonNoStore({ error: 'Those picks are not from this draft.' }, 400);
+    }
+    seen.add(id);
+    picks.push({ id, mgr: p.mgr, npn, leader });
   }
-  if (!picks.length) return jsonNoStore({ error: 'There are no picks to save yet.' }, 400);
-  const rec = { picks, by: manager.name, at: new Date().toISOString() };
+  const current = await loadDraft(env);
+  const version = current?.version || 0;
+  if (Number(body.version) !== version) return jsonNoStore({ error: 'stale', ...draftView(current) }, 409);
+  const rec = { picks, version: version + 1, by: manager.name, at: new Date().toISOString() };
   await env.DB.prepare(
     'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
   ).bind('draft_teams', JSON.stringify(rec), rec.at).run();
-  return jsonNoStore({ ok: true, saved: picks.length, by: rec.by, at: rec.at });
+  return jsonNoStore({ ok: true, ...draftView(rec) });
 }
 
 function planFor(npn, edits) {
@@ -231,8 +251,7 @@ export async function handleAgentRoute(request, env, path, { checkBearer }) {
 
   if (path === '/api/team/draft') {
     if (!manager) return jsonNoStore({ error: 'signed_out' }, 401);
-    if (request.method !== 'POST') return jsonNoStore({ error: 'method' }, 405);
-    return handleDraftSave(request, env, manager);
+    return handleDraft(request, env, manager);
   }
 
   if (path === '/api/team/goal') {
@@ -494,7 +513,7 @@ async function teamView(env, manager) {
   return {
     viewer: { manager: true, name: manager.name },
     leaders: TEAM_CHOICES,
-    draft: draft ? { by: draft.by, at: draft.at, picks: draft.picks.length } : null,
+    draft: draft && draft.picks?.length ? { by: draft.by, at: draft.at, picks: draft.picks.length } : null,
     window: feed?.window || null,
     generated_at: feed?.generated_at || null,
     rows,

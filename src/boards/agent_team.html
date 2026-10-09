@@ -206,14 +206,14 @@ div.row[data-npn]:hover{background:#ffffff08}
     var note = $('teamNote');
     note.textContent = '';
     if (data.draft) {
-      note.textContent = 'Teams from the coaching draft, saved by ' + data.draft.by + ' on ' +
+      note.textContent = 'Teams from the coaching draft, last changed by ' + data.draft.by + ' on ' +
         new Date(data.draft.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.';
     } else {
-      note.appendChild(document.createTextNode('Teams are not set yet. Open '));
+      note.appendChild(document.createTextNode('Teams are not set yet. They follow the picks on '));
       var a = el('a', null, 'Coaching Draft');
       a.href = '/team/draft';
       note.appendChild(a);
-      note.appendChild(document.createTextNode(' and press Save as teams.'));
+      note.appendChild(document.createTextNode('.'));
     }
     var rows = teamRows.slice().sort(function (a, b) {
       if (sortKey === 'name') return sortDir * a.name.localeCompare(b.name);

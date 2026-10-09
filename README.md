@@ -169,9 +169,11 @@ The manager list also has a **Team** dropdown: all agents, Ramon Betanzo, Ernest
 mentor rotation, or "No team". A manager lands on their own team (others start on all agents), and
 the strip above the list totals the chosen team: agents and how many have a sale, Core and
 STHHC + HI against the summed goals, and how many are at Core goal. Teams come from the coaching
-draft at `/team/draft`. Its **Save as teams** button posts the picks (saved only in the browser that
-ran the draft) to `/api/team/draft`, managers only, stored in kv `draft_teams`, and each save
-replaces the last. The draft's mentors (Riley, Cruz, Holloway, Chakkalakkal, and Gregory as
+draft at `/team/draft`, which is stored on the site rather than in a browser: each pick, undo or
+reset is saved to `/api/team/draft` (managers only, kv `draft_teams`), every open draft screen
+checks for changes every 5 seconds, and a save based on an old version is refused with the current
+draft, so two screens can't overwrite each other. A browser that still holds picks from before the
+move is offered a one-time upload when the site's draft is empty. The draft's mentors (Riley, Cruz, Holloway, Chakkalakkal, and Gregory as
 alternate) form the "Mentor rotation" group. The Edit popup can still move any agent, saved in kv
 `goal:<npn>`, and that wins over the draft. Teams, like plans, appear only in `/api/team`, never on
 an agent's page.
