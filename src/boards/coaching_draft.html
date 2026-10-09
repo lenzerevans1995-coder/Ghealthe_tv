@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coaching Draft Board</title>
+<style>
+  :root{
+    --navy:#012E50; --navy-2:#02243d; --blue:#015A9C; --green:#0B9444;
+    --ink:#f4f7fa; --muted:#9fb3c6; --line:rgba(255,255,255,.14);
+    --amber:#E0A32E; --red:#D9534F;
+    --ramon:#015A9C; --ernesto:#0B9444;
+    --sans:"Calibri","Segoe UI",system-ui,-apple-system,sans-serif;
+    --serif:"Cambria","Georgia",serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 15% -10%, #0b4a7a 0%, transparent 60%),
+      radial-gradient(900px 600px at 95% 110%, #0a5c3c 0%, transparent 55%),
+      var(--navy);
+    color:var(--ink); font-family:var(--sans);
+    padding:clamp(14px,2vw,28px) clamp(16px,2.5vw,36px) 48px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- header ---------- */
+  header{display:flex;flex-wrap:wrap;align-items:flex-end;gap:18px;
+    border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:22px}
+  h1{font-family:var(--serif);font-size:clamp(22px,2.6vw,34px);font-weight:700;letter-spacing:-.01em;line-height:1.1}
+  .sub{color:var(--muted);font-size:13px;margin-top:5px;max-width:68ch;line-height:1.45}
+  .counter{margin-left:auto;text-align:right;flex-shrink:0}
+  .counter b{display:block;font-family:var(--serif);font-size:clamp(28px,3.6vw,46px);line-height:1;font-variant-numeric:tabular-nums}
+  .counter span{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+
+  /* ---------- pick bar ---------- */
+  .pickbar{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;
+    padding:16px 18px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:24px}
+  .pickbar .lbl{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+    width:100%;margin-bottom:-4px}
+  select{
+    flex:1 1 300px;min-width:0;background:#02243d;color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:13px 14px;font-family:var(--sans);font-size:17px;font-weight:600;cursor:pointer;
+  }
+  select:focus-visible,button:focus-visible{outline:2px solid #7fb8e6;outline-offset:2px}
+  .mbtn{
+    border:none;border-radius:10px;padding:13px 22px;font-family:var(--sans);font-size:16px;font-weight:700;
+    letter-spacing:.02em;color:#fff;cursor:pointer;transition:transform .08s,filter .15s;white-space:nowrap;
+  }
+  .mbtn:hover{filter:brightness(1.12)}
+  .mbtn:active{transform:translateY(1px)}
+  .mbtn[disabled]{opacity:.32;cursor:not-allowed;filter:none}
+  .mbtn.r{background:var(--ramon)}
+  .mbtn.e{background:var(--ernesto)}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:10px;
+    padding:11px 16px;font-size:13px;font-family:var(--sans);cursor:pointer}
+  .ghost:hover{color:var(--ink);border-color:rgba(255,255,255,.35)}
+
+  /* ---------- columns ---------- */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:clamp(14px,2vw,28px)}
+  .col{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .colhead{padding:15px 18px;display:flex;align-items:baseline;gap:12px}
+  .col.r .colhead{background:linear-gradient(90deg,rgba(1,90,156,.55),rgba(1,90,156,.12))}
+  .col.e .colhead{background:linear-gradient(90deg,rgba(11,148,68,.55),rgba(11,148,68,.12))}
+  .colhead h2{font-family:var(--serif);font-size:clamp(17px,1.9vw,23px);font-weight:700;letter-spacing:.01em}
+  .colhead .n{margin-left:auto;font-size:13px;color:rgba(255,255,255,.8);font-variant-numeric:tabular-nums}
+  .slots{padding:12px;display:flex;flex-direction:column;gap:8px}
+  .slot{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:10px;
+    background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.12);min-height:58px}
+  .slot.filled{border-style:solid;border-color:var(--line);background:rgba(255,255,255,.07)}
+  .slot .pick{font-family:var(--serif);font-size:15px;color:var(--muted);width:30px;flex-shrink:0;
+    font-variant-numeric:tabular-nums}
+  .slot.filled .pick{color:var(--ink)}
+  .nm{font-size:clamp(15px,1.5vw,18px);font-weight:600;line-height:1.2}
+  .meta{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .empty{font-size:14px;color:rgba(255,255,255,.3);font-style:italic}
+  .rate{margin-left:auto;font-family:var(--serif);font-size:clamp(15px,1.7vw,20px);font-weight:700;
+    font-variant-numeric:tabular-nums;flex-shrink:0}
+  .rate.lo{color:#ff9d9a}
+  .rate.mid{color:#f3c768}
+  .coltot{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:20px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .coltot b{color:var(--ink);font-weight:700}
+
+  /* ---------- balance ---------- */
+  .balance{margin-top:24px;background:rgba(255,255,255,.04);border:1px solid var(--line);
+    border-radius:14px;padding:18px}
+  .balance h3{font-family:var(--serif);font-size:15px;margin-bottom:4px}
+  .balance .hint{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.45}
+  .bgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px}
+  .bcell{background:rgba(0,0,0,.22);border-radius:10px;padding:12px 14px}
+  .bcell .k{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+  .bcell .v{font-family:var(--serif);font-size:19px;margin-top:5px;font-variant-numeric:tabular-nums}
+  .bcell .g{font-size:11.5px;margin-top:3px;font-variant-numeric:tabular-nums}
+  .ok{color:#6fd79b} .warn{color:#f3c768} .bad{color:#ff9d9a}
+
+  /* ---------- mentors ---------- */
+  .mentors{margin-top:22px;border:1px solid rgba(11,148,68,.4);border-radius:14px;
+    background:rgba(11,148,68,.07);padding:16px 18px}
+  .mentors h3{font-family:var(--serif);font-size:15px;margin-bottom:3px}
+  .mentors .hint{font-size:12px;color:var(--muted);margin-bottom:13px;line-height:1.45}
+  .mrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+  .m{background:rgba(0,0,0,.2);border-radius:10px;padding:11px 13px}
+  .m .mn{font-size:14.5px;font-weight:600}
+  .m .mr{font-family:var(--serif);font-size:17px;color:#6fd79b;margin-top:3px;font-variant-numeric:tabular-nums}
+  .m .mm{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
+  .m.alt{border:1px solid rgba(224,163,46,.5);background:rgba(224,163,46,.09)}
+  .m.alt .mr{color:#f3c768}
+  .tag{display:inline-block;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+    background:rgba(224,163,46,.25);color:#f3c768;padding:2px 6px;border-radius:4px;margin-left:6px;
+    vertical-align:middle}
+
+  footer{margin-top:26px;font-size:11.5px;color:rgba(255,255,255,.4);line-height:1.6;max-width:100ch}
+
+  /* ---------- the pop ---------- */
+  #pop{position:fixed;inset:0;display:none;place-items:center;z-index:50;
+    background:rgba(1,20,36,.93);backdrop-filter:blur(7px);padding:24px;text-align:center}
+  #pop.on{display:grid}
+  #pop .kicker{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);
+    opacity:0;animation:fade .4s .05s forwards}
+  #pop .who{font-family:var(--serif);font-weight:700;letter-spacing:-.02em;line-height:1.02;
+    font-size:clamp(40px,9vw,120px);margin:14px 0 6px;opacity:0;transform:scale(.88);
+    animation:boom .5s .18s cubic-bezier(.17,.87,.25,1.04) forwards}
+  #pop .stat{font-size:clamp(13px,1.6vw,18px);color:var(--muted);font-variant-numeric:tabular-nums;
+    opacity:0;animation:fade .4s .5s forwards}
+  #pop .to{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);
+    margin-top:clamp(22px,4vh,46px);opacity:0;animation:fade .4s 1.05s forwards}
+  #pop .mgr{font-family:var(--serif);font-weight:700;line-height:1.05;
+    font-size:clamp(28px,6vw,74px);margin-top:8px;opacity:0;transform:translateY(16px);
+    animation:rise .55s 1.22s cubic-bezier(.17,.87,.25,1.04) forwards}
+  #pop .mgr.r{color:#6cb6ec} #pop .mgr.e{color:#6fd79b}
+  #pop .dismiss{margin-top:clamp(22px,4vh,42px);font-size:11.5px;color:rgba(255,255,255,.4);
+    opacity:0;animation:fade .4s 1.9s forwards}
+  @keyframes boom{to{opacity:1;transform:scale(1)}}
+  @keyframes rise{to{opacity:1;transform:translateY(0)}}
+  @keyframes fade{to{opacity:1}}
+  @media (prefers-reduced-motion:reduce){
+    #pop .kicker,#pop .who,#pop .stat,#pop .to,#pop .mgr,#pop .dismiss{animation-duration:.01s}
+  }
+
+  @media (max-width:860px){ .cols{grid-template-columns:1fr} .counter{margin-left:0} }
+  @media print{ body{background:#fff;color:#000} #pop,.pickbar,.ghost{display:none!important} }
+</style>
+</head>
+<body>
+<a href="/team" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:14px;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.18);color:#cfe3f1;text-decoration:none;font-size:13px;font-weight:700;font-family:var(--sans)">&larr; Agent dashboards</a>
+
+<header>
+  <div>
+    <h1>Medicare Inbound — Coaching Draft</h1>
+    <div class="sub">14 agents · performance Aug 1 – Sep 30 2026 · WP 507. Conversion = productive sales
+      (Core + STHHC + HI) ÷ inbound calls over 90 seconds. Pick an agent, then press a manager.</div>
+  </div>
+  <div class="counter"><b id="cnt">0<span style="font-size:.5em;color:var(--muted)">/14</span></b>
+    <span id="status">Ready to draft</span></div>
+</header>
+
+<div class="pickbar">
+  <div class="lbl">On the clock</div>
+  <select id="sel" aria-label="Agent to draft"></select>
+  <button class="mbtn r" id="bR">Ramon Betanzo</button>
+  <button class="mbtn e" id="bE">Ernesto Garcia</button>
+  <button class="ghost" id="undo">Undo last</button>
+  <button class="ghost" id="reset">Reset</button>
+</div>
+
+<div class="cols">
+  <section class="col r"><div class="colhead"><h2>Ramon Betanzo</h2><div class="n"><span id="nR">0</span> of 7</div></div>
+    <div class="slots" id="sR"></div><div class="coltot" id="tR"></div></section>
+  <section class="col e"><div class="colhead"><h2>Ernesto Garcia</h2><div class="n"><span id="nE">0</span> of 7</div></div>
+    <div class="slots" id="sE"></div><div class="coltot" id="tE"></div></section>
+</div>
+
+<div class="balance">
+  <h3>Live balance</h3>
+  <div class="hint">Gaps update with every pick. Benchmark is the most even split of these same 14 agents,
+    found by testing all 3,432 possibilities — if a gap runs well past it, trade before the teams go live.</div>
+  <div class="bgrid" id="bal"></div>
+</div>
+
+<div class="mentors">
+  <h3>Mentor rotation — not drafted</h3>
+  <div class="hint">These four rotate through both teams rather than being assigned. Riley and Chakkalakkal
+    sit on profiles 3389/3765 rather than WP 507, so they carry no 507 floor rank; the figures are their real
+    production over the same window. Pair for the gap: Holloway is the STHHC answer, Riley covers both attach
+    products, Chakkalakkal is Core at volume, Cruz is efficiency on the thinnest sample.</div>
+  <div class="mrow" id="mrow"></div>
+</div>
+
+<footer id="foot"></footer>
+
+<div id="pop" role="status" aria-live="polite">
+  <div>
+    <div class="kicker">Pick <span id="pNum">1</span></div>
+    <div class="who" id="pWho">—</div>
+    <div class="stat" id="pStat"></div>
+    <div class="to">drafted by</div>
+    <div class="mgr" id="pMgr">—</div>
+    <div class="dismiss">click anywhere to continue</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// rank, id, name, core, sthhc, hi, prod, calls>90s, ancillary, talk hrs, note
+const AGENTS=[
+ [2,5254,"David Calhoun",17,0,0,17,341,104,96.8,"Started 8/3. 104 of 121 policies ancillary — only 17 productive."],
+ [3,5431,"Yancy Harrier",3,7,1,11,194,34,71.2,"Started 8/18. 7 STHHC but 3 Core. Fewest qualifying calls."],
+ [4,1600,"Gwendolyn Ingram",21,2,6,29,470,56,169.2,"470 long calls, 29 productive — widest talk-to-close gap here."],
+ [5,4614,"Hunter Cole",19,2,8,29,440,25,204.6,"205 talk hours for 29 productive. Time on the phone isn't the problem."],
+ [6,1613,"Mariyeisi Umpierre",24,3,0,27,391,60,117.4,"Zero HI in two months, 3 STHHC. Core fine; attach missing."],
+ [7,1590,"ChenY'ere Franklin",23,14,1,38,495,41,108.9,"14 STHHC is strong. Largest pre-AEP book — depresses the rate."],
+ [8,1587,"Brandon Lugo",38,1,8,47,597,15,118.9,"38 Core is best in the pool. One STHHC in two months."],
+ [9,1605,"Jesenia Morell",33,20,1,54,677,260,181.2,"260 ancillary, highest on the floor, and 20 STHHC. Core conversion lags."],
+ [10,1609,"Kameron Smith",26,2,5,33,411,48,120.2,"No single weak spot — soft across every product."],
+ [11,5525,"Marcos Manzueta",15,0,2,17,211,10,73.0,"Started 8/27, 18 days on the phone. Ramp, not remediation."],
+ [12,1655,"Andre Banfield",19,5,9,33,406,65,152.0,"Longest tenure here. Settled into a low plateau."],
+ [13,1584,"Avah Burns",27,4,4,35,427,46,139.3,"Nothing badly broken. Direct line swapped 10/7 — confirm inbound reaches her."],
+ [16,1653,"Damien Goode",37,6,18,61,584,184,176.1,"61 productive, 18 HI. 184 ancillary — mix, not effort."],
+ [19,1654,"Deon McClendon",27,5,4,36,323,115,139.2,"Goode's shape on a smaller book: 115 ancillary vs 36 productive."]
+];
+const MENTORS=[
+ ["Sherly Riley",83,257,"48 Core · 15 STHHC · 20 HI · 227 talk hrs",0],
+ ["Victor Cruz",45,187,"28 Core · 7 STHHC · 10 HI · only 7 ancillary",0],
+ ["Savanna Holloway",69,321,"19 Core · 35 STHHC · 15 HI",0],
+ ["Sumesh Chakkalakkal",84,456,"63 Core · 7 STHHC · 14 HI · most volume",0],
+ ["John Gregory",123,459,"104 Core · 123 productive · 160 ancillary",1]
+];
+// benchmark = the gaps achieved by the most even of all 3,432 splits of these 14
+const BENCH={conv:0.000134,prod:5,core:3,calls:69,hrs:109};  // conv as a fraction
+const KEY="ghe-draft-2026-10";
+const F={}; ["sel","bR","bE","undo","reset","cnt","status","nR","nE","sR","sE","tR","tE","bal","mrow",
+ "foot","pop","pNum","pWho","pStat","pMgr"].forEach(k=>F[k]=document.getElementById(k));
+
+let picks=[];                                    // [{id, mgr:'R'|'E'}]
+const byId=id=>AGENTS.find(a=>a[1]===id);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(picks))}catch(e){}};
+const load=()=>{try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);
+  if(Array.isArray(p))picks=p.filter(x=>x&&byId(x.id)&&(x.mgr==="R"||x.mgr==="E"))}}catch(e){}};
+
+const taken=()=>new Set(picks.map(p=>p.id));
+const team=m=>picks.filter(p=>p.mgr===m).map(p=>byId(p.id));
+const rate=a=>a[6]/a[7];
+const pct=v=>(v*100).toFixed(1)+"%";
+
+function sum(t,i){return t.reduce((s,a)=>s+a[i],0)}
+function conv(t){const c=sum(t,7);return c?sum(t,6)/c:0}
+
+function fillSelect(){
+  const t=taken(), left=AGENTS.filter(a=>!t.has(a[1]));
+  F.sel.innerHTML = left.length
+    ? left.map(a=>`<option value="${a[1]}">${a[2]} — ${pct(rate(a))} · ${a[6]} productive · ${a[7]} calls</option>`).join("")
+    : `<option value="">All 14 drafted</option>`;
+  const full = m => team(m).length>=7;
+  F.bR.disabled = !left.length || full("R");
+  F.bE.disabled = !left.length || full("E");
+  F.sel.disabled = !left.length;
+}
+
+function slotHTML(a,n){
+  if(!a) return `<div class="slot"><div class="pick">${n}</div><div class="empty">—</div></div>`;
+  const r=rate(a), cls=r<0.07?"lo":(r<0.10?"mid":"");
+  return `<div class="slot filled"><div class="pick">${n}</div>
+    <div><div class="nm">${a[2]}</div>
+    <div class="meta">${a[3]} Core · ${a[4]} STHHC · ${a[5]} HI · ${a[7]} calls · ${a[8]} anc</div></div>
+    <div class="rate ${cls}">${pct(r)}</div></div>`;
+}
+
+function totHTML(t){
+  if(!t.length) return `<span>No picks yet</span>`;
+  return `<span>Conversion <b>${pct(conv(t))}</b></span><span>Productive <b>${sum(t,6)}</b></span>
+    <span>Core <b>${sum(t,3)}</b></span><span>STHHC <b>${sum(t,4)}</b></span>
+    <span>HI <b>${sum(t,5)}</b></span><span>Ancillary <b>${sum(t,8)}</b></span>
+    <span>Talk hrs <b>${sum(t,9).toFixed(1)}</b></span>`;
+}
+
+function cell(k,a,b,gap,bench,vFmt,gFmt){
+  gFmt = gFmt || vFmt;
+  const both = a!==null && b!==null;
+  let cl="", note="";
+  if(both && bench!=null){
+    cl = gap<=bench*1.35 ? "ok" : (gap<=bench*2.5 ? "warn":"bad");
+    note = `gap ${gFmt(gap)} · benchmark ${gFmt(bench)}`;
+  } else if(both){ note = `gap ${gFmt(gap)}`; }
+  return `<div class="bcell"><div class="k">${k}</div>
+    <div class="v">${vFmt(a)} <span style="color:var(--muted)">vs</span> ${vFmt(b)}</div>
+    <div class="g ${cl}">${note}</div></div>`;
+}
+
+function render(){
+  const R=team("R"), E=team("E");
+  F.sR.innerHTML = Array.from({length:7},(_,i)=>slotHTML(R[i],i+1)).join("");
+  F.sE.innerHTML = Array.from({length:7},(_,i)=>slotHTML(E[i],i+1)).join("");
+  F.tR.innerHTML = totHTML(R); F.tE.innerHTML = totHTML(E);
+  F.nR.textContent = R.length; F.nE.textContent = E.length;
+  F.cnt.innerHTML = `${picks.length}<span style="font-size:.5em;color:var(--muted)">/14</span>`;
+
+  F.status.textContent = picks.length<14 ? `${14-picks.length} left on the board`
+    : (R.length===7 && E.length===7 ? "Complete — 7 and 7" : "Uneven — each manager needs 7");
+
+  const n1=(v)=>v.toFixed(1), i0=(v)=>String(Math.round(v));
+  F.bal.innerHTML =
+    cell("Conversion rate", R.length?conv(R):null, E.length?conv(E):null,
+         Math.abs(conv(R)-conv(E))*100, BENCH.conv*100,
+         v=>v==null?"—":pct(v), v=>v.toFixed(2)+" pts") +
+    cell("Productive sales", R.length?sum(R,6):null, E.length?sum(E,6):null,
+         Math.abs(sum(R,6)-sum(E,6)), BENCH.prod, v=>v==null?"—":i0(v)) +
+    cell("Core", R.length?sum(R,3):null, E.length?sum(E,3):null,
+         Math.abs(sum(R,3)-sum(E,3)), BENCH.core, v=>v==null?"—":i0(v)) +
+    cell("Inbound calls >90s", R.length?sum(R,7):null, E.length?sum(E,7):null,
+         Math.abs(sum(R,7)-sum(E,7)), BENCH.calls, v=>v==null?"—":i0(v)) +
+    cell("Talk hours", R.length?sum(R,9):null, E.length?sum(E,9):null,
+         Math.abs(sum(R,9)-sum(E,9)), BENCH.hrs, v=>v==null?"—":n1(v)) +
+    cell("Ancillary book", R.length?sum(R,8):null, E.length?sum(E,8):null,
+         Math.abs(sum(R,8)-sum(E,8)), null, v=>v==null?"—":i0(v));
+
+  fillSelect(); save();
+}
+
+function pop(a,mgr){
+  F.pNum.textContent = picks.length;
+  F.pWho.textContent = a[2];
+  F.pStat.textContent = `${pct(rate(a))} conversion · ${a[6]} productive · ${a[7]} qualifying calls · ${a[8]} ancillary`;
+  F.pMgr.textContent = mgr==="R" ? "Ramon Betanzo" : "Ernesto Garcia";
+  F.pMgr.className = "mgr " + (mgr==="R"?"r":"e");
+  F.pop.classList.remove("on"); void F.pop.offsetWidth;   // restart the animation
+  F.pop.classList.add("on");
+}
+
+function draft(mgr){
+  const id=Number(F.sel.value); const a=byId(id);
+  if(!a || taken().has(id) || team(mgr).length>=7) return;
+  picks.push({id,mgr}); render(); pop(a,mgr);
+}
+
+F.bR.addEventListener("click",()=>draft("R"));
+F.bE.addEventListener("click",()=>draft("E"));
+F.pop.addEventListener("click",()=>F.pop.classList.remove("on"));
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape") F.pop.classList.remove("on");
+  if(F.pop.classList.contains("on")&&(e.key===" "||e.key==="Enter")){e.preventDefault();F.pop.classList.remove("on")}
+});
+F.undo.addEventListener("click",()=>{ if(picks.length){picks.pop();render()} });
+F.reset.addEventListener("click",()=>{ if(confirm("Clear all picks and start the draft over?")){picks=[];render()} });
+
+F.mrow.innerHTML = MENTORS.map(m=>
+  `<div class="m${m[4]?" alt":""}"><div class="mn">${m[0]}${m[4]?'<span class="tag">alternate</span>':""}</div>
+   <div class="mr">${pct(m[1]/m[2])}</div><div class="mm">${m[3]}</div></div>`).join("");
+
+F.foot.innerHTML = [
+  "Floor rank is position among all 30 ranked WP 507 agents, 1 being the lowest conversion on the floor. Davis and Lebrun were removed from the pool on 10/8; Jackson, M. Johnson and Mccrea were passed over for Goode and D. McClendon.",
+  "Franklin and Morell hold large pre-AEP appointment books, so part of their low conversion is time spent booking October rather than closing. Calhoun, Harrier and Manzueta started on the phones in August — ramp cases, not remediation cases.",
+  "Morell and Goode carry 260 and 184 ancillary policies; whoever lands both inherits most of the product-mix work. Manar Ettayem is excluded from the mentor rotation — her 37.4% rests on the keying at issue in the 8/31/2026 ancillary/MA-plan-name decision.",
+  "Picks are held in this browser only. Undo steps back one pick; Reset clears the board."
+].map(t=>`<p style="margin-bottom:7px">${t}</p>`).join("");
+
+load(); render();
+</script>
+</body>
+</html>

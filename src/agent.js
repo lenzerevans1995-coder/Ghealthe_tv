@@ -7,6 +7,7 @@
 //   GET  /me           the signed-in agent's dashboard (a manager adds ?agent=<npn>)
 //   GET  /api/me       that dashboard's numbers (the page polls this)
 //   GET  /team         managers only: every agent, each a link to their dashboard
+//   GET  /team/draft   managers only: the coaching draft board
 //   GET  /api/team     that list's numbers
 //   GET  /me/logo.png  the Get Health-e logo the pages carry
 //   POST /ingest/agents  roster + per-agent AEP counts (bearer secret, same as /ingest)
@@ -25,6 +26,7 @@
 import AGENT_LOGIN_PAGE from './boards/agent_login.html';
 import AGENT_DASHBOARD_PAGE from './boards/agent_dashboard.html';
 import TEAM_PAGE from './boards/agent_team.html';
+import DRAFT_PAGE from './boards/coaching_draft.html';
 import MANAGERS from './managers.json';
 import GAME_PLANS from './agent_goals.json';
 import GHE_LOGO from '../assets/ghe-logo.png';
@@ -112,7 +114,7 @@ const PAGE_HEADERS = {
   'referrer-policy': 'same-origin',
 };
 
-export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/api/team', '/api/team/goal', '/me/logo.png', '/ingest/agents']);
+export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/team/draft', '/api/team', '/api/team/goal', '/me/logo.png', '/ingest/agents']);
 
 // Managers sign in with their NPN like anyone else, but they are not on the
 // floor roster the Routine pushes, so they are listed here. A manager lands on
@@ -156,6 +158,12 @@ export async function handleAgentRoute(request, env, path, { checkBearer }) {
   if (path === '/team') {
     if (!manager) return redirect(self ? '/me' : '/');
     return new Response(TEAM_PAGE, { headers: PAGE_HEADERS });
+  }
+
+  // The coaching draft board: managers only, a menu item on the team list.
+  if (path === '/team/draft') {
+    if (!manager) return redirect(self ? '/me' : '/');
+    return new Response(DRAFT_PAGE, { headers: PAGE_HEADERS });
   }
 
   if (path === '/api/team/goal') {
