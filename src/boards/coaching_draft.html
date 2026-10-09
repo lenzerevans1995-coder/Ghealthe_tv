@@ -149,8 +149,6 @@
 <header>
   <div>
     <h1>Medicare Inbound — Coaching Draft</h1>
-    <div class="sub">14 agents · performance Aug 1 – Sep 30 2026 · WP 507. Conversion = productive sales
-      (Core + STHHC + HI) ÷ inbound calls over 90 seconds. Pick an agent, then press a manager.</div>
   </div>
   <div class="counter"><b id="cnt">0<span style="font-size:.5em;color:var(--muted)">/14</span></b>
     <span id="status">Ready to draft</span></div>
@@ -175,21 +173,14 @@
 
 <div class="balance">
   <h3>Live balance</h3>
-  <div class="hint">Gaps update with every pick. Benchmark is the most even split of these same 14 agents,
-    found by testing all 3,432 possibilities — if a gap runs well past it, trade before the teams go live.</div>
   <div class="bgrid" id="bal"></div>
 </div>
 
 <div class="mentors">
   <h3>Mentor rotation — not drafted</h3>
-  <div class="hint">These four rotate through both teams rather than being assigned. Riley and Chakkalakkal
-    sit on profiles 3389/3765 rather than WP 507, so they carry no 507 floor rank; the figures are their real
-    production over the same window. Pair for the gap: Holloway is the STHHC answer, Riley covers both attach
-    products, Chakkalakkal is Core at volume, Cruz is efficiency on the thinnest sample.</div>
   <div class="mrow" id="mrow"></div>
 </div>
 
-<footer id="foot"></footer>
 
 <div id="pop" role="status" aria-live="polite">
   <div>
@@ -232,7 +223,7 @@ const MENTORS=[
 const BENCH={conv:0.000134,prod:5,core:3,calls:69,hrs:109};  // conv as a fraction
 const KEY="ghe-draft-2026-10";
 const F={}; ["sel","bR","bE","undo","reset","cnt","status","nR","nE","sR","sE","tR","tE","bal","mrow",
- "foot","pop","pNum","pWho","pStat","pMgr"].forEach(k=>F[k]=document.getElementById(k));
+ "pop","pNum","pWho","pStat","pMgr"].forEach(k=>F[k]=document.getElementById(k));
 
 let picks=[];                                    // [{id, mgr:'R'|'E'}]
 let version=0, saving=false;
@@ -376,12 +367,6 @@ F.mrow.innerHTML = MENTORS.map(m=>
   `<div class="m${m[4]?" alt":""}"><div class="mn">${m[0]}${m[4]?'<span class="tag">alternate</span>':""}</div>
    <div class="mr">${pct(m[1]/m[2])}</div><div class="mm">${m[3]}</div></div>`).join("");
 
-F.foot.innerHTML = [
-  "Floor rank is position among all 30 ranked WP 507 agents, 1 being the lowest conversion on the floor. Davis and Lebrun were removed from the pool on 10/8; Jackson, M. Johnson and Mccrea were passed over for Goode and D. McClendon.",
-  "Franklin and Morell hold large pre-AEP appointment books, so part of their low conversion is time spent booking October rather than closing. Calhoun, Harrier and Manzueta started on the phones in August — ramp cases, not remediation cases.",
-  "Morell and Goode carry 260 and 184 ancillary policies; whoever lands both inherits most of the product-mix work. Manar Ettayem is excluded from the mentor rotation — her 37.4% rests on the keying at issue in the 8/31/2026 ancillary/MA-plan-name decision.",
-  "Picks are saved to the site, so every manager sees the same draft and the Team view on Agent Dashboards follows it. Undo steps back one pick; Reset clears the board for everyone."
-].map(t=>`<p style="margin-bottom:7px">${t}</p>`).join("");
 
 // First load: take the site's draft. If the site has none yet but this browser
 // still holds picks from before the draft moved to the site, offer to upload them.
