@@ -52,3 +52,17 @@ CREATE TABLE IF NOT EXISTS agent_dash_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_dash_events_submitted ON agent_dash_events (submitted_at);
+
+-- The coaching log on /team/coaching: one row per coaching session. data holds
+-- the session as JSON (agent name, date, category, status, notes, skills).
+CREATE TABLE IF NOT EXISTS coaching_sessions (
+  id TEXT PRIMARY KEY,
+  npn TEXT NOT NULL,              -- the agent coached
+  data TEXT NOT NULL,
+  created_by TEXT,
+  created_at TEXT,
+  updated_by TEXT,
+  updated_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_coaching_sessions_npn ON coaching_sessions (npn);

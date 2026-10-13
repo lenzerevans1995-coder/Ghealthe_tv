@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coaching | AEP Dashboards</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#eef7ff;min-height:100vh;background:#071827;
+  background-image:radial-gradient(circle at 80% 0,#123e64 0,transparent 34%),linear-gradient(135deg,#061521,#0a2236 55%,#071827)}
+.wrap{max-width:1300px;margin:auto;padding:24px 34px 40px}
+.nav{height:74px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff18;gap:12px}
+.logo{width:220px;max-width:50vw;max-height:58px;object-fit:contain;filter:drop-shadow(0 6px 18px #0006)}
+.navright{display:flex;gap:14px;align-items:center;font-size:13px;color:#9fb5c7}
+.menu{display:flex;gap:6px;margin-right:auto;margin-left:24px}
+.menu a{padding:9px 14px;border-radius:10px;color:#9fb5c7;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:.04em}
+.menu a:hover{color:#fff;background:#ffffff0a}
+.menu a.on{color:#fff;background:#2489c833;box-shadow:inset 0 0 0 1px #2489c866}
+.user{display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2489c8,#35a8e0);color:#fff;font-weight:900;font-size:15px;letter-spacing:.02em;box-shadow:0 4px 14px #2489c840}
+.avatar:empty{display:none}
+.uname{color:#eef7ff;font-weight:700;font-size:14px}
+.logout{display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;border:1px solid #ffffff26;background:#ffffff0a;color:#cfe3f1;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:.04em;transition:.15s}
+.logout:hover{background:#c0392b;border-color:#c0392b;color:#fff}
+.tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:28px 0 14px}
+.teampick{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.14em;color:#70a7ca;font-weight:900}
+select,input,textarea{font:inherit;color:#fff;border-radius:10px;border:1px solid #ffffff26;background:#071827;outline:none}
+select:focus,input:focus,textarea:focus{border-color:#35a8e0}
+.teampick select{font-size:15px;font-weight:700;letter-spacing:0;padding:10px 12px;min-width:200px;cursor:pointer}
+.tools input[type=search]{flex:1;min-width:180px;font-size:15px;padding:11px 14px;background:#07182799}
+.tools .f{font-size:14px;padding:10px 12px;cursor:pointer}
+.btn{font:inherit;font-size:13px;font-weight:800;letter-spacing:.04em;padding:11px 16px;border-radius:10px;border:1px solid #ffffff22;background:#ffffff0a;color:#cfe3f1;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#ffffff16;color:#fff}
+.btn.primary{background:#2489c8;border-color:#2489c8;color:#fff}
+.btn.primary:hover{background:#35a8e0;border-color:#35a8e0}
+.btn.danger{background:transparent;border-color:#c0392b88;color:#ffb4a8}
+.btn.danger:hover{background:#c0392b;border-color:#c0392b;color:#fff}
+.btn:disabled{opacity:.6;cursor:wait}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 14px}
+.tile,.panel{background:linear-gradient(145deg,#102b40e8,#0b2032e8);border:1px solid #ffffff16}
+.tile{border-radius:14px;padding:14px 16px}
+.k{font-size:10px;letter-spacing:.14em;color:#70a7ca;font-weight:900;text-transform:uppercase}
+.tile .v{font-size:26px;font-weight:800;margin-top:6px}
+.tile .v.warn{color:#ffb4a8}
+.layout{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start}
+.panel{border-radius:20px;overflow:hidden}
+.ph{padding:14px 20px;background:#07182760;border-bottom:1px solid #ffffff0d}
+.roster{max-height:70vh;overflow:auto;padding:8px}
+.agent{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;gap:8px;padding:11px 12px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700}
+.agent span{color:#7f9aaf;font-weight:800}
+.agent:hover{background:#ffffff08}
+.agent.on{background:#2489c833;box-shadow:inset 0 0 0 1px #2489c866}
+.agent:focus-visible{outline:2px solid #35a8e0}
+.main .ph{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.main h2{margin:0;font-size:17px}
+.score{padding:18px 20px;border-bottom:1px solid #ffffff0d}
+.score:empty{display:none}
+.scoregrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.sbox{background:#07182780;border:1px solid #ffffff12;border-radius:12px;padding:12px 14px}
+.sbox b{display:block;font-size:22px;margin:6px 0 2px}
+.sbox small{color:#7f9aaf;font-size:12px}
+.good{color:#62d99c}.bad{color:#ff9a8f}.dim{color:#5a7d95}
+.skillrow{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;padding:8px 0;border-top:1px solid #ffffff0d;font-size:13px}
+.skillrow:first-of-type{border-top:0}
+.skillbar{height:8px;border-radius:8px;overflow:hidden;background:#ffffff12;display:flex}
+.skillbar i{display:block;height:100%}
+.skillbar .g{background:linear-gradient(90deg,#299e66,#62d99c)}
+.skillbar .b{background:linear-gradient(90deg,#c0392b,#ff9a8f)}
+.skillrow small{color:#7f9aaf;font-size:11px}
+.score h3{font-size:11px;letter-spacing:.14em;color:#70a7ca;margin:18px 0 8px}
+.trend{width:100%;border-collapse:collapse;font-size:12px}
+.trend th{font-size:10px;letter-spacing:.06em;color:#70a7ca;text-align:center;padding:8px 6px;font-weight:900}
+.trend th:first-child,.trend td:first-child{text-align:left}
+.trend td{text-align:center;padding:8px 6px;border-top:1px solid #ffffff0d}
+.scroll{overflow:auto}
+.entry{display:grid;grid-template-columns:120px 1fr 120px 130px 70px;gap:16px;padding:16px 20px;border-top:1px solid #ffffff0d;font-size:14px;align-items:start}
+.entry:first-child{border-top:0}
+.entry.head{font-size:10px;letter-spacing:.14em;color:#70a7ca;font-weight:900;background:#07182760;padding:12px 20px}
+.entry .date{font-weight:800}
+.entry .who{color:#7f9aaf;font-size:12px;margin-top:3px}
+.entry .cat{display:inline-block;margin-bottom:6px;font-size:11px;font-weight:900;letter-spacing:.08em;color:#a9dcf7;text-transform:uppercase}
+.entry p{margin:0 0 6px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap}
+.entry p b{color:#9fb5c7;font-weight:800}
+.entry .notes{color:#9fb5c7}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:#ffffff0d}
+.tag.s{background:#299e6626;color:#8ff0bd}
+.tag.w{background:#c0392b26;color:#ffb4a8}
+.pill{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.04em;padding:5px 10px;border-radius:999px;background:#2489c833;color:#a9dcf7;white-space:nowrap}
+.pill.done{background:#299e6633;color:#8ff0bd}
+.pill.late{background:#c0392b33;color:#ffb4a8}
+.edit{font:inherit;font-size:12px;font-weight:800;letter-spacing:.06em;padding:7px 10px;border-radius:8px;border:1px solid #ffffff22;background:#ffffff0a;color:#cfe3f1;cursor:pointer}
+.edit:hover{background:#2489c8;border-color:#2489c8;color:#fff}
+.empty{padding:30px;text-align:center;color:#9fb5c7}
+.modal{position:fixed;inset:0;background:#020a12b3;display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.open{display:flex}
+.box{width:100%;max-width:720px;max-height:92vh;overflow:auto;background:#0e2638;border:1px solid #ffffff22;border-radius:16px;padding:22px;box-shadow:0 24px 60px #0008}
+.box h2{margin:0 0 6px;font-size:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+.full{grid-column:1/-1}
+.box label.l{display:block;font-size:11px;letter-spacing:.12em;color:#70a7ca;font-weight:900;margin:12px 0 6px}
+.box input,.box select,.box textarea{width:100%;font-size:15px;padding:10px 12px}
+.box textarea{min-height:80px;resize:vertical}
+.skills{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.skill{background:#07182780;border:1px solid #ffffff14;border-radius:10px;padding:10px 12px}
+.skill b{display:block;font-size:13px;margin-bottom:8px}
+.choices{display:flex;gap:14px;font-size:13px;color:#cfe3f1}
+.choices label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.choices input{width:auto;accent-color:#35a8e0}
+.err{color:#ffb4a8;font-size:13px;min-height:18px;margin-top:12px}
+.btns{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.btns .spacer{margin-right:auto}
+.btns .btn.danger:empty,.btns .btn[hidden]{display:none}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.roster{max-height:240px}.entry{grid-template-columns:1fr 100px;gap:8px 12px}.entry.head{display:none}.entry .c-obs{grid-column:1/-1;order:3}.entry .c-fu{order:4}.entry .c-st{order:5}.entry .c-ed{order:6}}
+@media(max-width:700px){.wrap{padding:16px}.nav{height:auto;flex-wrap:wrap;padding:10px 0;row-gap:6px}.menu{order:3;width:100%;margin:0 0 4px;overflow-x:auto}.uname{display:none}.summary,.scoregrid{grid-template-columns:1fr 1fr}.teampick select{min-width:0}.menu{margin-left:8px}.menu a{padding:8px 8px;font-size:12px}.logo{width:120px}.grid,.skills{grid-template-columns:1fr}.skillrow{grid-template-columns:110px 1fr;}.skillrow .last{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><div class="menu"><a href="/team">Agent Dashboards</a><a href="/team/draft">Coaching Draft</a><a class="on" href="/team/coaching">Coaching</a></div><div class="navright"><div class="user"><span class="avatar" id="avatar" aria-hidden="true"></span><span class="uname" id="who"></span></div><a class="logout" href="/logout">Sign out</a></div></nav>
+  <div class="tools">
+    <label class="teampick"><span>TEAM</span><select id="team" aria-label="Team"><option value="all">All agents</option></select></label>
+    <input id="q" type="search" placeholder="Search notes and action plans" autocomplete="off">
+    <select id="fCat" class="f" aria-label="Category"><option value="">All categories</option></select>
+    <select id="fStatus" class="f" aria-label="Status"><option value="">All statuses</option></select>
+    <button class="btn" id="exportBtn" type="button">Export CSV</button>
+    <button class="btn primary" id="newBtn" type="button">+ New coaching</button>
+  </div>
+  <div class="summary" id="summary"></div>
+  <div class="layout">
+    <aside class="panel"><div class="ph k">Team roster</div><div class="roster" id="roster"></div></aside>
+    <section class="panel main">
+      <div class="ph"><h2 id="logTitle">Coaching activity</h2></div>
+      <div class="score" id="score"></div>
+      <div id="rows"></div>
+    </section>
+  </div>
+</div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <form class="box" id="mForm" autocomplete="off">
+    <h2 id="mTitle">New coaching session</h2>
+    <div class="grid">
+      <div><label class="l" for="mAgent">AGENT</label><select id="mAgent" required></select></div>
+      <div><label class="l" for="mDate">COACHING DATE</label><input type="date" id="mDate" required></div>
+      <div><label class="l" for="mCat">CATEGORY</label><select id="mCat"></select></div>
+      <div><label class="l" for="mStatus">STATUS</label><select id="mStatus"></select></div>
+      <div class="full"><label class="l">STRENGTHS AND WEAKNESSES</label><div class="skills" id="mSkills"></div></div>
+      <div class="full"><label class="l" for="mObs">OBSERVATIONS</label><textarea id="mObs" required maxlength="4000" placeholder="No member PHI"></textarea></div>
+      <div class="full"><label class="l" for="mAction">ACTION PLAN / AGENT COMMITMENT</label><textarea id="mAction" required maxlength="4000"></textarea></div>
+      <div><label class="l" for="mFollow">FOLLOW-UP DATE</label><input type="date" id="mFollow"></div>
+      <div><label class="l" for="mCoach">COACH</label><input id="mCoach" maxlength="80"></div>
+      <div class="full"><label class="l" for="mNotes">MANAGER NOTES</label><textarea id="mNotes" maxlength="4000"></textarea></div>
+    </div>
+    <div class="err" id="mErr"></div>
+    <div class="btns"><button type="button" class="btn danger spacer" id="mDelete" hidden>Delete</button><button type="button" class="btn" id="mCancel">Cancel</button><button type="submit" class="btn primary" id="mSave">Save</button></div>
+  </form>
+</div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var data = null, team = null, selected = '', editing = null, busy = false;
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function today() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); }
+  function nice(d) {
+    if (!d) return '';
+    var p = d.split('-');
+    return Number(p[1]) + '/' + Number(p[2]) + '/' + p[0].slice(2);
+  }
+  function fill(sel, list, first) {
+    sel.textContent = '';
+    if (first) sel.appendChild(new Option(first, ''));
+    list.forEach(function (v) { sel.appendChild(new Option(v, v)); });
+  }
+
+  function teamAgents() {
+    return data.agents.filter(function (a) {
+      if (team === 'all') return true;
+      if (team === '__none') return !a.leader;
+      return a.leader === team;
+    });
+  }
+  function inTeam() {
+    var set = {};
+    teamAgents().forEach(function (a) { set[a.npn] = true; });
+    return data.entries.filter(function (e) { return set[e.npn]; });
+  }
+
+  function render() {
+    var now = today(), agents = teamAgents(), entries = inTeam();
+    if (selected && !agents.some(function (a) { return a.npn === selected; })) selected = '';
+    var open = entries.filter(function (e) { return e.status !== 'Completed' && e.followup; });
+    var late = open.filter(function (e) { return e.followup < now; });
+    $('summary').innerHTML =
+      '<div class="tile"><div class="k">Team members</div><div class="v">' + agents.length + '</div></div>' +
+      '<div class="tile"><div class="k">Sessions</div><div class="v">' + entries.length + '</div></div>' +
+      '<div class="tile"><div class="k">Open follow-ups</div><div class="v">' + open.length + '</div></div>' +
+      '<div class="tile"><div class="k">Overdue follow-ups</div><div class="v' + (late.length ? ' warn' : '') + '">' + late.length + '</div></div>';
+
+    var count = function (npn) { return entries.filter(function (e) { return e.npn === npn; }).length; };
+    $('roster').innerHTML = '<button class="agent' + (!selected ? ' on' : '') + '" data-agent=""><b>All agents</b><span>' + entries.length + '</span></button>' +
+      agents.map(function (a) {
+        return '<button class="agent' + (selected === a.npn ? ' on' : '') + '" data-agent="' + esc(a.npn) + '"><b>' + esc(a.name) + '</b><span>' + count(a.npn) + '</span></button>';
+      }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-agent]'), function (el) {
+      el.onclick = function () { selected = el.getAttribute('data-agent'); render(); };
+    });
+
+    var who = selected ? data.agents.find(function (a) { return a.npn === selected; }) : null;
+    $('logTitle').textContent = who ? who.name : 'Coaching activity';
+    renderScore(who);
+
+    var q = $('q').value.trim().toLowerCase(), cat = $('fCat').value, st = $('fStatus').value;
+    var list = entries.filter(function (e) {
+      return (!selected || e.npn === selected) && (!cat || e.category === cat) && (!st || e.status === st) &&
+        (!q || [e.agent, e.observation, e.action, e.notes, e.manager].join(' ').toLowerCase().indexOf(q) >= 0);
+    }).sort(function (a, b) { return b.date.localeCompare(a.date) || String(b.created_at).localeCompare(String(a.created_at)); });
+
+    $('rows').innerHTML = list.length
+      ? '<div class="entry head"><div>DATE</div><div>SESSION</div><div>FOLLOW-UP</div><div>STATUS</div><div></div></div>' +
+        list.map(function (e) {
+          var overdue = e.followup && e.followup < now && e.status !== 'Completed';
+          var tags = Object.keys(e.skills || {}).map(function (k) {
+            return '<span class="tag ' + (e.skills[k] === 'Strength' ? 's' : 'w') + '">' + esc(k) + '</span>';
+          }).join('');
+          return '<div class="entry"><div><div class="date">' + esc(nice(e.date)) + '</div><div class="who">' + esc(e.agent) + '</div>' +
+            (e.manager ? '<div class="who">Coach: ' + esc(e.manager) + '</div>' : '') + '</div>' +
+            '<div class="c-obs"><span class="cat">' + esc(e.category) + '</span>' +
+            '<p><b>Observation:</b> ' + esc(e.observation) + '</p><p><b>Action:</b> ' + esc(e.action) + '</p>' +
+            (e.notes ? '<p class="notes">' + esc(e.notes) + '</p>' : '') +
+            (tags ? '<div class="tags">' + tags + '</div>' : '') + '</div>' +
+            '<div class="c-fu">' + (e.followup ? esc(nice(e.followup)) : '<span class="dim">None</span>') + '</div>' +
+            '<div class="c-st"><span class="pill' + (e.status === 'Completed' ? ' done' : overdue ? ' late' : '') + '">' + (overdue ? 'Overdue' : esc(e.status)) + '</span></div>' +
+            '<div class="c-ed"><button class="edit" data-edit="' + esc(e.id) + '">Edit</button></div></div>';
+        }).join('')
+      : '<div class="empty">No coaching sessions yet.</div>';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-edit]'), function (b) {
+      b.onclick = function () { openForm(b.getAttribute('data-edit')); };
+    });
+  }
+
+  function renderScore(who) {
+    var el = $('score');
+    if (!who) { el.innerHTML = ''; return; }
+    var skills = data.skills;
+    var history = data.entries.filter(function (e) { return e.npn === who.npn; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
+    var rated = history.filter(function (e) { return e.skills && Object.keys(e.skills).length; });
+    var latest = rated.length ? rated[rated.length - 1] : null;
+    var cur = (latest && latest.skills) || {};
+    var s = skills.filter(function (n) { return cur[n] === 'Strength'; }).length;
+    var w = skills.filter(function (n) { return cur[n] === 'Weakness'; }).length;
+    var rows = skills.map(function (n) {
+      var obs = rated.map(function (e) { return e.skills[n]; }).filter(Boolean);
+      var g = obs.filter(function (v) { return v === 'Strength'; }).length, b = obs.length - g;
+      var pct = obs.length ? Math.round(g / obs.length * 100) : 0;
+      var last = obs.length ? obs[obs.length - 1] : '';
+      return '<div class="skillrow"><b>' + esc(n) + '</b><div><div class="skillbar"><i class="g" style="width:' + pct + '%"></i><i class="b" style="width:' + (obs.length ? 100 - pct : 0) + '%"></i></div>' +
+        '<small>' + g + ' strength, ' + b + ' weakness</small></div><span class="last ' + (last === 'Strength' ? 'good' : last === 'Weakness' ? 'bad' : 'dim') + '">' + (last || 'Not rated') + '</span></div>';
+    }).join('');
+    var trend = rated.slice().reverse().map(function (e) {
+      return '<tr><td>' + esc(nice(e.date)) + '</td>' + skills.map(function (n) {
+        var v = e.skills[n];
+        return '<td class="' + (v === 'Strength' ? 'good' : v === 'Weakness' ? 'bad' : 'dim') + '">' + (v === 'Strength' ? 'S' : v === 'Weakness' ? 'W' : '-') + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+    el.innerHTML =
+      '<div class="scoregrid">' +
+      '<div class="sbox"><div class="k">Strengths</div><b class="good">' + s + '</b><small>of ' + skills.length + ' skills</small></div>' +
+      '<div class="sbox"><div class="k">Weaknesses</div><b class="bad">' + w + '</b><small>of ' + skills.length + ' skills</small></div>' +
+      '<div class="sbox"><div class="k">Last rated</div><b>' + (latest ? esc(nice(latest.date)) : '-') + '</b><small>' + (s + w) + ' of ' + skills.length + ' rated</small></div>' +
+      '<div class="sbox"><div class="k">Sessions</div><b>' + history.length + '</b><small>' + rated.length + ' with ratings</small></div></div>' +
+      rows +
+      (trend ? '<h3>RATING HISTORY</h3><div class="scroll"><table class="trend"><thead><tr><th>DATE</th>' +
+        skills.map(function (n) { return '<th>' + esc(n.toUpperCase()) + '</th>'; }).join('') + '</tr></thead><tbody>' + trend + '</tbody></table></div>' : '');
+  }
+
+  function renderSkills(values) {
+    $('mSkills').innerHTML = data.skills.map(function (n, i) {
+      var v = values[n] || '';
+      var opt = function (val, label) {
+        return '<label><input type="radio" name="sk' + i + '" value="' + val + '"' + (v === val ? ' checked' : '') + '> ' + label + '</label>';
+      };
+      return '<div class="skill"><b>' + esc(n) + '</b><div class="choices">' + opt('Strength', 'Strength') + opt('Weakness', 'Weakness') + opt('', 'Not rated') + '</div></div>';
+    }).join('');
+  }
+  function readSkills() {
+    var out = {};
+    data.skills.forEach(function (n, i) {
+      var c = document.querySelector('input[name="sk' + i + '"]:checked');
+      if (c && c.value) out[n] = c.value;
+    });
+    return out;
+  }
+
+  function openForm(id) {
+    var e = id ? data.entries.find(function (x) { return x.id === id; }) : null;
+    editing = e ? e.id : null;
+    var agents = teamAgents();
+    var opts = agents.slice();
+    if (e && !opts.some(function (a) { return a.npn === e.npn; })) {
+      var a = data.agents.find(function (x) { return x.npn === e.npn; });
+      if (a) opts.unshift(a);
+    }
+    if (!opts.length) opts = data.agents;
+    var sel = $('mAgent');
+    sel.textContent = '';
+    opts.forEach(function (a) { sel.appendChild(new Option(a.name, a.npn)); });
+    sel.value = e ? e.npn : (selected || opts[0].npn);
+    $('mTitle').textContent = e ? 'Edit coaching session' : 'New coaching session';
+    $('mDate').value = e ? e.date : today();
+    $('mCat').value = e ? e.category : data.categories[0];
+    $('mStatus').value = e ? e.status : data.statuses[0];
+    $('mObs').value = e ? e.observation : '';
+    $('mAction').value = e ? e.action : '';
+    $('mFollow').value = e ? e.followup : '';
+    $('mCoach').value = e ? (e.manager || '') : (data.viewer ? data.viewer.name : '');
+    $('mNotes').value = e ? (e.notes || '') : '';
+    renderSkills(e ? e.skills || {} : {});
+    $('mDelete').hidden = !e;
+    $('mErr').textContent = '';
+    $('modal').classList.add('open');
+    $('mAgent').focus();
+  }
+  function closeForm() { $('modal').classList.remove('open'); editing = null; }
+
+  function post(body) {
+    busy = true;
+    $('mSave').disabled = $('mDelete').disabled = true;
+    $('mErr').textContent = '';
+    return fetch('/api/team/coaching', {
+      method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    }).then(function (r) {
+      if (r.status === 401) { location.href = '/'; return null; }
+      return r.json().then(function (j) {
+        if (!r.ok || !j.ok) throw new Error(j.error || 'Could not save. Try again.');
+        return load().then(function () { closeForm(); });
+      });
+    }).catch(function (err) {
+      $('mErr').textContent = err.message || 'Could not save. Try again.';
+    }).then(function () {
+      busy = false;
+      $('mSave').disabled = $('mDelete').disabled = false;
+    });
+  }
+
+  $('mForm').onsubmit = function (ev) {
+    ev.preventDefault();
+    if (busy) return;
+    post({
+      id: editing || undefined,
+      npn: $('mAgent').value,
+      date: $('mDate').value,
+      category: $('mCat').value,
+      status: $('mStatus').value,
+      observation: $('mObs').value,
+      action: $('mAction').value,
+      followup: $('mFollow').value,
+      manager: $('mCoach').value,
+      notes: $('mNotes').value,
+      skills: readSkills(),
+    });
+  };
+  $('mDelete').onclick = function () {
+    if (!editing || busy) return;
+    if (confirm('Delete this coaching session? This cannot be undone.')) post({ id: editing, delete: true });
+  };
+  $('mCancel').onclick = closeForm;
+  $('modal').addEventListener('click', function (ev) { if (ev.target === $('modal')) closeForm(); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && $('modal').classList.contains('open')) closeForm(); });
+
+  $('newBtn').onclick = function () { if (data) openForm(null); };
+  $('team').onchange = function () { team = $('team').value; selected = ''; render(); };
+  $('q').oninput = render;
+  $('fCat').onchange = render;
+  $('fStatus').onchange = render;
+
+  $('exportBtn').onclick = function () {
+    if (!data) return;
+    var cols = ['date', 'agent', 'category', 'observation', 'action', 'followup', 'status', 'manager', 'notes'];
+    var head = ['Date', 'Agent', 'Category', 'Observation', 'Action', 'Follow-up', 'Status', 'Coach', 'Notes'].concat(data.skills);
+    var cell = function (v) {
+      var s = String(v == null ? '' : v);
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return '"' + s.replace(/"/g, '""') + '"';
+    };
+    var rows = inTeam().sort(function (a, b) { return b.date.localeCompare(a.date); }).map(function (e) {
+      return cols.map(function (k) { return cell(e[k]); }).concat(data.skills.map(function (n) { return cell((e.skills || {})[n]); })).join(',');
+    });
+    var csv = '﻿' + [head.map(cell).join(',')].concat(rows).join('\r\n');
+    var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'GHE_Coaching_' + (team === 'all' ? 'All' : team === '__none' ? 'No_team' : team.replace(/\s+/g, '_')) + '_' + today() + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  };
+
+  function load() {
+    return fetch('/api/team/coaching', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
+      if (r.status === 401) { location.href = '/'; throw new Error('signed out'); }
+      return r.json();
+    }).then(function (j) {
+      var first = !data;
+      data = j;
+      if (first) {
+        var sel = $('team');
+        sel.textContent = '';
+        sel.appendChild(new Option('All agents', 'all'));
+        j.leaders.forEach(function (n) { sel.appendChild(new Option(n, n)); });
+        sel.appendChild(new Option('No team', '__none'));
+        team = j.leaders.indexOf(j.viewer && j.viewer.name) >= 0 ? j.viewer.name : 'all';
+        sel.value = team;
+        fill($('fCat'), j.categories, 'All categories');
+        fill($('fStatus'), j.statuses, 'All statuses');
+        fill($('mCat'), j.categories);
+        fill($('mStatus'), j.statuses);
+        var name = j.viewer ? j.viewer.name : '';
+        $('who').textContent = name;
+        var parts = name.trim().split(/\s+/).filter(Boolean);
+        $('avatar').textContent = parts[0] ? (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() : '';
+      }
+      render();
+    });
+  }
+
+  load().catch(function () {
+    $('rows').innerHTML = '<div class="empty">Could not load coaching. Refresh to try again.</div>';
+  });
+  // Other managers' saves show up without a refresh; skip while the form is open.
+  setInterval(function () {
+    if (!busy && !$('modal').classList.contains('open') && !document.hidden) load().catch(function () {});
+  }, 60 * 1000);
+})();
+</script>
+</body>
+</html>

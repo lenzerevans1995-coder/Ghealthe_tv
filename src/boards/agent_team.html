@@ -85,12 +85,12 @@ div.row[data-npn]:hover{background:#ffffff08}
 .box .save{background:#2489c8;border-color:#2489c8;color:#fff}
 .box .save:disabled{opacity:.6;cursor:wait}
 .empty{padding:30px;text-align:center;color:#9fb5c7}
-@media(max-width:700px){.wrap{padding:16px}.uname{display:none}.summary{grid-template-columns:1fr 1fr}.teampick select{min-width:0}.menu{margin-left:8px}.menu a{padding:8px 8px;font-size:12px}.logo{width:120px}.row{grid-template-columns:30px 1fr 40px 1fr 56px;gap:10px;padding:12px 14px}.row .metric.combo,.head .h-combo{display:none}}
+@media(max-width:700px){.wrap{padding:16px}.nav{height:auto;flex-wrap:wrap;padding:10px 0;row-gap:6px}.menu{order:3;width:100%;margin:0 0 4px;overflow-x:auto}.uname{display:none}.summary{grid-template-columns:1fr 1fr}.teampick select{min-width:0}.menu{margin-left:8px}.menu a{padding:8px 8px;font-size:12px}.logo{width:120px}.row{grid-template-columns:30px 1fr 40px 1fr 56px;gap:10px;padding:12px 14px}.row .metric.combo,.head .h-combo{display:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><div class="menu"><a class="on" href="/team">Agent Dashboards</a><a href="/team/draft">Coaching Draft</a></div><div class="navright"><div class="user"><span class="avatar" id="avatar" aria-hidden="true"></span><span class="uname" id="who"></span></div><a class="logout" href="/logout">Sign out</a></div></nav>
+  <nav class="nav"><img class="logo" src="/me/logo.png" alt="Get Health-e"><div class="menu"><a class="on" href="/team">Agent Dashboards</a><a href="/team/draft">Coaching Draft</a><a href="/team/coaching">Coaching</a></div><div class="navright"><div class="user"><span class="avatar" id="avatar" aria-hidden="true"></span><span class="uname" id="who"></span></div><a class="logout" href="/logout">Sign out</a></div></nav>
   <div class="updated" id="updated"></div>
   <div class="tools">
     <label class="teampick"><span>TEAM</span><select id="team" aria-label="Team"><option value="all">All agents</option></select></label>

@@ -178,6 +178,15 @@ alternate) form the "Mentor rotation" group. The Edit popup can still move any a
 `goal:<npn>`, and that wins over the draft. Teams, like plans, appear only in `/api/team`, never on
 an agent's page.
 
+The **Coaching** menu item (`/team/coaching`, managers only) is the coaching log. Each manager lands
+on their own team from the draft (others start on all agents) and can switch teams with the same
+dropdown. A session records the agent, date, category, status, a Strength / Weakness / not rated
+call on seven skills, observations, the action plan, a follow-up date, the coach and notes. Picking
+an agent shows their skill ratings over time. Sessions are saved one row each in the D1 table
+`coaching_sessions` through `/api/team/coaching` (POST saves or, with `delete`, removes one), with
+who created and last changed each row, so every manager sees the same log. Export CSV downloads the
+chosen team's sessions. Like plans and teams, none of it is reachable from an agent's sign-in.
+
 Between pushes, sales arrive live from the Onyx webhook. Each delivery carries the agent's NPN, and
 the Worker records it in `agent_dash_events`. A dashboard adds the deliveries for policies
 *submitted* after the last push, within the window and never in the future, so a sale shows up

@@ -8,6 +8,7 @@
 //   GET  /api/me       that dashboard's numbers (the page polls this)
 //   GET  /team         managers only: every agent, each a link to their dashboard
 //   GET  /team/draft   managers only: the coaching draft board
+//   GET  /team/coaching  managers only: the coaching log, one team at a time
 //   GET  /api/team     that list's numbers
 //   GET  /me/logo.png  the Get Health-e logo the pages carry
 //   POST /ingest/agents  roster + per-agent AEP counts (bearer secret, same as /ingest)
@@ -27,6 +28,7 @@ import AGENT_LOGIN_PAGE from './boards/agent_login.html';
 import AGENT_DASHBOARD_PAGE from './boards/agent_dashboard.html';
 import TEAM_PAGE from './boards/agent_team.html';
 import DRAFT_PAGE from './boards/coaching_draft.html';
+import COACHING_PAGE from './boards/coaching_log.html';
 import MANAGERS from './managers.json';
 import GAME_PLANS from './agent_goals.json';
 import GHE_LOGO from '../assets/ghe-logo.png';
@@ -197,7 +199,7 @@ const PAGE_HEADERS = {
   'referrer-policy': 'same-origin',
 };
 
-export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/team/draft', '/api/team', '/api/team/goal', '/api/team/draft', '/me/logo.png', '/ingest/agents']);
+export const AGENT_PATHS = new Set(['/', '/login', '/logout', '/me', '/api/me', '/team', '/team/draft', '/team/coaching', '/api/team/coaching', '/api/team', '/api/team/goal', '/api/team/draft', '/me/logo.png', '/ingest/agents']);
 
 // Managers sign in with their NPN like anyone else, but they are not on the
 // floor roster the Routine pushes, so they are listed here. A manager lands on
@@ -249,6 +251,17 @@ export async function handleAgentRoute(request, env, path, { checkBearer }) {
     return new Response(DRAFT_PAGE, { headers: PAGE_HEADERS });
   }
 
+  // The coaching log: managers only. Each manager lands on their own team.
+  if (path === '/team/coaching') {
+    if (!manager) return redirect(self ? '/me' : '/');
+    return new Response(COACHING_PAGE, { headers: PAGE_HEADERS });
+  }
+
+  if (path === '/api/team/coaching') {
+    if (!manager) return jsonNoStore({ error: 'signed_out' }, 401);
+    return handleCoaching(request, env, manager);
+  }
+
   if (path === '/api/team/draft') {
     if (!manager) return jsonNoStore({ error: 'signed_out' }, 401);
     return handleDraft(request, env, manager);
@@ -285,6 +298,98 @@ export async function handleAgentRoute(request, env, path, { checkBearer }) {
   }
 
   return new Response('Not found', { status: 404 });
+}
+
+// ---------- coaching log ----------
+
+// Sessions live in D1, one row each, so every manager's screen sees the same
+// log. Managers only, like the plan and the team. Any manager can add, edit or
+// delete a session; each row keeps who wrote it and who last changed it.
+const COACH_CATEGORIES = ['Sales Performance', 'Call Quality', 'Compliance', 'Attendance', 'Development', 'Other'];
+const COACH_STATUSES = ['Open', 'In Progress', 'Completed'];
+const COACH_SKILLS = ['Attendance', 'Call Closing', 'Professionalism', 'Intangibles', 'Pitching', 'Product Knowledge', 'Assuming the Sale'];
+const COACH_TEXT_MAX = 4000;
+
+async function coachingView(env, manager) {
+  const feed = await loadAgentFeed(env);
+  const edits = await loadGoalEdits(env, null);
+  const draft = await loadDraft(env);
+  const agents = (feed?.rows || [])
+    .map((r) => ({ npn: r.npn, name: r.agent, leader: leaderFor(r.npn, edits, draft) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const { results } = await env.DB.prepare(
+    'SELECT id, npn, data, created_by, created_at, updated_by, updated_at FROM coaching_sessions'
+  ).all();
+  const entries = (results || []).map((r) => {
+    let d = {};
+    try { d = JSON.parse(r.data); } catch (e) {}
+    return { ...d, id: r.id, npn: r.npn, created_by: r.created_by, created_at: r.created_at, updated_by: r.updated_by, updated_at: r.updated_at };
+  });
+  return {
+    viewer: { manager: true, name: manager.name },
+    leaders: TEAM_CHOICES,
+    categories: COACH_CATEGORIES,
+    statuses: COACH_STATUSES,
+    skills: COACH_SKILLS,
+    agents,
+    entries,
+  };
+}
+
+async function handleCoaching(request, env, manager) {
+  if (request.method === 'GET') return jsonNoStore(await coachingView(env, manager));
+  if (request.method !== 'POST') return jsonNoStore({ error: 'method' }, 405);
+  const origin = request.headers.get('origin');
+  if (origin && origin !== new URL(request.url).origin) return jsonNoStore({ error: 'bad_origin' }, 403);
+  let body;
+  try { body = await request.json(); } catch (e) { return jsonNoStore({ error: 'bad_json' }, 400); }
+  const now = new Date().toISOString();
+  const id = typeof body.id === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(body.id) ? body.id : null;
+
+  if (body.delete) {
+    if (!id) return jsonNoStore({ error: 'Pick a session to delete.' }, 400);
+    await env.DB.prepare('DELETE FROM coaching_sessions WHERE id = ?').bind(id).run();
+    return jsonNoStore({ ok: true, id, deleted: true });
+  }
+
+  const npn = String(body.npn || '').replace(/\D/g, '');
+  const feed = await loadAgentFeed(env);
+  const agent = (feed?.rows || []).find((r) => r.npn === npn);
+  if (!agent) return jsonNoStore({ error: 'Pick an agent.' }, 400);
+  const day = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+  const text = (v) => String(v ?? '').trim().slice(0, COACH_TEXT_MAX);
+  const skills = {};
+  for (const [k, v] of Object.entries(body.skills && typeof body.skills === 'object' ? body.skills : {})) {
+    if (COACH_SKILLS.includes(k) && (v === 'Strength' || v === 'Weakness')) skills[k] = v;
+  }
+  const data = {
+    agent: agent.agent,
+    date: day(body.date),
+    category: COACH_CATEGORIES.includes(body.category) ? body.category : '',
+    status: COACH_STATUSES.includes(body.status) ? body.status : '',
+    observation: text(body.observation),
+    action: text(body.action),
+    followup: day(body.followup),
+    manager: text(body.manager).slice(0, 80) || manager.name,
+    notes: text(body.notes),
+    skills,
+  };
+  if (!data.date) return jsonNoStore({ error: 'Pick a coaching date.' }, 400);
+  if (!data.category || !data.status) return jsonNoStore({ error: 'Pick a category and status.' }, 400);
+  if (!data.observation || !data.action) return jsonNoStore({ error: 'Fill in observations and the action plan.' }, 400);
+
+  if (id) {
+    const res = await env.DB.prepare(
+      'UPDATE coaching_sessions SET npn = ?, data = ?, updated_by = ?, updated_at = ? WHERE id = ?'
+    ).bind(npn, JSON.stringify(data), manager.name, now, id).run();
+    if (!res.meta?.changes) return jsonNoStore({ error: 'That session was deleted. Refresh and try again.' }, 404);
+    return jsonNoStore({ ok: true, id });
+  }
+  const newId = crypto.randomUUID();
+  await env.DB.prepare(
+    'INSERT INTO coaching_sessions (id, npn, data, created_by, created_at, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).bind(newId, npn, JSON.stringify(data), manager.name, now, manager.name, now).run();
+  return jsonNoStore({ ok: true, id: newId });
 }
 
 // ---------- sign-in ----------
