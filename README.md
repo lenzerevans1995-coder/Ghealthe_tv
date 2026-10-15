@@ -119,6 +119,27 @@ appointments already existed seven days earlier (by `appointments.created_at`). 
 board leaves out the "up from N a week ago" line when it is missing. An empty or malformed roster is
 refused, so a failed query leaves the last real counts on screen.
 
+## AEP 2027 Core leaderboard
+
+`/board/aep2027` (open, listed on `/tv`) is the Royal Platinum Core leaderboard: an AEP 2027 intro
+that shatters when today's Core count rises, then the top 14 agents by AEP-to-date Core (each with
+their STHHC and HI), a rail with selling days left, AEP STHHC, AEP HI and agents with a Core, and a
+gold ticker of today's Core sales (agent, plan, time). It polls `/board/aep2027/feed.js` every 30
+seconds (`window.AEP = {...}`).
+
+The feed is built by the Worker on each read from the same pipeline as the agent dashboards, so the
+two always agree: the hourly agent push (`/ingest/agents`, Routine at :10) supplies per-agent `core`,
+plus `sthhc`, `hi` (each from 10/15) and `core_today`, and `today` with `sales_today` (today's newest
+60 Core sales: id, npn, plan, carrier, submitted_at). Webhook sales written after that push are added
+on top (`agent_dash_events`, which now also stores plan and carrier), so a Core shows on the wall
+within the 30-second poll. The "Updated" time is the read time while the push is keeping up (3 hours
+in the 9 AM to 7 PM ET day, 16 overnight); past that it shows the push's own time and the dot goes
+amber, then red.
+
+Board behaviour from the design: started mid-day with Core already on the sheet it goes straight to
+the leaderboard; `?intro` keeps the intro up until the next Core; `S` shatters now, `R` re-arms; it
+re-arms itself at the Eastern-time day change. `?static` freezes the ticker.
+
 ## Agent sign-in and dashboards
 
 `https://ghe-board.com/` is the agents' front door. An agent types their NPN and lands on `/me`,

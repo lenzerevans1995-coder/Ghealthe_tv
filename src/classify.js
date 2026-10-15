@@ -28,7 +28,9 @@ export function isHra(p) {
 }
 
 export function isSthhc(p) {
-  if (lc(p.policy_type) === 'short_term_home_health_care') return true;
+  // Keyed both ways: SHORT_TERM_HOME_HEALTH (GTL, Manhattan Life) and
+  // short_term_home_health_care.
+  if (lc(p.policy_type).startsWith('short_term_home_health')) return true;
   const name = lc(p.policy_name);
   const carrier = lc(p.carrier_name);
   return (

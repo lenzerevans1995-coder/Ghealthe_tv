@@ -573,13 +573,109 @@ async function liveSales(env, feed, npn) {
 
 // Called from the Onyx webhook for every verified delivery. Upserts by policy,
 // so an update replaces the earlier record rather than adding a second sale.
-export async function recordAgentSale(env, { policyId, product, npn, submittedAt }) {
+export async function recordAgentSale(env, { policyId, product, npn, submittedAt, plan, carrier }) {
   const n = String(npn ?? '').replace(/\D/g, '');
   if (!n || policyId == null || !submittedAt) return;
+  const text = (v) => (v == null || v === '' ? null : String(v).slice(0, 160));
   await env.DB.prepare(
-    'INSERT INTO agent_dash_events (policy_id, ts, submitted_at, product, npn) VALUES (?, ?, ?, ?, ?) ' +
-    'ON CONFLICT(policy_id) DO UPDATE SET ts = excluded.ts, submitted_at = excluded.submitted_at, product = excluded.product, npn = excluded.npn'
-  ).bind(policyId, new Date().toISOString(), isoZ(submittedAt), product, n).run();
+    'INSERT INTO agent_dash_events (policy_id, ts, submitted_at, product, npn, plan, carrier) VALUES (?, ?, ?, ?, ?, ?, ?) ' +
+    'ON CONFLICT(policy_id) DO UPDATE SET ts = excluded.ts, submitted_at = excluded.submitted_at, product = excluded.product, ' +
+    'npn = excluded.npn, plan = excluded.plan, carrier = excluded.carrier'
+  ).bind(policyId, new Date().toISOString(), isoZ(submittedAt), product, n, text(plan), text(carrier)).run();
+}
+
+// ---------- AEP 2027 Core leaderboard (/board/aep2027) ----------
+
+// Today's Core sales as the hourly push lists them, for the board's ticker.
+// Kept only when well formed; the push's per-agent core_today carries the
+// count, so a trimmed list never changes a number.
+function todaysSales(body) {
+  const today = typeof body.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.today) ? body.today : null;
+  if (!today || !Array.isArray(body.sales_today)) return {};
+  const sales = [];
+  for (const x of body.sales_today.slice(0, 200)) {
+    const id = Number(x?.id);
+    const npn = String(x?.npn ?? '').replace(/\D/g, '');
+    const at = x?.submitted_at ? isoZ(x.submitted_at) : null;
+    if (!Number.isInteger(id) || !npn || !at || isNaN(Date.parse(at))) continue;
+    sales.push({
+      id, npn, submitted_at: at,
+      plan: x.plan ? String(x.plan).slice(0, 160) : null,
+      carrier: x.carrier ? String(x.carrier).slice(0, 160) : null,
+    });
+  }
+  return { today, sales_today: sales };
+}
+
+function etClock(iso) {
+  return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+}
+
+// The board's feed, built on each read: the last hourly push for everything
+// up to it, plus the Onyx webhook for sales written since, so a Core lands on
+// the wall within the board's 30-second poll. Same roster and the same
+// product rules as the agent dashboards, so the two never disagree.
+export async function aep2027Feed(env) {
+  const feed = await loadAgentFeed(env);
+  if (!feed?.rows?.length) return null;
+  const now = Date.now();
+  const today = etDate(new Date(now).toISOString());
+  const from = feed.window?.from || '2026-10-15';
+  const to = feed.window?.to || '2026-12-07';
+  const byNpn = new Map(feed.rows.map((r) => [r.npn, {
+    name: r.agent, core: r.core, sthhc: r.sthhc || 0, hi: r.hi || 0,
+  }]));
+  const pushIsToday = feed.today === today;
+  let coreToday = pushIsToday ? feed.rows.reduce((n, r) => n + (r.core_today || 0), 0) : 0;
+  const sales = new Map();
+  if (pushIsToday) {
+    for (const x of feed.sales_today || []) {
+      if (byNpn.has(x.npn)) sales.set(x.id, x);
+    }
+  }
+
+  let rows = [];
+  try {
+    rows = (await env.DB.prepare(
+      'SELECT policy_id, npn, product, submitted_at, plan, carrier FROM agent_dash_events WHERE submitted_at > ?'
+    ).bind(isoZ(feed.generated_at)).all()).results || [];
+  } catch (e) { /* no table yet: the push alone */ }
+  for (const e of rows) {
+    const a = byNpn.get(e.npn);
+    const t = Date.parse(e.submitted_at);
+    const day = etDate(e.submitted_at);
+    if (!a || !day || day < from || day > to || t > now) continue;
+    if (e.product === 'core') {
+      a.core += 1;
+      if (day === today) {
+        coreToday += 1;
+        sales.set(e.policy_id, { id: e.policy_id, npn: e.npn, submitted_at: e.submitted_at, plan: e.plan, carrier: e.carrier });
+      }
+    } else if (e.product === 'sthhc') a.sthhc += 1;
+    else if (e.product === 'hi') a.hi += 1;
+  }
+
+  const agents = [...byNpn.values()];
+  const sum = (k) => agents.reduce((n, a) => n + a[k], 0);
+  // Fresh while the hourly push is keeping up (the webhook covers the gaps);
+  // past that, the board shows the push's own time and its dot goes amber, then
+  // red. Overnight there is no push, so the allowance stretches to morning.
+  const etHour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date(now)));
+  const pushAge = now - Date.parse(feed.generated_at);
+  const fresh = pushAge < (etHour >= 9 && etHour < 19 ? 3 : 16) * 3600000;
+  const asOf = fresh ? new Date(now).toISOString() : isoZ(feed.generated_at);
+  return {
+    generated_at: asOf,
+    stamp_short: etClock(asOf),
+    window: { start: from, end: to },
+    agents,
+    sales: [...sales.values()]
+      .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))
+      .slice(0, 40)
+      .map((x) => ({ id: x.id, agent: byNpn.get(x.npn).name, plan: x.plan, carrier: x.carrier, at: etClock(x.submitted_at) })),
+    today: { core: coreToday },
+    totals: { core: sum('core'), sthhc: sum('sthhc'), hi: sum('hi'), agents: agents.filter((a) => a.core > 0).length },
+  };
 }
 
 function etDate(iso) {
@@ -638,6 +734,11 @@ async function handleAgentIngest(request, env, checkBearer) {
         combo: Number(r.combo),
         ...(Number(r.core_goal) > 0 ? { core_goal: Number(r.core_goal) } : {}),
         ...(Number(r.combo_goal) > 0 ? { combo_goal: Number(r.combo_goal) } : {}),
+        // For the AEP 2027 Core leaderboard: STHHC and HI each from AEP open,
+        // and Core written today. Optional, so an older push still loads.
+        ...(Number.isInteger(r.sthhc) && r.sthhc >= 0 ? { sthhc: r.sthhc } : {}),
+        ...(Number.isInteger(r.hi) && r.hi >= 0 ? { hi: r.hi } : {}),
+        ...(Number.isInteger(r.core_today) && r.core_today >= 0 ? { core_today: r.core_today } : {}),
       }))
     : null;
   const count = (n) => Number.isInteger(n) && n >= 0;
@@ -658,6 +759,7 @@ async function handleAgentIngest(request, env, checkBearer) {
     goals: body.goals || DEFAULT_GOALS,
     quote: typeof body.quote === 'string' && body.quote.trim() ? body.quote.trim().slice(0, 300) : null,
     rows,
+    ...todaysSales(body),
   };
   // A push without a quote keeps the one already showing.
   if (!feed.quote) {

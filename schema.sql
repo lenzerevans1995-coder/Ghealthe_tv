@@ -48,7 +48,9 @@ CREATE TABLE IF NOT EXISTS agent_dash_events (
   ts TEXT NOT NULL,               -- when the delivery was received (UTC ISO)
   submitted_at TEXT NOT NULL,     -- when the policy was written (UTC ISO)
   product TEXT NOT NULL,          -- core | sthhc | hi | ancillary
-  npn TEXT NOT NULL
+  npn TEXT NOT NULL,
+  plan TEXT,                      -- policy name, for the AEP 2027 board's ticker
+  carrier TEXT                    -- (added 10/15/26: ALTER TABLE agent_dash_events ADD COLUMN plan TEXT; ... carrier TEXT)
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_dash_events_submitted ON agent_dash_events (submitted_at);

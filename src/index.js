@@ -41,6 +41,7 @@ import { PAPER_CHASE_BOARD } from './paperchase.js';
 import WEEKLY_DRAW_BOARD from './boards/weekly_draw.html';
 import TEAM_POINTS_BOARD from './boards/team_points.html';
 import AEP_TRACKER_BOARD from './boards/aep_tracker.html';
+import AEP2027_CORE_BOARD from './boards/aep2027_core.html';
 import TEAM_BREAKDOWN_BOARD from './boards/team_breakdown.html';
 import INDIVIDUAL_RACES_BOARD from './boards/individual_races.html';
 import CASH_DRAWS_BOARD from './boards/cash_draws.html';
@@ -53,7 +54,7 @@ import ROSTER from './contest_roster.json';
 import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
-import { AGENT_PATHS, handleAgentRoute, recordAgentSale } from './agent.js';
+import { AGENT_PATHS, handleAgentRoute, recordAgentSale, aep2027Feed } from './agent.js';
 
 // Snapshots arrive every 10 min (six staggered hourly Routines); the badge
 // threshold tolerates one missed cycle plus generation time so it only shows
@@ -80,7 +81,7 @@ export default {
 // Only the AEP appointment tracker is still on. Every other board is switched
 // off (404) and its refresh Routines paused; the code stays so a board can be
 // turned back on by adding its paths here.
-const ACTIVE_BOARD_PATHS = new Set(['/board/aep', '/board/aep/feed.js', '/board/live-ws', '/board/contest-fonts.css']);
+const ACTIVE_BOARD_PATHS = new Set(['/board/aep', '/board/aep/feed.js', '/board/aep2027', '/board/aep2027/feed.js', '/board/live-ws', '/board/contest-fonts.css']);
 
 async function route(request, env, url) {
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -262,6 +263,15 @@ async function route(request, env, url) {
   // The Last Hat: one name for $500, drawn from a hat weighted by tickets.
   if (path === '/board/lasthat' || path === '/board/lasthat/preview') return html(LAST_HAT_BOARD);
   if (path === '/board/aep') return html(AEP_TRACKER_BOARD);
+  // AEP 2027 Core leaderboard: an intro that shatters on the day's first Core.
+  // Its feed is built per read from the hourly push plus the webhook.
+  if (path === '/board/aep2027') return html(AEP2027_CORE_BOARD);
+  if (path === '/board/aep2027/feed.js') {
+    const d = await aep2027Feed(env);
+    return new Response(`window.AEP = ${JSON.stringify(d)};`, {
+      headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
+    });
+  }
   if (path === '/board/aep/feed.js') {
     const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind('aep_tracker').first();
     return new Response(`window.AEP_TRACKER = ${row ? row.v : 'null'};`, {
@@ -964,6 +974,8 @@ async function handleWebhook(request, env) {
       policyId, product,
       npn: event.agent?.npn_number ?? policy.agent?.npn_number,
       submittedAt: policy.submitted_timestamp ?? event.timestamp ?? null,
+      plan: policy.policy_name ?? policy.name,
+      carrier: policy.carrier_name ?? policy.carrier,
     });
   } catch (e) { /* dashboards fall back to the hourly push */ }
 
