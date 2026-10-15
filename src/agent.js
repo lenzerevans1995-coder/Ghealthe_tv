@@ -637,6 +637,7 @@ export async function aep2027Feed(env) {
   // Counts: only deliveries written after the push (it already has the rest).
   // Ticker: every Core delivered today, whenever the push ran.
   const pushedAt = isoZ(feed.generated_at);
+  let liveToday = 0; // every Core the webhook delivered today, push or no push
   let rows = [];
   try {
     rows = (await env.DB.prepare(
@@ -649,6 +650,7 @@ export async function aep2027Feed(env) {
     const day = etDate(e.submitted_at);
     if (!a || !day || day < from || day > to || t > now) continue;
     if (e.product === 'core' && day === today) {
+      liveToday += 1;
       sales.set(e.policy_id, { id: e.policy_id, npn: e.npn, submitted_at: e.submitted_at, plan: e.plan, carrier: e.carrier });
     }
     if (e.submitted_at <= pushedAt) continue;
@@ -659,6 +661,11 @@ export async function aep2027Feed(env) {
     else if (e.product === 'hi') a.hi += 1;
   }
 
+  // A push without today's count (an older-format run, or one from before
+  // midnight) would read as zero; the webhook's own tally for the day is then
+  // the better number. When both exist the higher wins: the push catches
+  // deliveries Onyx skipped, the webhook catches sales since the push.
+  coreToday = Math.max(coreToday, liveToday);
   const agents = [...byNpn.values()];
   const sum = (k) => agents.reduce((n, a) => n + a[k], 0);
   // Fresh while the hourly push is keeping up (the webhook covers the gaps);
