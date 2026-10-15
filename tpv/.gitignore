@@ -1,0 +1,7 @@
+# Raw tracker exports carry client names and phone numbers: never commit them.
+input/
+*.txt
+*.xlsx
+*.csv
+# Font files are downloaded per render.
+fonts/

@@ -140,6 +140,16 @@ Board behaviour from the design: started mid-day with Core already on the sheet 
 the leaderboard; `?intro` keeps the intro up until the next Core; `S` shatters now, `R` re-arms; it
 re-arms itself at the Eastern-time day change. `?static` freezes the ticker.
 
+## TPV completions board
+
+`/board/tpv` (open, listed on `/tv`) is the TPV Completions board: TPVs, HRA, Mail-Order, Video
+and IHWV by Benefit Rep from TPV Tracker.xlsx on SharePoint, in the design in `tpv/template.html`.
+A Routine reads the workbook with the Microsoft 365 connector every 3 hours on weekdays, counts it
+with `tpv/build_tpv_board.py`, and POSTs per-rep counts (first names and numbers only) to
+`/ingest/tpv` with the ingest secret; the Worker fills the template from kv `tpv_board` on each
+read, and the page reloads itself every 10 minutes. Counting rules and the run steps are in
+`tpv/README.md`.
+
 ## Agent sign-in and dashboards
 
 `https://ghe-board.com/` is the agents' front door. An agent types their NPN and lands on `/me`,
