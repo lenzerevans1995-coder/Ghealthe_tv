@@ -58,6 +58,16 @@ def month_tabs(sheets, day):
             and sh['rows'] and 'TPV' in sh['rows'][0]]
 
 
+EMOJI = re.compile('[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0E\uFE0F\u200D\u20E3]')
+
+
+def full_name(raw):
+    """The rep's name as written on the row, cleaned: emojis stripped, spaces
+    collapsed. Only a multi-word name counts as a full name."""
+    s = re.sub(r'\s+', ' ', EMOJI.sub('', raw)).strip()
+    return s if ' ' in s else None
+
+
 def canon(raw):
     """One name per rep. The AEP tabs use full names and the earlier ones
     first names, so a rep is their first name, with the known spellings
@@ -76,6 +86,7 @@ def canon(raw):
 def count(sheets, tabs):
     reps = collections.defaultdict(lambda: dict.fromkeys(COLS, 0))
     nobody = dict.fromkeys(COLS, 0)
+    fulls = {}
     report = {'tabs': tabs, 'rows_read': 0, 'rows_all_blank': 0, 'rows_no_rep': 0, 'bad_values': []}
     for tab in tabs:
         sh = sheets[tab]
@@ -95,6 +106,9 @@ def count(sheets, tabs):
                 report['rows_all_blank'] += 1
                 continue
             name = canon(r[0])
+            fn = full_name(r[0]) if name else None
+            if fn and len(fn) > len(fulls.get(name, '')):
+                fulls[name] = fn
             bucket = reps[name] if name else nobody
             if not name:
                 report['rows_no_rep'] += 1
@@ -107,7 +121,8 @@ def count(sheets, tabs):
         if lines != sh['declared']:
             sys.exit(f'{tab}: read {lines} of {sh["declared"]} rows; the read is partial, not building a board')
     floor = {c: sum(b[c] for b in reps.values()) + nobody[c] for c in COLS}
-    ranked = sorted(reps.items(), key=lambda kv: (-kv[1]['TPV'], kv[0]))
+    shown = {k: fulls.get(k, k) for k in reps}
+    ranked = sorted(((shown[k], v) for k, v in reps.items()), key=lambda kv: (-kv[1]['TPV'], kv[0]))
     return ranked, nobody, floor, report
 
 

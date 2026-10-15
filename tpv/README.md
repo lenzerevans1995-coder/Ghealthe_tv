@@ -24,8 +24,10 @@ A Routine rebuilds it every 3 hours on weekdays; the page reloads itself every 1
 - **Counted:** TPV, HRA, Mail-Order, Video, IHWV. Only `Y` / `YES` counts (case and spaces ignored).
   `N`, `NO`, `N/A`, `NA` and blanks don't. Anything else counts as not-Y and is listed in the report
   as `bad_values`. A row with all five blank is left out entirely.
-- **Names:** a rep is their first name (the AEP tabs use full names), with Jamie / Jaime / Jaimie /
-  Jamie(Jaime) as Jaime and Jeahne / Jeahne-Renee as Jeahne-Renee. Rows with no Benefit Rep become
+- **Names:** reps are grouped by first name (the early tabs only have first names), with Jamie /
+  Jaime / Jaimie / Jamie(Jaime) as Jaime and Jeahne / Jeahne-Renee as Jeahne-Renee. The board shows
+  the full name: the longest multi-word name found for that rep on any counted tab (the AEP tabs
+  carry them), with emojis stripped. A rep who only appears with a first name shows the first name. Rows with no Benefit Rep become
   the muted "No name on the row" row (TPV and HRA only), so the floor row still reconciles.
 - **Rail:** Total TPV is the floor; HRA attached is HRA / TPV; verifications per day is floor TPV
   over weekdays elapsed this month, today included.
