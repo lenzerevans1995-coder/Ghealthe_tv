@@ -634,23 +634,27 @@ export async function aep2027Feed(env) {
     }
   }
 
+  // Counts: only deliveries written after the push (it already has the rest).
+  // Ticker: every Core delivered today, whenever the push ran.
+  const pushedAt = isoZ(feed.generated_at);
   let rows = [];
   try {
     rows = (await env.DB.prepare(
       'SELECT policy_id, npn, product, submitted_at, plan, carrier FROM agent_dash_events WHERE submitted_at > ?'
-    ).bind(isoZ(feed.generated_at)).all()).results || [];
+    ).bind(new Date(now - 36 * 3600000).toISOString()).all()).results || [];
   } catch (e) { /* no table yet: the push alone */ }
   for (const e of rows) {
     const a = byNpn.get(e.npn);
     const t = Date.parse(e.submitted_at);
     const day = etDate(e.submitted_at);
     if (!a || !day || day < from || day > to || t > now) continue;
+    if (e.product === 'core' && day === today) {
+      sales.set(e.policy_id, { id: e.policy_id, npn: e.npn, submitted_at: e.submitted_at, plan: e.plan, carrier: e.carrier });
+    }
+    if (e.submitted_at <= pushedAt) continue;
     if (e.product === 'core') {
       a.core += 1;
-      if (day === today) {
-        coreToday += 1;
-        sales.set(e.policy_id, { id: e.policy_id, npn: e.npn, submitted_at: e.submitted_at, plan: e.plan, carrier: e.carrier });
-      }
+      if (day === today) coreToday += 1;
     } else if (e.product === 'sthhc') a.sthhc += 1;
     else if (e.product === 'hi') a.hi += 1;
   }
@@ -769,11 +773,12 @@ async function handleAgentIngest(request, env, checkBearer) {
   await env.DB.prepare(
     'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
   ).bind('agent_dash', JSON.stringify(feed), new Date().toISOString()).run();
-  // Sales written before this push are in its numbers now; anything left past
-  // two days is stale either way.
+  // Counts only ever add deliveries written after the latest push, so older
+  // ones can stay: the AEP 2027 board's ticker lists the whole day from them.
+  // Past two days they are no use to anything.
   try {
-    await env.DB.prepare('DELETE FROM agent_dash_events WHERE submitted_at <= ? OR ts < ?')
-      .bind(isoZ(feed.generated_at), new Date(Date.now() - 2 * 86400000).toISOString()).run();
+    await env.DB.prepare('DELETE FROM agent_dash_events WHERE submitted_at < ? OR ts < ?')
+      .bind(new Date(Date.now() - 2 * 86400000).toISOString(), new Date(Date.now() - 2 * 86400000).toISOString()).run();
   } catch (e) { /* table not created yet: nothing to prune */ }
   return jsonNoStore({ ok: true, rows: rows.length });
 }
