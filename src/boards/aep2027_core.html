@@ -215,12 +215,12 @@
     <div class="main">
       <div class="ranks" id="ranks"></div>
       <div class="rail">
-        <div class="rbox hero"><i>Selling days</i><b id="rDays"></b><span>left in AEP</span></div>
+        <div class="rbox hero"><i>Core today</i><b id="rToday">0</b><span>AEP 2027</span></div>
         <div class="rsplit">
           <div class="rbox"><i>STHHC</i><b id="rSthhc">0</b><span>AEP</span></div>
           <div class="rbox"><i>HI</i><b id="rHi">0</b><span>AEP</span></div>
         </div>
-        <div class="rbox"><i>Seats on the board</i><b id="rSeats">0</b><span>agents with a Core</span></div>
+        <div class="rbox"><i>Selling days</i><b id="rDays"></b><span>left in AEP</span></div>
       </div>
     </div>
 
@@ -444,7 +444,7 @@ window.AEP = null;
     $("tLabNum").textContent = (d.today && d.today.core) || 0;
     $("rSthhc").textContent  = t.sthhc || 0;
     $("rHi").textContent     = t.hi || 0;
-    $("rSeats").textContent  = agents.length;
+    $("rToday").textContent  = (d.today && d.today.core) || 0;
     $("rDays").textContent   = sellingDaysLeft();
 
     // freshness dot
