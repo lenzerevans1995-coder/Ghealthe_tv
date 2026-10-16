@@ -24,6 +24,8 @@ A Routine rebuilds it every 3 hours on weekdays; the page reloads itself every 1
 - **Counted:** TPV, HRA, Mail-Order, Video, IHWV. Only `Y` / `YES` counts (case and spaces ignored).
   `N`, `NO`, `N/A`, `NA` and blanks don't. Anything else counts as not-Y and is listed in the report
   as `bad_values`. A row with all five blank is left out entirely.
+- **Duplicates:** a row with the same rep and the same SunFire Enrollment Code as one already counted
+  this month is counted once and listed in the report as `duplicates`.
 - **Names:** reps are grouped by first name (the early tabs only have first names), with Jamie /
   Jaime / Jaimie / Jamie(Jaime) as Jaime and Jeahne / Jeahne-Renee as Jeahne-Renee. The board shows
   the full name: the longest multi-word name found for that rep on any counted tab (the AEP tabs

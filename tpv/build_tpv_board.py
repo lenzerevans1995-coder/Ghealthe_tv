@@ -87,11 +87,13 @@ def count(sheets, tabs):
     reps = collections.defaultdict(lambda: dict.fromkeys(COLS, 0))
     nobody = dict.fromkeys(COLS, 0)
     fulls = {}
-    report = {'tabs': tabs, 'rows_read': 0, 'rows_all_blank': 0, 'rows_no_rep': 0, 'bad_values': []}
+    seen = {}  # (rep, SunFire code) -> where it was first counted
+    report = {'tabs': tabs, 'rows_read': 0, 'rows_all_blank': 0, 'rows_no_rep': 0, 'bad_values': [], 'duplicates': []}
     for tab in tabs:
         sh = sheets[tab]
         hdr = sh['rows'][0]
         idx = [hdr.index(c) for c in COLS]
+        code_col = next((j for j, h in enumerate(hdr) if h.lower().startswith('sunfire')), None)
         lines = 1  # the header
         for i, r in enumerate(sh['rows'][1:], start=2):
             skipped = empty_marker(r[0]) if len(r) == 1 else 0
@@ -106,6 +108,14 @@ def count(sheets, tabs):
                 report['rows_all_blank'] += 1
                 continue
             name = canon(r[0])
+            # The same rep logging the same enrollment twice is one verification:
+            # count it once and list the repeat for the sheet owner.
+            code = re.sub(r'[\s.]', '', r[code_col]).upper() if name and code_col is not None else ''
+            if code:
+                if (name, code) in seen:
+                    report['duplicates'].append({'tab': tab, 'row': i, 'rep': name, 'code': code, 'first': seen[(name, code)]})
+                    continue
+                seen[(name, code)] = f'{tab} row {i}'
             fn = full_name(r[0]) if name else None
             if fn and len(fn) > len(fulls.get(name, '')):
                 fulls[name] = fn
