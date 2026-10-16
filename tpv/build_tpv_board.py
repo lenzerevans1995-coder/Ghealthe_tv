@@ -158,7 +158,8 @@ def count(sheets, tabs):
 
     # Group repeats of one enrollment, then count each group once: credited to
     # the first row in it that names a rep (a copy logged without a name must
-    # not take the credit from the row that has one).
+    # not take the credit from the row that has one), reading the counts from
+    # that rep's most filled-in copy so a bare re-entry can't blank them.
     groups, by_code = [], collections.defaultdict(list)
     for x in rows:
         g = next((g for g in by_code[x['code']] if same_enrollment(g[0], x)), None) if x['code'] else None
@@ -178,8 +179,10 @@ def count(sheets, tabs):
             fulls[x['key']] = x['full']
     for g in groups:
         x = next((y for y in g if y['key']), g[0])
+        fullest = max((y for y in g if y['key'] == x['key']), key=lambda y: sum(v != '' for v in y['vals']))
+        x = dict(x, vals=fullest['vals'])
         for y in g:
-            if y is not x:
+            if not (y['tab'] == x['tab'] and y['row'] == x['row']):
                 report['duplicates'].append({
                     'tab': y['tab'], 'row': y['row'], 'code': y['code'],
                     'counted_at': f"{x['tab']} row {x['row']}", 'other_rep': y['key'] != x['key'],
