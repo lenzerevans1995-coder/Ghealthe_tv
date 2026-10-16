@@ -164,6 +164,8 @@ def build(template, ranked, nobody, floor, day):
 
     html = sub(r'(      <tbody>\n).*?(\n      </tbody>)', lambda m: m.group(1) + '\n'.join(rows) + m.group(2),
                template, re.S)
+    if len(ranked) > 8:
+        html = sub(r'<table>', '<table class="dense">', html)
     html = sub(r'<div class="win">.*?</div>', f'<div class="win">{month} 1&ndash;{day.day} &middot; Benefit Reps</div>', html)
     html = sub(r'(<div class="fig">)\d+(</div>)', lambda m: f'{m.group(1)}{floor["TPV"]}{m.group(2)}', html)
     html = sub(r'(<div class="sub">)[A-Za-z]+ to date(</div>)', lambda m: f'{m.group(1)}{month} to date{m.group(2)}', html)

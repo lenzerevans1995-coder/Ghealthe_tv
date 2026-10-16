@@ -80,6 +80,7 @@ function fill(rec) {
     ].join('\n');
   }
   let html = TPV_BOARD.replace(/(      <tbody>\n)[\s\S]*?(\n      <\/tbody>)/, (_, a, b) => a + rows + b);
+  if (rec && rec.reps.length > 8) html = html.replace('<table>', '<table class="dense">');
   if (!rec) return html;
   const [y, m, d] = rec.date.split('-').map(Number);
   const month = new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
