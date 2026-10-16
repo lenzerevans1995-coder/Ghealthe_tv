@@ -31,6 +31,19 @@ body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#eef7ff;min-height:10
 .teampick select{font:inherit;font-size:15px;font-weight:700;letter-spacing:0;color:#fff;padding:10px 12px;border-radius:10px;border:1px solid #ffffff26;background:#071827;min-width:200px;cursor:pointer}
 .teampick select:focus{border-color:#35a8e0;outline:none}
 .teamnote{font-size:12px;color:#7f9aaf;margin:-4px 0 12px}
+.range{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.range .lbl{font-size:11px;letter-spacing:.14em;color:#70a7ca;font-weight:900}
+.seg{display:inline-flex;padding:3px;border-radius:12px;border:1px solid #ffffff26;background:#07182799}
+.seg button{font:inherit;font-size:13px;font-weight:800;letter-spacing:.03em;padding:8px 14px;border:0;border-radius:9px;background:transparent;color:#9fb5c7;cursor:pointer}
+.seg button:hover{color:#fff}
+.seg button.on{background:#2489c8;color:#fff}
+.seg button:focus-visible{outline:2px solid #35a8e0;outline-offset:1px}
+.dates{display:none;align-items:center;gap:8px;font-size:13px;color:#9fb5c7}
+.dates.open{display:inline-flex}
+.dates input{font:inherit;font-size:14px;padding:8px 10px;border-radius:10px;border:1px solid #ffffff26;background:#071827;color:#fff;color-scheme:dark}
+.dates input:focus{border-color:#35a8e0;outline:none}
+.rangenote{font-size:12px;color:#7f9aaf}
+.metric .na{color:#5a7d95;font-size:17px;font-weight:700}
 .teamnote a{color:#8fb2c9}
 .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 14px}
 .tile{background:linear-gradient(145deg,#102b40e8,#0b2032e8);border:1px solid #ffffff16;border-radius:14px;padding:14px 16px}
@@ -97,6 +110,16 @@ div.row[data-npn]:hover{background:#ffffff08}
     <input id="q" type="search" placeholder="Find an agent" autocomplete="off">
   </div>
   <div class="teamnote" id="teamNote"></div>
+  <div class="range">
+    <span class="lbl">DATES</span>
+    <div class="seg" id="rangeSeg" role="group" aria-label="Date range">
+      <button type="button" data-r="aep">10/15 – Now</button><button type="button" data-r="today">Today</button><button type="button" data-r="custom">Custom</button>
+    </div>
+    <div class="dates" id="dates">
+      <input type="date" id="dFrom" aria-label="From"><span>to</span><input type="date" id="dTo" aria-label="To">
+    </div>
+    <span class="rangenote" id="rangeNote"></span>
+  </div>
   <div class="summary" id="summary"></div>
   <div class="list" id="list"></div>
 </div>
@@ -127,6 +150,55 @@ div.row[data-npn]:hover{background:#ffffff08}
   var $ = function (id) { return document.getElementById(id); };
   var data = null, sortKey = 'core', sortDir = -1, timer = null;
   var team = null; // 'all', a leader's name, or '__none'; set from the viewer on first load
+  // 'aep' is the AEP-to-date numbers with goals, the same as each agent's own
+  // dashboard. 'today' and 'custom' add up the per-day counts and drop goals.
+  var range = 'aep', custom = { from: '', to: '' };
+  try {
+    var saved = JSON.parse(localStorage.getItem('teamRange') || 'null');
+    if (saved && /^(aep|today|custom)$/.test(saved.range)) { range = saved.range; custom = saved.custom || custom; }
+  } catch (e) {}
+  function saveRange() { try { localStorage.setItem('teamRange', JSON.stringify({ range: range, custom: custom })); } catch (e) {} }
+  function md(d) { return d ? Number(d.slice(5, 7)) + '/' + Number(d.slice(8)) : ''; }
+  function span() {
+    if (range === 'today') return { from: data.today, to: data.today };
+    var f = custom.from || '2026-10-15', t = custom.to || data.today;
+    if (f > t) { var x = f; f = t; t = x; }
+    return { from: f, to: t };
+  }
+  // A row's numbers for the chosen dates. Null when the refresh sent no daily
+  // counts for that agent (shown as a dash, never as a zero).
+  function view(r) {
+    if (range === 'aep') return r;
+    var s = span(), out = { npn: r.npn, name: r.name, plan: r.plan, leader: r.leader, edited: r.edited };
+    if (!r.days) { out.core = { sales: null, goal: null }; out.combo = { sales: null, goal: null }; return out; }
+    var c = 0, k = 0;
+    Object.keys(r.days).forEach(function (d) {
+      if (d < s.from || d > s.to) return;
+      c += r.days[d][0]; k += r.days[d][1] + r.days[d][2];
+    });
+    out.core = { sales: c, goal: null };
+    out.combo = { sales: k, goal: null };
+    return out;
+  }
+  function rangeControls() {
+    [].forEach.call($('rangeSeg').querySelectorAll('button'), function (b) {
+      var on = b.getAttribute('data-r') === range;
+      b.className = on ? 'on' : '';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    var min = data.days_from || '2026-10-01', max = data.today;
+    $('dates').className = 'dates' + (range === 'custom' ? ' open' : '');
+    ['dFrom', 'dTo'].forEach(function (id) { $(id).min = min; $(id).max = max; });
+    if (range === 'custom') {
+      var s = span();
+      if (document.activeElement !== $('dFrom')) $('dFrom').value = s.from;
+      if (document.activeElement !== $('dTo')) $('dTo').value = s.to;
+    }
+    var note = $('rangeNote');
+    if (range === 'aep') note.textContent = 'STHHC + HI counts from 10/1, as on the agent dashboards.';
+    else if (!data.rows.some(function (r) { return r.days; })) note.textContent = 'Daily numbers arrive with the next hourly refresh.';
+    else { var t = span(); note.textContent = t.from === t.to ? 'Showing ' + md(t.from) : 'Showing ' + md(t.from) + ' – ' + md(t.to); }
+  }
 
   function teamOptions() {
     var sel = $('team'), leaders = (data && data.leaders) || [];
@@ -166,15 +238,21 @@ div.row[data-npn]:hover{background:#ffffff08}
   function summary(rows) {
     var box = $('summary');
     box.textContent = '';
-    var sum = function (k, f) { return rows.reduce(function (s, r) { return s + r[k][f]; }, 0); };
+    var sum = function (k, f) { return rows.reduce(function (s, r) { return s + (r[k][f] || 0); }, 0); };
+    var goals = range === 'aep';
     var withSale = rows.filter(function (r) { return r.core.sales + r.combo.sales > 0; }).length;
     var agents = tile(team === 'all' ? 'AGENTS ON THE FLOOR' : 'AGENTS ON THE TEAM', rows.length, null);
     agents.appendChild(el('div', 's', withSale + ' with a sale'));
     box.appendChild(agents);
-    box.appendChild(tile('CORE', sum('core', 'sales'), sum('core', 'goal'), false));
-    box.appendChild(tile('STHHC + HI', sum('combo', 'sales'), sum('combo', 'goal'), true));
-    var hit = rows.filter(function (r) { return r.core.sales >= r.core.goal; }).length;
-    var t = tile('AT CORE GOAL', hit, null);
+    box.appendChild(tile('CORE', sum('core', 'sales'), goals ? sum('core', 'goal') : null, false));
+    box.appendChild(tile('STHHC + HI', sum('combo', 'sales'), goals ? sum('combo', 'goal') : null, true));
+    var t;
+    if (goals) {
+      var hit = rows.filter(function (r) { return r.core.sales >= r.core.goal; }).length;
+      t = tile('AT CORE GOAL', hit, null);
+    } else {
+      t = tile('WITH A CORE', rows.filter(function (r) { return r.core.sales > 0; }).length, null);
+    }
     t.appendChild(el('div', 's', 'of ' + rows.length + ' agents'));
     box.appendChild(t);
   }
@@ -187,7 +265,9 @@ div.row[data-npn]:hover{background:#ffffff08}
   }
   function metric(cls, m) {
     var box = el('div', 'metric ' + cls);
+    if (m.sales == null) { box.appendChild(el('span', 'na', '–')); box.title = 'No daily numbers for this agent yet'; return box; }
     box.appendChild(el('b', null, String(m.sales)));
+    if (m.goal == null) return box;
     box.appendChild(document.createTextNode('/ ' + m.goal));
     var bar = el('div', 'bar' + (cls === 'combo' ? ' combo' : ''));
     var i = el('i');
@@ -200,8 +280,9 @@ div.row[data-npn]:hover{background:#ffffff08}
   function render() {
     if (!data) return;
     teamOptions();
+    rangeControls();
     var q = $('q').value.trim().toLowerCase();
-    var teamRows = data.rows.filter(inTeam);
+    var teamRows = data.rows.filter(inTeam).map(view);
     summary(teamRows);
     var note = $('teamNote');
     note.textContent = '';
@@ -218,7 +299,8 @@ div.row[data-npn]:hover{background:#ffffff08}
     var rows = teamRows.slice().sort(function (a, b) {
       if (sortKey === 'name') return sortDir * a.name.localeCompare(b.name);
       if (sortKey === 'plan') return sortDir * (a.plan || 'Z').localeCompare(b.plan || 'Z') || a.name.localeCompare(b.name);
-      return sortDir * (a[sortKey].sales - b[sortKey].sales) || a.name.localeCompare(b.name);
+      var sa = a[sortKey].sales == null ? -1 : a[sortKey].sales, sb = b[sortKey].sales == null ? -1 : b[sortKey].sales;
+      return sortDir * (sa - sb) || a.name.localeCompare(b.name);
     });
     // Rank only means something on a best-first sales sort.
     var ranked = (sortKey === 'core' || sortKey === 'combo') && sortDir < 0;
@@ -294,6 +376,22 @@ div.row[data-npn]:hover{background:#ffffff08}
 
   $('q').addEventListener('input', render);
   $('team').addEventListener('change', function () { team = this.value; render(); });
+  $('rangeSeg').addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('button[data-r]');
+    if (!b || !data) return;
+    range = b.getAttribute('data-r');
+    if (range === 'custom' && !custom.from) custom = { from: '2026-10-15', to: data.today };
+    saveRange();
+    render();
+  });
+  ['dFrom', 'dTo'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(this.value)) return;
+      custom[id === 'dFrom' ? 'from' : 'to'] = this.value;
+      saveRange();
+      render();
+    });
+  });
   // Edit popup. Managers only: the server refuses anyone else.
   var editing = null;
   function openEdit(npn) {

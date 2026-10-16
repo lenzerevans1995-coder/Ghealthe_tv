@@ -542,7 +542,7 @@ async function findAgent(env, npn) {
 // the pushed numbers, and an edit to an old policy arrives now but belongs to
 // then. Same window and same no-future-dates rule as the Routine's query.
 async function liveSales(env, feed, npn) {
-  const out = { byNpn: new Map(), newest: null };
+  const out = { byNpn: new Map(), days: new Map(), newest: null };
   if (!feed?.generated_at) return out;
   const sql = 'SELECT npn, product, submitted_at, ts FROM agent_dash_events WHERE submitted_at > ?' + (npn ? ' AND npn = ?' : '');
   let rows;
@@ -561,6 +561,12 @@ async function liveSales(env, feed, npn) {
     const t = Date.parse(e.submitted_at);
     const day = etDate(e.submitted_at);
     if (!day || day > to || t > now) continue;
+    const slot = ['core', 'sthhc', 'hi'].indexOf(e.product);
+    if (slot >= 0) {
+      const days = out.days.get(e.npn) || {};
+      (days[day] = days[day] || [0, 0, 0])[slot] += 1;
+      out.days.set(e.npn, days);
+    }
     const cur = out.byNpn.get(e.npn) || { core: 0, combo: 0 };
     if (e.product === 'core' && day >= from) cur.core += 1;
     else if ((e.product === 'sthhc' || e.product === 'hi') && day >= comboFrom) cur.combo += 1;
@@ -740,6 +746,17 @@ function isoZ(value) {
   return isNaN(d) ? s : d.toISOString();
 }
 
+// The push's days plus webhook sales written since it, as {date: [core, sthhc, hi]}.
+function mergeDays(pushed, live) {
+  const out = {};
+  for (const [d, v] of Object.entries(pushed)) out[d] = v.slice();
+  for (const [d, v] of Object.entries(live || {})) {
+    const cur = out[d] || (out[d] = [0, 0, 0]);
+    v.forEach((n, i) => { cur[i] += n; });
+  }
+  return out;
+}
+
 async function teamView(env, manager) {
   const feed = await loadAgentFeed(env);
   const live = await liveSales(env, feed, null);
@@ -757,16 +774,43 @@ async function teamView(env, manager) {
       edited: edit ? { by: edit.by, at: edit.at } : null,
       core: { sales: r.core + add.core, goal: goal.core },
       combo: { sales: r.combo + add.combo, goal: goal.combo },
+      days: r.days ? mergeDays(r.days, live.days.get(r.npn)) : null,
     };
   });
   return {
     viewer: { manager: true, name: manager.name },
+    today: etDate(new Date().toISOString()),
+    days_from: feed?.window?.combo_from || '2026-10-01',
     leaders: TEAM_CHOICES,
     draft: draft && draft.picks?.length ? { by: draft.by, at: draft.at, picks: draft.picks.length } : null,
     window: feed?.window || null,
     generated_at: feed?.generated_at || null,
     rows,
   };
+}
+
+// Per-day counts for the team list's date ranges: "MMDD:core.sthhc.hi" for
+// each day with a sale, space separated, e.g. "1015:8.0.5 1016:3.0.2". Kept
+// only when the days add up to the row's own totals, so a garbled string
+// shows as "no daily numbers" rather than as wrong ones.
+const DAYS_YEAR = '2026';
+function dailyCounts(r) {
+  if (typeof r.days !== 'string') return {};
+  const text = r.days.trim();
+  if (text && !/^\d{4}:\d{1,4}\.\d{1,4}\.\d{1,4}( \d{4}:\d{1,4}\.\d{1,4}\.\d{1,4})*$/.test(text)) return {};
+  const days = {};
+  for (const part of text ? text.split(' ') : []) {
+    const [md, c] = part.split(':');
+    const day = `${DAYS_YEAR}-${md.slice(0, 2)}-${md.slice(2)}`;
+    if (days[day] || isNaN(Date.parse(day))) return {};
+    days[day] = c.split('.').map(Number);
+  }
+  const total = (i, from) => Object.entries(days).reduce((n, [d, v]) => n + (d >= from ? v[i] : 0), 0);
+  const ok = total(0, '2026-10-15') === Number(r.core)
+    && (!Number.isInteger(r.sthhc) || total(1, '2026-10-15') === r.sthhc)
+    && (!Number.isInteger(r.hi) || total(2, '2026-10-15') === r.hi)
+    && total(1, '0') + total(2, '0') === Number(r.combo);
+  return ok ? { days } : {};
 }
 
 async function handleAgentIngest(request, env, checkBearer) {
@@ -787,6 +831,7 @@ async function handleAgentIngest(request, env, checkBearer) {
         ...(Number.isInteger(r.sthhc) && r.sthhc >= 0 ? { sthhc: r.sthhc } : {}),
         ...(Number.isInteger(r.hi) && r.hi >= 0 ? { hi: r.hi } : {}),
         ...(Number.isInteger(r.core_today) && r.core_today >= 0 ? { core_today: r.core_today } : {}),
+        ...dailyCounts(r),
       }))
     : null;
   const count = (n) => Number.isInteger(n) && n >= 0;

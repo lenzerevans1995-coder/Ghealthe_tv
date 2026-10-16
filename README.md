@@ -194,7 +194,7 @@ toward a limit of 10 per manager in 10 minutes. To change a PIN, write a new sal
 hash to that manager's row.
 
 Apart from managers, who can sign in is whoever is on the last push. A Routine pushes
-`{generated_at, window, goals?, quote?, rows:[{npn, agent, core, combo, core_goal?, combo_goal?}]}`
+`{generated_at, window, goals?, quote?, rows:[{npn, agent, core, combo, core_goal?, combo_goal?, days?}]}`
 to `/ingest/agents` with the same bearer secret as the other pushes. Roster is every user active in Onyx
 (`user_organization_rel.is_active`) who is on profile 507 in any status but archived, minus the
 standing exclusions, the same rule as the AEP board. Requiring the profile to be enabled dropped the
@@ -221,6 +221,16 @@ move is offered a one-time upload when the site's draft is empty. The draft's me
 alternate) form the "Mentor rotation" group. The Edit popup can still move any agent, saved in kv
 `goal:<npn>`, and that wins over the draft. Teams, like plans, appear only in `/api/team`, never on
 an agent's page.
+
+A **Dates** control sits above the strip. **10/15 – Now** (the default) is the AEP-to-date view
+with goal bars, the same numbers each agent sees on their own page, so STHHC + HI there still counts
+from 10/1. **Today** and **Custom** (any From and To between 10/1 and today) add up per-day counts
+and drop the goals, and the strip's last tile becomes how many agents have a Core in that span.
+The per-day counts come in the same push: each row's optional `days` is
+`"MMDD:core.sthhc.hi"` for every day with a sale, space separated (`"1015:8.0.5 1016:3.0.2"`). The
+Worker keeps a row's days only when they add up to that row's `core`, `sthhc`, `hi` and `combo`, so
+a garbled string shows as a dash rather than a wrong number. Webhook sales since the push are added
+to their day. The choice is remembered per browser.
 
 The **Coaching** menu item (`/team/coaching`, managers only) is the coaching log. Each manager lands
 on their own team from the draft (others start on all agents) and can switch teams with the same
