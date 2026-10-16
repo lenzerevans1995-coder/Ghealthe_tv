@@ -24,10 +24,15 @@ A Routine rebuilds it every 3 hours on weekdays; the page reloads itself every 1
 - **Counted:** TPV, HRA, Mail-Order, Video, IHWV. Only `Y` / `YES` counts (case and spaces ignored).
   `N`, `NO`, `N/A`, `NA` and blanks don't. Anything else counts as not-Y and is listed in the report
   as `bad_values`. A row with all five blank is left out entirely.
-- **Duplicates:** a row with the same rep and the same SunFire Enrollment Code as one already counted
-  this month is counted once and listed in the report as `duplicates`.
-- **Names:** reps are grouped by first name (the early tabs only have first names), with Jamie /
-  Jaime / Jaimie / Jamie(Jaime) as Jaime and Jeahne / Jeahne-Renee as Jeahne-Renee. The board shows
+- **Duplicates:** rows with the same SunFire Enrollment Code are one verification when they are the
+  same client (matching phone or name, or one row too bare to tell). Each counts once, credited to
+  the first row in the group that names a rep; repeats are listed in the report as `duplicates`,
+  flagged `other_rep` when the copy names someone else. Different clients under one mistyped code
+  stay separate.
+- **Names:** a rep is their first name (Jamie / Jaime / Jaimie / Jamie(Jaime) as Jaime, Jeahne /
+  Jeahne-Renee as Jeahne-Renee) plus their last name when the row has one, so two reps who share a
+  first name stay apart; a first-name-only row joins the one rep with that first name. A name with
+  nothing counted is left off the board and listed as `reps_with_no_counts`. The board shows
   the full name: the longest multi-word name found for that rep on any counted tab (the AEP tabs
   carry them), with emojis stripped. A rep who only appears with a first name shows the first name. Rows with no Benefit Rep become
   the muted "No name on the row" row (TPV and HRA only), so the floor row still reconciles.

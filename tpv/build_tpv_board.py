@@ -83,17 +83,45 @@ def canon(raw):
     return first.capitalize()
 
 
+def norm_code(s):
+    return re.sub(r'[\s.]', '', s or '').upper()
+
+
+def norm_phone(s):
+    d = re.sub(r'\D', '', s or '')
+    return d[-10:] if len(d) >= 7 else ''
+
+
+def norm_client(s):
+    return re.sub(r'[^a-z]', '', (s or '').lower())
+
+
+def same_enrollment(a, b):
+    """Two rows with one SunFire code are the same verification when they are
+    the same client: matching phone, matching name, or one row too bare to
+    tell. Different clients under one mistyped code stay separate."""
+    if not a['phone'] or not b['phone']:
+        return True
+    return a['phone'] == b['phone'] or (a['client'] and a['client'] == b['client'])
+
+
 def count(sheets, tabs):
-    reps = collections.defaultdict(lambda: dict.fromkeys(COLS, 0))
-    nobody = dict.fromkeys(COLS, 0)
-    fulls = {}
-    seen = {}  # (rep, SunFire code) -> where it was first counted
-    report = {'tabs': tabs, 'rows_read': 0, 'rows_all_blank': 0, 'rows_no_rep': 0, 'bad_values': [], 'duplicates': []}
+    """Rows are read in sheet order. A rep is their first name (spellings
+    collapsed) plus their last name where the row gives one, so two reps who
+    share a first name stay apart; a first-name-only row joins the one rep with
+    that first name. A repeated enrollment counts once, credited where it was
+    first logged."""
+    report = {'tabs': tabs, 'rows_read': 0, 'rows_all_blank': 0, 'rows_no_rep': 0,
+              'bad_values': [], 'duplicates': [], 'reps_with_no_counts': []}
+    rows = []
     for tab in tabs:
         sh = sheets[tab]
         hdr = sh['rows'][0]
         idx = [hdr.index(c) for c in COLS]
-        code_col = next((j for j, h in enumerate(hdr) if h.lower().startswith('sunfire')), None)
+        col = lambda pred: next((j for j, h in enumerate(hdr) if pred(h.strip().lower())), None)
+        code_col = col(lambda h: h.startswith('sunfire'))
+        phone_col = col(lambda h: h == 'phone')
+        client_col = col(lambda h: h.startswith('client'))
         lines = 1  # the header
         for i, r in enumerate(sh['rows'][1:], start=2):
             skipped = empty_marker(r[0]) if len(r) == 1 else 0
@@ -107,31 +135,73 @@ def count(sheets, tabs):
             if all(v == '' for v in vals):
                 report['rows_all_blank'] += 1
                 continue
-            name = canon(r[0])
-            # The same rep logging the same enrollment twice is one verification:
-            # count it once and list the repeat for the sheet owner.
-            code = re.sub(r'[\s.]', '', r[code_col]).upper() if name and code_col is not None else ''
-            if code:
-                if (name, code) in seen:
-                    report['duplicates'].append({'tab': tab, 'row': i, 'rep': name, 'code': code, 'first': seen[(name, code)]})
-                    continue
-                seen[(name, code)] = f'{tab} row {i}'
-            fn = full_name(r[0]) if name else None
-            if fn and len(fn) > len(fulls.get(name, '')):
-                fulls[name] = fn
-            bucket = reps[name] if name else nobody
-            if not name:
-                report['rows_no_rep'] += 1
-            for col, v in zip(COLS, vals):
-                k = v.lower()
-                if k in YES:
-                    bucket[col] += 1
-                elif k not in NO:
-                    report['bad_values'].append({'tab': tab, 'row': i, 'column': col, 'value': v})
+            first = canon(r[0])
+            fn = full_name(r[0]) if first else None
+            rows.append({
+                'tab': tab, 'row': i, 'vals': vals, 'first': first, 'full': fn,
+                'last': fn.split(' ')[-1].lower() if fn else None,
+                'code': norm_code(r[code_col]) if code_col is not None else '',
+                'phone': norm_phone(r[phone_col]) if phone_col is not None else '',
+                'client': norm_client(r[client_col]) if client_col is not None else '',
+            })
         if lines != sh['declared']:
             sys.exit(f'{tab}: read {lines} of {sh["declared"]} rows; the read is partial, not building a board')
+
+    lasts = collections.defaultdict(set)
+    for x in rows:
+        if x['first'] and x['last']:
+            lasts[x['first']].add(x['last'])
+    for x in rows:
+        if x['first'] and not x['last'] and len(lasts[x['first']]) == 1:
+            x['last'] = next(iter(lasts[x['first']]))
+        x['key'] = (x['first'], x['last']) if x['first'] else None
+
+    # Group repeats of one enrollment, then count each group once: credited to
+    # the first row in it that names a rep (a copy logged without a name must
+    # not take the credit from the row that has one).
+    groups, by_code = [], collections.defaultdict(list)
+    for x in rows:
+        g = next((g for g in by_code[x['code']] if same_enrollment(g[0], x)), None) if x['code'] else None
+        if g is None:
+            g = [x]
+            groups.append(g)
+            if x['code']:
+                by_code[x['code']].append(g)
+        else:
+            g.append(x)
+
+    reps = collections.defaultdict(lambda: dict.fromkeys(COLS, 0))
+    nobody = dict.fromkeys(COLS, 0)
+    fulls = {}
+    for x in rows:
+        if x['key'] and x['full'] and len(x['full']) > len(fulls.get(x['key'], '')):
+            fulls[x['key']] = x['full']
+    for g in groups:
+        x = next((y for y in g if y['key']), g[0])
+        for y in g:
+            if y is not x:
+                report['duplicates'].append({
+                    'tab': y['tab'], 'row': y['row'], 'code': y['code'],
+                    'counted_at': f"{x['tab']} row {x['row']}", 'other_rep': y['key'] != x['key'],
+                })
+        key = x['key']
+        bucket = reps[key] if key else nobody
+        if not key:
+            report['rows_no_rep'] += 1
+        for c, v in zip(COLS, x['vals']):
+            k = v.lower()
+            if k in YES:
+                bucket[c] += 1
+            elif k not in NO:
+                report['bad_values'].append({'tab': x['tab'], 'row': x['row'], 'column': c, 'value': v})
+
+    # A name with nothing counted (say an agent typed into the rep column on a
+    # row with N everywhere) adds nothing to the floor; keep it off the board.
+    for key in [k for k, v in reps.items() if not any(v.values())]:
+        report['reps_with_no_counts'].append(fulls.get(key, key[0]))
+        del reps[key]
     floor = {c: sum(b[c] for b in reps.values()) + nobody[c] for c in COLS}
-    shown = {k: fulls.get(k, k) for k in reps}
+    shown = {k: fulls.get(k, k[0]) for k in reps}
     ranked = sorted(((shown[k], v) for k, v in reps.items()), key=lambda kv: (-kv[1]['TPV'], kv[0]))
     return ranked, nobody, floor, report
 
