@@ -30,6 +30,7 @@
 //   GET  /tv                      links to every TV board (no key; the boards themselves are open too)
 //   GET  /, /login, /me, /api/me  agent sign-in (NPN) and the per-agent AEP dashboard — see agent.js
 //   POST /ingest/agents           agent roster + AEP counts for those dashboards (bearer secret)
+//   GET  /board/daily             Daily Sales, today only, from the AEP 2027 feed
 //   GET  /board/tpv               TPV completions by Benefit Rep — see tpv.js
 //   POST /ingest/tpv              that board's counts from the TPV Routine (bearer secret)
 
@@ -44,6 +45,7 @@ import WEEKLY_DRAW_BOARD from './boards/weekly_draw.html';
 import TEAM_POINTS_BOARD from './boards/team_points.html';
 import AEP_TRACKER_BOARD from './boards/aep_tracker.html';
 import AEP2027_CORE_BOARD from './boards/aep2027_core.html';
+import DAILY_SALES_BOARD from './boards/daily_sales.html';
 import TEAM_BREAKDOWN_BOARD from './boards/team_breakdown.html';
 import INDIVIDUAL_RACES_BOARD from './boards/individual_races.html';
 import CASH_DRAWS_BOARD from './boards/cash_draws.html';
@@ -84,7 +86,7 @@ export default {
 // Only the AEP appointment tracker is still on. Every other board is switched
 // off (404) and its refresh Routines paused; the code stays so a board can be
 // turned back on by adding its paths here.
-const ACTIVE_BOARD_PATHS = new Set(['/board/aep', '/board/aep/feed.js', '/board/aep2027', '/board/aep2027/feed.js', '/board/tpv', '/board/live-ws', '/board/contest-fonts.css']);
+const ACTIVE_BOARD_PATHS = new Set(['/board/aep', '/board/aep/feed.js', '/board/aep2027', '/board/aep2027/feed.js', '/board/daily', '/board/tpv', '/board/live-ws', '/board/contest-fonts.css']);
 
 async function route(request, env, url) {
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -271,6 +273,9 @@ async function route(request, env, url) {
   // AEP 2027 Core leaderboard: an intro that shatters on the day's first Core.
   // Its feed is built per read from the hourly push plus the webhook.
   if (path === '/board/aep2027') return html(AEP2027_CORE_BOARD);
+  // Daily Sales: today only (Core hero, STHHC/HI, pace vs. this time on the
+  // previous selling day, today's producers). Same feed as the leaderboard.
+  if (path === '/board/daily') return html(DAILY_SALES_BOARD);
   if (path === '/board/aep2027/feed.js') {
     const d = await aep2027Feed(env);
     return new Response(`window.AEP = ${JSON.stringify(d)};`, {

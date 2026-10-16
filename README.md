@@ -140,6 +140,19 @@ Board behaviour from the design: started mid-day with Core already on the sheet 
 the leaderboard; `?intro` keeps the intro up until the next Core; `S` shatters now, `R` re-arms; it
 re-arms itself at the Eastern-time day change. `?static` freezes the ticker.
 
+## Daily Sales board
+
+`/board/daily` (open, listed on `/tv`) is the Evergreen **Daily Sales** tracker: today only. Core is
+the hero, with STHHC and HI beside it, pace against the same clock time on the previous day with
+sales, and today's producers ranked by Core (top 10, then "+N more"). It reads the same feed as the
+AEP 2027 leaderboard (`/board/aep2027/feed.js`), which now also carries `today` (core, sthhc, hi),
+`today_date`, `today_label`, `today_agents` and `pace`. Today's Core per agent is the higher of
+the counts push (`core_today` plus deliveries since) and the webhook's own count; today's STHHC and
+HI, and the pace, come from the Onyx webhook deliveries kept in `agent_dash_events` (five days, so
+Monday can compare with Friday). Nothing on it accumulates: at midnight Eastern `today` starts from
+zero and the board clears itself. Like the leaderboard it is laid out in screen units, so any TV
+fits it without script scaling.
+
 ## TPV completions board
 
 `/board/tpv` (open, listed on `/tv`) is the TPV Completions board: TPVs, HRA, Mail-Order, Video

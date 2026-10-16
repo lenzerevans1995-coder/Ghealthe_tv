@@ -607,6 +607,10 @@ function todaysSales(body) {
   return { today, sales_today: sales };
 }
 
+function etClock24(iso) {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
+}
+
 function etClock(iso) {
   return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
 }
@@ -642,15 +646,36 @@ export async function aep2027Feed(env) {
   try {
     rows = (await env.DB.prepare(
       'SELECT policy_id, npn, product, submitted_at, plan, carrier FROM agent_dash_events WHERE submitted_at > ?'
-    ).bind(new Date(now - 36 * 3600000).toISOString()).all()).results || [];
+    ).bind(new Date(now - 5 * 86400000).toISOString()).all()).results || [];
   } catch (e) { /* no table yet: the push alone */ }
+
+  // Today, per agent, for the daily board. Core is the higher of the push's
+  // core_today plus later deliveries and the webhook's own count, as for the
+  // floor; STHHC and HI today come from the webhook alone (the push carries
+  // no per-agent split for today).
+  const day0 = () => ({ corePush: 0, coreAfter: 0, coreLive: 0, sthhc: 0, hi: 0 });
+  const todayBy = new Map();
+  const bump = (npn) => { if (!todayBy.has(npn)) todayBy.set(npn, day0()); return todayBy.get(npn); };
+  if (pushIsToday) for (const r of feed.rows) if (r.core_today) bump(r.npn).corePush = r.core_today;
+  // Pace: the previous day with sales, counted up to this same clock time.
+  const nowClock = etClock24(new Date(now).toISOString());
+  const prevDay = rows.reduce((d, e) => {
+    const x = etDate(e.submitted_at);
+    return x && x < today && byNpn.has(e.npn) && (!d || x > d) ? x : d;
+  }, null);
+  const pace = { core: 0, sthhc: 0, hi: 0 };
+
   for (const e of rows) {
     const a = byNpn.get(e.npn);
     const t = Date.parse(e.submitted_at);
     const day = etDate(e.submitted_at);
+    if (a && day && day === prevDay && etClock24(e.submitted_at) <= nowClock && e.product in pace) pace[e.product] += 1;
     if (!a || !day || day < from || day > to || t > now) continue;
+    if (day === today && (e.product === 'sthhc' || e.product === 'hi')) bump(e.npn)[e.product] += 1;
     if (e.product === 'core' && day === today) {
       liveToday += 1;
+      bump(e.npn).coreLive += 1;
+      if (e.submitted_at > pushedAt) bump(e.npn).coreAfter += 1;
       sales.set(e.policy_id, { id: e.policy_id, npn: e.npn, submitted_at: e.submitted_at, plan: e.plan, carrier: e.carrier });
     }
     if (e.submitted_at <= pushedAt) continue;
@@ -666,6 +691,14 @@ export async function aep2027Feed(env) {
   // the better number. When both exist the higher wins: the push catches
   // deliveries Onyx skipped, the webhook catches sales since the push.
   coreToday = Math.max(coreToday, liveToday);
+  const todayAgents = [...todayBy.entries()].map(([npn, x]) => ({
+    name: byNpn.get(npn).name,
+    core: Math.max(x.corePush + x.coreAfter, x.coreLive),
+    sthhc: x.sthhc,
+    hi: x.hi,
+  })).filter((x) => x.core + x.sthhc + x.hi > 0);
+  const todaySum = (k) => todayAgents.reduce((n, x) => n + x[k], 0);
+  coreToday = Math.max(coreToday, todaySum('core'));
   const agents = [...byNpn.values()];
   const sum = (k) => agents.reduce((n, a) => n + a[k], 0);
   // Fresh while the hourly push is keeping up (the webhook covers the gaps);
@@ -684,7 +717,11 @@ export async function aep2027Feed(env) {
       .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))
       .slice(0, 40)
       .map((x) => ({ id: x.id, agent: byNpn.get(x.npn).name, plan: x.plan, carrier: x.carrier, at: etClock(x.submitted_at) })),
-    today: { core: coreToday },
+    today: { core: coreToday, sthhc: todaySum('sthhc'), hi: todaySum('hi') },
+    today_date: today,
+    today_label: new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(now)),
+    today_agents: todayAgents,
+    pace: prevDay ? pace : null,
     totals: { core: sum('core'), sthhc: sum('sthhc'), hi: sum('hi'), agents: agents.filter((a) => a.core > 0).length },
   };
 }
@@ -781,11 +818,12 @@ async function handleAgentIngest(request, env, checkBearer) {
     'INSERT INTO kv (k, v, updated_at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
   ).bind('agent_dash', JSON.stringify(feed), new Date().toISOString()).run();
   // Counts only ever add deliveries written after the latest push, so older
-  // ones can stay: the AEP 2027 board's ticker lists the whole day from them.
-  // Past two days they are no use to anything.
+  // ones can stay: the AEP 2027 board's ticker lists the whole day from them,
+  // and the daily board's pace reads the previous selling day (Friday, on a
+  // Monday). Past five days they are no use to anything.
   try {
     await env.DB.prepare('DELETE FROM agent_dash_events WHERE submitted_at < ? OR ts < ?')
-      .bind(new Date(Date.now() - 2 * 86400000).toISOString(), new Date(Date.now() - 2 * 86400000).toISOString()).run();
+      .bind(new Date(Date.now() - 5 * 86400000).toISOString(), new Date(Date.now() - 5 * 86400000).toISOString()).run();
   } catch (e) { /* table not created yet: nothing to prune */ }
   return jsonNoStore({ ok: true, rows: rows.length });
 }
