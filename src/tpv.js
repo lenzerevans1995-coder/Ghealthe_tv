@@ -3,15 +3,19 @@
 //   GET  /board/tpv     the board: template.html with the latest counts filled in
 //   POST /ingest/tpv    counts from the TPV Routine (bearer secret, same as /ingest)
 //
-// The Routine reads TPV Tracker.xlsx from SharePoint, counts it with
-// tpv/build_tpv_board.py, and posts only per-rep counts: first names and
-// numbers, never the client rows the sheet holds. The page is the user's
-// template, untouched apart from the numbers, the header window and the rail,
-// and a 10-minute self-reload so a TV picks up each build.
+// Counts come from Onyx (since 10/17; before that, the TPV Tracker sheet).
+// The Routine runs one query and posts per-rep counts only:
+//   TPV  policies whose TPV_Completed custom field is checked, credited to the
+//        rep named in the TPV_Agent custom field (HRA policies excluded)
+//   HRA  HRA policies submitted by one of the TPV reps
+// both for the current month by Eastern submitted date. A checked TPV with no
+// TPV_Agent lands in the muted row. The page is the user's template minus the
+// Mail-Order, Video and IHWV columns (Onyx has no field for them), and reloads
+// itself every 10 minutes so a TV picks up each push.
 
 import TPV_BOARD from './boards/tpv_board.html';
 
-const COLS = ['tpv', 'hra', 'mail', 'video', 'ihwv'];
+const COLS = ['tpv', 'hra'];
 const NAME = /^[A-Za-z][A-Za-z' -]{0,40}$/;
 
 const count = (n) => Number.isInteger(n) && n >= 0 && n < 100000;
@@ -30,20 +34,19 @@ export async function handleTpvIngest(request, env, checkBearer) {
   const bad = !date || !reps || !reps.length ||
     reps.some((r) => !NAME.test(String(r?.name || '')) || COLS.some((c) => !count(r[c]))) ||
     !count(nobody.tpv) || !count(nobody.hra) || COLS.some((c) => !count(floor[c]));
-  if (bad) return new Response('need date, reps [{name, tpv, hra, mail, video, ihwv}], no_rep {tpv, hra} and floor', { status: 400 });
+  if (bad) return new Response('need date, reps [{name, tpv, hra}], no_rep {tpv, hra} and floor {tpv, hra}', { status: 400 });
 
   // The floor row must reconcile with the rows above it, or the board would
   // show a total nobody can add up to.
   for (const c of COLS) {
-    const sum = reps.reduce((n, r) => n + r[c], 0) + (c === 'tpv' || c === 'hra' ? nobody[c] : 0);
+    const sum = reps.reduce((n, r) => n + r[c], 0) + nobody[c];
     if (sum !== floor[c]) return new Response(`floor ${c} is ${floor[c]} but the rows add to ${sum}`, { status: 400 });
   }
 
   const rec = {
     generated_at: new Date().toISOString(),
     date,
-    tabs: Array.isArray(body.tabs) ? body.tabs.map(String).slice(0, 6) : [],
-    rows_read: count(body.rows_read) ? body.rows_read : null,
+    source: body.source === 'onyx' ? 'onyx' : 'sheet',
     reps: reps.map((r) => ({ name: String(r.name).trim(), ...Object.fromEntries(COLS.map((c) => [c, r[c]])) })),
     no_rep: { tpv: nobody.tpv, hra: nobody.hra },
     floor: Object.fromEntries(COLS.map((c) => [c, floor[c]])),
@@ -70,12 +73,12 @@ function fill(rec) {
   const cell = (n) => (n === 0 ? '<td class="n0">0</td>' : `<td>${n}</td>`);
   let rows;
   if (!rec) {
-    rows = '        <tr class="uncredited"><td>Waiting for the first update</td><td></td><td></td><td></td><td></td><td></td></tr>';
+    rows = '        <tr class="uncredited"><td>Waiting for the first update</td><td></td><td></td></tr>';
   } else {
     const ranked = [...rec.reps].sort((a, b) => b.tpv - a.tpv || a.name.localeCompare(b.name));
     rows = [
       ...ranked.map((r) => `        <tr><td>${esc(r.name)}</td>${COLS.map((c) => cell(r[c])).join('')}</tr>`),
-      `        <tr class="uncredited"><td>No name on the row</td><td>${rec.no_rep.tpv}</td><td>${rec.no_rep.hra}</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>`,
+      `        <tr class="uncredited"><td>No TPV agent set</td><td>${rec.no_rep.tpv}</td><td>&mdash;</td></tr>`,
       `        <tr class="total"><td>Floor</td>${COLS.map((c) => `<td>${rec.floor[c]}</td>`).join('')}</tr>`,
     ].join('\n');
   }
