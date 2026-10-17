@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="600">
 <title>TPV Completions — Floor Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -132,5 +131,27 @@ table.dense tr.total td{font-size:clamp(22px,3.8vh,46px);padding-top:clamp(5px,.
   <span class="small">15 verifications this month belong to nobody. They are your numbers &mdash; claim them.</span>
 </div>
 
+<script>
+// New numbers without a reload: fetch this page every minute and swap in the
+// parts that change. A failed fetch leaves the board as it is.
+(function () {
+  var parts = ['.head .win', '.grid', '.rail', '.ask'];
+  function tick() {
+    fetch(location.href, { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.text();
+    }).then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      parts.forEach(function (sel) {
+        var now = document.querySelector(sel), next = doc.querySelector(sel);
+        if (now && next && now.innerHTML !== next.innerHTML) now.innerHTML = next.innerHTML;
+      });
+    }).catch(function () {});
+  }
+  setInterval(tick, 60000);
+  // A long-running TV still picks up a new page design within the day.
+  setTimeout(function () { location.reload(); }, 6 * 3600000);
+})();
+</script>
 </body>
 </html>

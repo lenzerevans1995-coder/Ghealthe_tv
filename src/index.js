@@ -59,7 +59,7 @@ import CONTEST_FLYER from '../assets/contest-flyer-august.jpg';
 import { classify } from './classify.js';
 import { DEMO_SNAPSHOT } from './demo.js';
 import { AGENT_PATHS, handleAgentRoute, recordAgentSale, aep2027Feed } from './agent.js';
-import { handleTpvIngest, tpvBoard } from './tpv.js';
+import { handleTpvIngest, tpvBoard, recordTpvEvent } from './tpv.js';
 
 // Snapshots arrive every 10 min (six staggered hourly Routines); the badge
 // threshold tolerates one missed cycle plus generation time so it only shows
@@ -948,6 +948,11 @@ async function handleWebhook(request, env) {
   const event = JSON.parse(raw);
   await noteWebhook(env, { signature: 'verified', raw, type: event.event ?? event.event_type ?? event.type ?? null });
   const policy = event.policy || event; // payload shape verified at milestone 3
+
+  // The TPV board reads HRAs and checked TPVs off the same delivery, HRAs
+  // included (the counters below skip them). Best-effort, like the rest.
+  try { await recordTpvEvent(env, event, policy); } catch (e) { /* the hourly push catches it */ }
+
   const product = classify({
     policy_type: policy.policy_type ?? policy.type,
     carrier_name: policy.carrier_name ?? policy.carrier,
