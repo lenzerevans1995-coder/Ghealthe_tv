@@ -33,7 +33,7 @@ MONTH_ABBR = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oc
 def read_sheets(path):
     sheets, cur = {}, None
     for ln in open(path, encoding='utf-8').read().split('\n'):
-        m = re.match(r'## Sheet: (.*?) — (\d+) rows', ln)
+        m = re.match(r'## Sheet: (.*?) — (\d+) rows?', ln)
         if m:
             cur = m.group(1)
             sheets[cur] = {'declared': int(m.group(2)), 'rows': []}
