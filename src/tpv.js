@@ -7,15 +7,18 @@
 // The Routine runs one query and posts per-rep counts only:
 //   TPV  policies whose TPV_Completed custom field is checked, credited to the
 //        rep named in the TPV_Agent custom field (HRA policies excluded)
-//   HRA  HRA policies submitted by one of the TPV reps
+//   HRA  HRA policies submitted by one of the TPV reps, counted only once the
+//        same client has a TPV credited to that rep (and never more HRAs than
+//        TPVs for a client), so HRAs can't run ahead of the TPVs behind them
 // both for the current month by Eastern submitted date. A checked TPV with no
 // TPV_Agent lands in the muted row. The page is the user's template minus the
 // Mail-Order, Video and IHWV columns (Onyx has no field for them).
 //
-// Between pushes the Onyx webhook moves the board: an HRA policy from a TPV rep,
-// or a delivery whose policy already carries TPV_Completed, is recorded in
+// Between pushes the Onyx webhook moves the board: a delivery whose policy
+// already carries TPV_Completed, or an HRA policy from a TPV rep, is recorded in
 // tpv_events the first time it is seen and added on top of the last push if it
-// arrived after it. The hourly push is the source of truth, so anything the
+// arrived after it. A live HRA counts only against a live TPV for the same
+// client and rep; any other HRA waits for the push, which matches it properly. The hourly push is the source of truth, so anything the
 // webhook misses or double-counts heals within the hour. The page fetches
 // itself every minute and swaps in the new numbers without a reload.
 
@@ -41,7 +44,7 @@ const TPV_REPS = [
 const REP_BY_ID = new Map(TPV_REPS.map((r) => [r.id, r.name]));
 const REP_BY_LABEL = new Map(TPV_REPS.map((r) => [r.label.toLowerCase(), r.name]));
 
-const TPV_TABLE = 'CREATE TABLE IF NOT EXISTS tpv_events (policy_id INTEGER PRIMARY KEY, kind TEXT NOT NULL, rep TEXT, submitted_at TEXT NOT NULL, first_at TEXT NOT NULL)';
+const TPV_TABLE = 'CREATE TABLE IF NOT EXISTS tpv_events (policy_id INTEGER PRIMARY KEY, kind TEXT NOT NULL, rep TEXT, person_id INTEGER, submitted_at TEXT NOT NULL, first_at TEXT NOT NULL)';
 
 function etDate(iso) {
   const d = new Date(iso);
@@ -79,9 +82,10 @@ export async function recordTpvEvent(env, event, policy) {
     }
   }
   if (!kind) return;
+  const person = Number(event?.person?.person_id);
   const insert = () => env.DB.prepare(
-    'INSERT OR IGNORE INTO tpv_events (policy_id, kind, rep, submitted_at, first_at) VALUES (?, ?, ?, ?, ?)'
-  ).bind(policyId, kind, rep, submitted, new Date().toISOString()).run();
+    'INSERT OR IGNORE INTO tpv_events (policy_id, kind, rep, person_id, submitted_at, first_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(policyId, kind, rep, Number.isInteger(person) ? person : null, submitted, new Date().toISOString()).run();
   try {
     await insert();
   } catch (e) {
@@ -98,13 +102,22 @@ async function withLive(env, rec) {
   if (!today || today.slice(0, 7) !== rec.date.slice(0, 7)) return rec;
   let rows = [];
   try {
-    rows = (await env.DB.prepare('SELECT kind, rep, submitted_at FROM tpv_events WHERE first_at > ?')
+    rows = (await env.DB.prepare('SELECT kind, rep, person_id, submitted_at FROM tpv_events WHERE first_at > ? ORDER BY kind DESC')
       .bind(rec.generated_at).all()).results || [];
   } catch (e) { return rec; }
   const out = { ...rec, date: today, reps: rec.reps.map((r) => ({ ...r })), no_rep: { ...rec.no_rep }, floor: { ...rec.floor } };
+  // TPVs first (kind DESC), so each live HRA can claim a live TPV for the same
+  // client and rep; one TPV backs at most one HRA.
+  const backing = new Map();
   for (const e of rows) {
     const day = etDate(e.submitted_at);
     if (!day || day.slice(0, 7) !== today.slice(0, 7) || day > today) continue;
+    const key = `${e.person_id}|${e.rep}`;
+    if (e.kind === 'tpv' && e.rep && e.person_id != null) backing.set(key, (backing.get(key) || 0) + 1);
+    if (e.kind === 'hra') {
+      if (!backing.get(key)) continue;
+      backing.set(key, backing.get(key) - 1);
+    }
     if (e.kind === 'tpv' && !e.rep) {
       out.no_rep.tpv += 1;
     } else {
@@ -135,6 +148,13 @@ export async function handleTpvIngest(request, env, checkBearer) {
     reps.some((r) => !NAME.test(String(r?.name || '')) || COLS.some((c) => !count(r[c]))) ||
     !count(nobody.tpv) || !count(nobody.hra) || COLS.some((c) => !count(floor[c]));
   if (bad) return new Response('need date, reps [{name, tpv, hra}], no_rep {tpv, hra} and floor {tpv, hra}', { status: 400 });
+
+  // An HRA only counts against its client's TPV, so a rep can't have more
+  // HRAs than TPVs; a push that says otherwise was copied wrong.
+  if (body.source === 'onyx') {
+    const over = reps.find((r) => r.hra > r.tpv);
+    if (over) return new Response(`${over.name} has ${over.hra} HRA but ${over.tpv} TPV`, { status: 400 });
+  }
 
   // The floor row must reconcile with the rows above it, or the board would
   // show a total nobody can add up to.

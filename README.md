@@ -158,13 +158,15 @@ fits it without script scaling.
 `/board/tpv` (open, listed on `/tv`) is the TPV Completions board: TPVs and HRAs by Benefit Rep
 for the current month, from Onyx. A TPV is a policy whose `TPV_Completed` custom field is checked,
 credited to the rep in its `TPV_Agent` custom field (HRA policies are left out). An HRA is an HRA
-policy submitted by one of the TPV reps. Both count by Eastern submitted date. A checked TPV with no
+policy submitted by one of the TPV reps, counted only once the same client (Onyx person) has a TPV
+credited to that rep, and never more HRAs than TPVs for one client, so a rep's HRAs can't run ahead
+of their TPVs; the Worker refuses a push where they do. Both count by Eastern submitted date. A checked TPV with no
 `TPV_Agent` shows in the muted "No TPV agent set" row. A Routine runs the query hourly (Mon–Sat)
 and POSTs per-rep counts to `/ingest/tpv` with the ingest secret. The Worker checks that the rows
 add up to the Floor row, stores kv `tpv_board`, and fills the template on each read. Between
-pushes the Onyx webhook moves it: an HRA policy from a TPV rep, or a delivery whose policy already
-has `TPV_Completed` checked, is recorded once in `tpv_events` and added on top of the last push if
-it arrived after it (the next push absorbs it, so a miss or a repeat heals within the hour). The
+pushes the Onyx webhook moves it: a delivery whose policy already has `TPV_Completed` checked, or
+an HRA policy from a TPV rep, is recorded once in `tpv_events` and added on top of the last push if
+it arrived after it (a live HRA only against a live TPV for the same client and rep) (the next push absorbs it, so a miss or a repeat heals within the hour). The
 page fetches itself every minute and swaps in the new numbers without reloading. Mail-Order, Video and IHWV were dropped on 10/17 because Onyx has
 no field for them. The spreadsheet pipeline in `tpv/` (TPV Tracker.xlsx counted by
 `tpv/build_tpv_board.py`) is retired but kept for reference.
